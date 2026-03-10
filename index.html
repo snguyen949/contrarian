@@ -1346,6 +1346,16 @@ function propagateData(){
 
   // Re-render crisis detail if Iran is selected
   if(typeof renderCrisisDetail==='function') renderCrisisDetail();
+
+  // Re-render SVG chart with live SPY price
+  if(typeof renderSvgChart==='function') renderSvgChart();
+
+  // Re-detect and re-render conflict/tariff cycle phases
+  if(typeof renderConflictSteps==='function') renderConflictSteps();
+  if(typeof renderTariffSteps==='function') renderTariffSteps();
+
+  // Update Coulling matrix Iran column with live data
+  if(typeof updateCoullingIran==='function') updateCoullingIran();
 }
 
 // Initial render
@@ -1475,7 +1485,40 @@ const checks=[
   {key:'crypto',label:'Crypto F&G ≤ 15',threshold:'Cross-asset risk-off extreme'},
 ];
 
-document.getElementById('coulling-matrix').innerHTML=`
+// Initial render handled by renderCoullingMatrix() below
+
+function updateCoullingIran(){
+  const p=pulseState;
+  if(!p.spyPrice&&!p.vix) return;
+  const iran=coullingData.find(c=>c.id==='iran');
+  if(!iran) return;
+  // Update Iran column with live data
+  if(p.spyVol&&p.spy20dAvgVol){
+    const ratio=(p.spyVol/p.spy20dAvgVol).toFixed(1);
+    iran.vol={val:ratio+'x',pass:parseFloat(ratio)>=2.0,detail:p.spyVol?(Math.round(p.spyVol/1e6)/1e3).toFixed(1)+'B shares':'--'};
+  }
+  if(p.vix){
+    iran.vix={val:p.vix.toFixed(1),pass:p.vix>=35,detail:p.vix>=35?'Panic level':p.vix>=25?'Elevated, not panic':'Below threshold'};
+  }
+  if(p.cnnFG!==null){
+    iran.fg={val:String(p.cnnFG),pass:p.cnnFG<=14,detail:p.cnnFG<=14?'Extreme fear':p.cnnFG<=25?'Fear, not extreme':'Not fearful enough'};
+  }
+  if(p.spyPctFromATH!==null&&p.spyPctFromATH!==undefined){
+    iran.dd={val:'-'+p.spyPctFromATH.toFixed(1)+'%',pass:p.spyPctFromATH>=10,detail:'$698 → $'+Math.round(p.spyPrice)};
+  }
+  if(p.cryptoFG!==null){
+    iran.crypto={val:String(p.cryptoFG),pass:p.cryptoFG<=15,detail:p.cryptoFGLabel||''};
+  }
+  // Recalc score
+  iran.score=[iran.vol,iran.vix,iran.fg,iran.dd,iran.crypto].filter(c=>c.pass).length;
+  iran.result=iran.score>=4?'BUY SIGNAL — '+iran.score+'/5 checks green':iran.score>=2?'Developing — '+iran.score+'/5':'Waiting — setup incomplete';
+  iran.resultCol=iran.score>=4?'#22c55e':iran.score>=2?'#f59e0b':'#f97316';
+  // Re-render the entire matrix
+  renderCoullingMatrix();
+}
+
+function renderCoullingMatrix(){
+  document.getElementById('coulling-matrix').innerHTML=`
   <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead>
@@ -1521,17 +1564,19 @@ document.getElementById('coulling-matrix').innerHTML=`
   <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px">
     <div style="flex:1;min-width:200px;padding:12px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.12);border-radius:8px">
       <div style="font-size:11px;font-weight:700;color:#22c55e;margin-bottom:4px">5/5 Events (COVID, Tariff)</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.5">Most violent bottoms, most rewarding entries. 3x+ volume = forced liquidation flushing retail while institutions absorb. These produced the fastest, largest rallies.</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.5">Most violent bottoms, most rewarding entries. 3x+ volume = forced liquidation flushing retail while institutions absorb.</div>
     </div>
     <div style="flex:1;min-width:200px;padding:12px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.12);border-radius:8px">
       <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:4px">4/5 Events (Inflation 2022)</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.5">Volume was the missing piece — selloff was gradual, not panic. Smart money accumulated slowly through Q4. Still excellent entry, but 24 months to new ATH vs weeks/months for 5/5.</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.5">Volume was the missing piece — gradual selloff, not panic. Still excellent entry but slower recovery.</div>
     </div>
     <div style="flex:1;min-width:200px;padding:12px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.12);border-radius:8px">
-      <div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:4px">1/5 Now (Iran) — No Signal</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.5">Only crypto fear is extreme. No capitulation volume, no extreme VIX, no extreme CNN fear, barely any drawdown. The dashboard says WAIT. Crypto F&G at 12 while SPY only -3.8% = crypto is pricing more fear than equities.</div>
+      <div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:4px">${coullingData.find(c=>c.id==='iran').score}/5 Now (Iran)</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.5">${coullingData.find(c=>c.id==='iran').score>=4?'Approaching buy signal — watch for volume confirmation':'Setup incomplete. Dashboard says WAIT until 4/5 checks are green.'}</div>
     </div>
   </div>`;
+}
+renderCoullingMatrix();
 
 // ===== VOLUME AT CAPITULATION =====
 const volData=[
@@ -1658,7 +1703,8 @@ document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
 }).join('');
 
 // ===== SVG CHART =====
-(function(){
+function renderSvgChart(){
+  const livePrice=pulseState.spyPrice||672;
   const pts = [
     {y:2014,p:178},{y:2015,p:205},{y:2016,p:210},{y:2017,p:260},{y:2018,p:280},{y:2019,p:320},
     {y:2020,p:218,l:"COVID|$218",ev:1},{y:2020.5,p:340},{y:2021,p:460},
@@ -1666,7 +1712,7 @@ document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
     {y:2023,p:450},{y:2023.5,p:480},{y:2024,p:530},{y:2024.3,p:565,l:"ATH $565",ath:1},
     {y:2024.5,p:510,l:"Yen|$510",ev:1},{y:2024.8,p:585},{y:2025,p:565},
     {y:2025.3,p:482,l:"Tariff|$482",ev:1},{y:2025.5,p:560},{y:2025.8,p:650},
-    {y:2026,p:698,l:"ATH $698",ath:1},{y:2026.2,p:672,l:"NOW $672",cur:1}
+    {y:2026,p:698,l:"ATH $698",ath:1},{y:2026.2,p:livePrice,l:"NOW $"+Math.round(livePrice),cur:1}
   ];
   const W=740,H=320,pL=50,pR=30,pT=40,pB=40,cW=W-pL-pR,cH=H-pT-pB,mnY=160,mxY=720,mnX=2014,mxX=2026.5;
   const sx=x=>pL+((x-mnX)/(mxX-mnX))*cW, sy=y=>pT+cH-((y-mnY)/(mxY-mnY))*cH;
@@ -1711,7 +1757,8 @@ document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
       <path d="${pathD}" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" style="filter:drop-shadow(0 0 4px rgba(34,211,238,0.4))"/>
       ${projZone}${retestLabels}${dots}${buyLabels}
     </svg>`;
-})();
+}
+renderSvgChart();
 
 // ===== EVIDENCE TABLE =====
 const evidence=[
@@ -1930,8 +1977,32 @@ const conflictSteps=[
   {step:10,name:"Violent Repricing & Victory Lap",desc:"Positions unwind abruptly. Markets reprice not on improving fundamentals, but on collapsing worst-case probabilities.",marker:"Oil crashes, VIX implodes, equities gap up violently. Record single-day gains.",market:"SPY gaps +3–5%. Oil drops 15–20%. VIX crashes to teens. New ATH within weeks.",smartMoney:"Taking profits on the rip. Rotating into next opportunity.",timing:"Days after deal announcement",iranStatus:"NOT YET — This is where the squeeze to ATH occurs",iranDate:"TBD"},
 ];
 
-const currentConflictStep=6; // Step 6 ACTIVE based on current conditions
+let currentConflictStep=6; // Default — will be auto-detected on fetch
+
+function detectConflictPhase(){
+  const p=pulseState;
+  // Detection logic based on Kobeissi's markers
+  // Step 10: Deal announced, violent repricing — VIX <18, SPY making new ATH
+  if(p.spyPrice&&p.spyPrice>=695&&p.vix&&p.vix<18) return 10;
+  // Step 9: Deal framing — ceasefire headlines, VIX dropping, SPY recovering fast
+  if(p.spyPrice&&p.spyPrice>=685&&p.vix&&p.vix<22) return 9;
+  // Step 8: Market feedback loop — Oil >$90 sustained AND labor cracking, forcing Trump's hand
+  if(p.oilPrice&&p.oilPrice>=90&&p.tnx&&p.tnx>=4.5) return 8;
+  // Step 7: Conditional de-escalation — VIX plateauing/dropping, oil stops making new highs, selling exhausts
+  // Detected by: VIX declining from peak AND SPY stabilizing (not making new lows)
+  if(p.vix&&p.vix>=25&&p.vix<35&&p.spyPctFromATH&&p.spyPctFromATH>=5&&p.spyPctFromATH<=12) return 7;
+  // Step 6: Markets pricing prolonged conflict — Oil >$85, equities new weekly lows, VIX elevated
+  if(p.oilPrice&&p.oilPrice>=80&&p.vix&&p.vix>=22) return 6;
+  // Step 5: "Forever" conflict rhetoric — VIX spiking, initial dip buyers getting trapped
+  if(p.vix&&p.vix>=20&&p.vix<25&&p.spyPctFromATH&&p.spyPctFromATH>=2) return 5;
+  // Step 4: Risk premium expansion — initial shock, partial reversal
+  if(p.vix&&p.vix>=18&&p.spyPctFromATH&&p.spyPctFromATH>=1) return 4;
+  // Steps 1-3: Pre-strike / strike phase
+  return 3;
+}
+
 function renderConflictSteps(){
+  currentConflictStep=detectConflictPhase();
   document.getElementById('conflict-phase').textContent='Step '+currentConflictStep+' of 10';
   document.getElementById('conflict-phase-name').textContent='— '+conflictSteps[currentConflictStep-1].name;
   document.getElementById('conflict-steps').innerHTML=conflictSteps.map(s=>{
@@ -1981,8 +2052,20 @@ const tariffSteps=[
   {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Volatility is the feature, not the bug.",marker:"New country/sector targeted. 'We're looking at [X] very strongly.'",market:"Markets initially ignore, then the cycle restarts.",timing:"Weeks to months later",buy:"Reload cash. Wait for Step 5–7."},
 ];
 
-const currentTariffStep=0; // 0 = not in active tariff cycle. Set >0 when active.
+let currentTariffStep=0; // 0 = dormant
+
+function detectTariffPhase(){
+  // Tariff cycle is secondary to conflict. Only activate if tariff headlines are dominant.
+  // For now, check if 10Y yield is spiking (the Kobeissi bond market trigger)
+  // and conflict cycle is NOT active (VIX < 20 = no active conflict)
+  const p=pulseState;
+  if(p.vix&&p.vix>=22) return 0; // Conflict cycle dominant
+  // TODO: activate when tariff headlines re-emerge
+  return 0;
+}
+
 function renderTariffSteps(){
+  currentTariffStep=detectTariffPhase();
   if(currentTariffStep>0){
     document.getElementById('tariff-phase').textContent='Step '+currentTariffStep+' of 13';
     document.getElementById('tariff-phase-name').textContent='— '+tariffSteps[currentTariffStep-1].name;
