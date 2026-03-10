@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fear Meter & Sentiment — Crisis Comparison Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --card: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.06);
+    --text: #e2e8f0;
+    --muted: rgba(255,255,255,0.35);
+    --dim: rgba(255,255,255,0.25);
+    --red: #ef4444;
+    --orange: #f97316;
+    --amber: #f59e0b;
+    --green: #22c55e;
+    --cyan: #22d3ee;
+    --purple: #a855f7;
+    --blue: #3b82f6;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', 'Segoe UI', sans-serif;
+    --display: 'Playfair Display', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  .ambient-1 { position: fixed; top: -200px; right: -200px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(239,68,68,0.08) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+  .ambient-2 { position: fixed; bottom: -300px; left: -200px; width: 800px; height: 800px; background: radial-gradient(circle, rgba(34,211,238,0.05) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; position: relative; z-index: 1; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px var(--red); animation: pulse 2s infinite; }
+
+  .header-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 3px; color: var(--red); font-weight: 700; }
+  h1 { font-size: clamp(26px, 4.5vw, 40px); font-family: var(--display); font-weight: 900; line-height: 1.1; background: linear-gradient(135deg, #e2e8f0, #94a3b8, #e2e8f0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    padding: 10px 18px; border: none; border-bottom: 2px solid transparent;
+    background: none; color: var(--muted); font-size: 12px; font-weight: 700;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.2s; font-family: var(--sans);
+  }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .tab-btn:hover { color: rgba(255,255,255,0.6); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Cards grid */
+  .snapshot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .snap-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 12px; position: relative; overflow: hidden;
+  }
+  .snap-card .top-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .snap-card .label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.3); font-weight: 600; margin-bottom: 6px; }
+  .snap-card .value { font-size: 24px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+  .snap-card .sub { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin-top: 3px; }
+  .snap-card .note { font-size: 9px; color: rgba(255,255,255,0.2); margin-top: 4px; font-style: italic; }
+
+  /* Panel cards */
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 28px; }
+  .panel-title { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 14px; font-weight: 700; }
+
+  /* Bar charts */
+  .bar-section { margin-bottom: 20px; }
+  .bar-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; font-weight: 700; }
+  .bar-row { display: flex; align-items: center; margin-bottom: 5px; }
+  .bar-date { width: 82px; font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 500; flex-shrink: 0; }
+  .bar-date.highlight { color: var(--cyan); font-weight: 700; }
+  .bar-track { flex: 1; height: 20px; background: rgba(255,255,255,0.04); border-radius: 4px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 1.2s ease; }
+  .bar-fill.highlight { box-shadow: 0 0 12px rgba(34,211,238,0.3); border: 1px solid rgba(34,211,238,0.3); }
+  .bar-val { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.8); font-family: var(--mono); }
+
+  .bars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 28px; }
+
+  /* Gauges */
+  .gauges-row { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 12px; }
+  .gauge-item { text-align: center; padding: 4px; }
+  .gauge-item.dim { opacity: 0.7; }
+  .gauge-label { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+  .gauge-wrapper { position: relative; display: inline-block; }
+  .gauge-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .gauge-text .num { font-weight: 800; font-family: var(--mono); }
+  .gauge-text .of { font-size: 9px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
+
+  .insight-box { text-align: center; margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 12px; color: rgba(255,255,255,0.55); }
+
+  /* Why different grid */
+  .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .why-card { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 14px; border: 1px solid rgba(255,255,255,0.04); }
+  .why-card .icon { font-size: 20px; margin-bottom: 6px; }
+  .why-card .title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.75); margin-bottom: 4px; }
+  .why-card .desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* Retest cards */
+  .retest-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .retest-card { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 14px; }
+  .retest-card .period { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .retest-card .prices { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+  .retest-card .result { font-size: 12px; font-weight: 700; margin-top: 4px; }
+  .retest-card .accuracy { font-size: 10px; color: var(--dim); margin-top: 4px; }
+
+  /* Evidence table */
+  .evidence-row { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; }
+  .evidence-row:last-child { border-bottom: none; }
+  .evidence-left { width: 110px; flex-shrink: 0; }
+  .evidence-left .name { font-size: 12px; font-weight: 700; }
+  .evidence-left .price { font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.7); font-family: var(--mono); }
+  .evidence-right { flex: 1; min-width: 200px; }
+  .evidence-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; font-size: 11px; }
+  .evidence-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Structure explainer */
+  .structure-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+
+  /* Accumulation zones */
+  .price-bar-container { position: relative; margin-bottom: 36px; padding: 0 10px; }
+  .price-bar-bg { height: 50px; background: linear-gradient(90deg, var(--red), var(--orange), var(--amber), var(--green), var(--cyan)); border-radius: 10px; opacity: 0.15; }
+  .zone-overlay { position: absolute; top: 0; height: 50px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: var(--mono); }
+  .ath-retest-border { position: absolute; top: -8px; height: 66px; border: 2px dashed var(--purple); border-radius: 6px; pointer-events: none; }
+  .ath-retest-label { position: absolute; top: -22px; font-size: 9px; color: var(--purple); font-weight: 700; font-family: var(--mono); }
+  .now-marker { position: absolute; top: -10px; transform: translateX(-50%); text-align: center; }
+  .now-line { width: 3px; height: 70px; background: var(--cyan); margin: 0 auto; box-shadow: 0 0 10px rgba(34,211,238,0.4); }
+  .now-label { font-size: 10px; font-weight: 700; color: var(--cyan); margin-top: 2px; font-family: var(--mono); white-space: nowrap; }
+  .price-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; color: rgba(255,255,255,0.2); font-family: var(--mono); }
+
+  /* Tier cards */
+  .tier-card { background: rgba(255,255,255,0.02); border-radius: 0 10px 10px 0; padding: 16px; margin-bottom: 10px; }
+  .tier-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .tier-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #0a0e17; }
+  .tier-name { font-weight: 700; font-size: 14px; }
+  .tier-range { font-size: 13px; font-family: var(--mono); font-weight: 700; }
+  .tier-conditions { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px; }
+  .tier-condition { font-size: 11px; color: rgba(255,255,255,0.4); padding: 3px 0 3px 14px; position: relative; }
+  .tier-dot { position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; opacity: 0.5; }
+
+  /* Convergence */
+  .convergence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 14px; }
+  .conv-card { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 14px; }
+  .conv-title { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+  .conv-desc { font-size: 11px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+  .conv-status { font-size: 11px; font-weight: 600; margin-top: 8px; }
+  .trade-box { margin-top: 16px; padding: 12px 16px; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+
+  /* Returns */
+  .returns-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .return-card { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px; flex: 1 1 70px; }
+  .return-period { font-size: 9px; color: var(--dim); margin-bottom: 3px; }
+  .return-val { font-size: 17px; font-weight: 800; font-family: var(--mono); }
+
+  /* Crisis selector */
+  .crisis-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .crisis-btn {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.45);
+    cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s; font-family: var(--sans);
+  }
+  .crisis-btn.active { border-color: var(--cyan); background: rgba(34,211,238,0.1); color: var(--cyan); }
+  .crisis-btn:hover { color: rgba(255,255,255,0.7); }
+  .crisis-btn .date { font-size: 9px; margin-left: 4px; opacity: 0.5; }
+
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .detail-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.04); padding: 8px 0; }
+  .detail-label { width: 100px; flex-shrink: 0; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); font-weight: 600; padding-top: 2px; }
+  .detail-value { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric-card { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 14px; text-align: center; }
+  .metric-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 4px; }
+  .metric-val { font-size: 22px; font-weight: 800; font-family: var(--mono); }
+  .contrarian-box { grid-column: 1 / -1; border-radius: 8px; padding: 10px; text-align: center; }
+
+  .footer { text-align: center; padding: 16px 0; border-top: 1px solid rgba(255,255,255,0.04); font-size: 10px; color: rgba(255,255,255,0.15); line-height: 1.6; }
+
+  /* SVG chart container */
+  .chart-scroll { overflow-x: auto; }
+  .chart-scroll svg { width: 100%; height: auto; min-width: 600px; }
+</style>
+</head>
+<body>
+
+<div class="ambient-1"></div>
+<div class="ambient-2"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <div class="pulse-dot"></div>
+      <span class="header-tag">Live Crisis Comparison — March 8, 2026</span>
+    </div>
+    <h1>Fear Meter, Sentiment &amp; ATH Retest Pattern</h1>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" style="overflow-x:auto;flex-wrap:nowrap">
+    <button class="tab-btn active" data-tab="pulse">Daily Pulse</button>
+    <button class="tab-btn" data-tab="sentiment">Sentiment</button>
+    <button class="tab-btn" data-tab="retest">ATH Retest</button>
+    <button class="tab-btn" data-tab="squeeze">Squeeze</button>
+    <button class="tab-btn" data-tab="accumulation">Accumulation</button>
+    <button class="tab-btn" data-tab="conflict">Conflict Cycle</button>
+    <button class="tab-btn" data-tab="tariff">Tariff Cycle</button>
+  </div>
+
+  <!-- ============ DAILY PULSE TAB ============ -->
+  <div id="tab-pulse" class="tab-panel active">
+
+    <!-- Fetch controls -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px">
+      <button id="fetch-btn" onclick="fetchAllData()" style="padding:10px 24px;border:1px solid var(--cyan);border-radius:8px;background:rgba(34,211,238,0.1);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1.5px;transition:all 0.2s">
+        ⟳ Fetch Latest Data
+      </button>
+      <span id="fetch-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Click to fetch live data from free APIs</span>
+      <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2);margin-left:auto"></span>
+    </div>
+
+    <!-- Fetch log (appears after fetch) -->
+    <div id="fetch-log" style="margin-bottom:16px"></div>
+
+    <!-- API Keys (collapsed) -->
+    <details style="margin-bottom:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;cursor:pointer">
+      <summary style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);font-weight:700;list-style:none;display:flex;align-items:center;gap:8px">
+        <span>▶</span> API Keys (free — unlocks more live data)
+      </summary>
+      <p style="font-size:10px;color:rgba(255,255,255,0.2);margin:10px 0 12px;line-height:1.6">
+        All free, no credit card. Keys are stored in memory only (cleared on page reload). Enter any or all — the fetch button will use whatever is available.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Alpha Vantage <span style="color:rgba(255,255,255,0.15)">— RSI, SMA, technicals</span></label>
+          <input id="key-alphavantage" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">FRED <span style="color:rgba(255,255,255,0.15)">— HY spreads, macro data</span></label>
+          <input id="key-fred" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Finnhub <span style="color:rgba(255,255,255,0.15)">— real-time quotes, sentiment</span></label>
+          <input id="key-finnhub" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://finnhub.io/register" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">NewsAPI <span style="color:rgba(255,255,255,0.15)">— headline sentiment</span></label>
+          <input id="key-newsapi" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://newsapi.org/register" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
+      </div>
+    </details>
+
+    <!-- Contrarian Score -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,211,238,0.05),rgba(168,85,247,0.03));border-color:rgba(34,211,238,0.12)">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px">
+        <div>
+          <div class="panel-title" style="color:var(--cyan);margin-bottom:6px">Contrarian Buy Signal Score</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.35);max-width:500px;line-height:1.5">
+            Composite of all sentiment, volume, and positioning indicators below. Per Coulling: institutions install fear at lows via headlines to buy cheap from retail. Score of 7+ = strong contrarian buy. Currently tracking <span id="active-signals" style="color:var(--amber);font-weight:700">--</span> of 10 signals.
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div id="contrarian-score" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--amber);line-height:1">--</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">/ 10</div>
+          <div id="score-label" style="font-size:11px;font-weight:700;color:var(--amber);margin-top:4px">WAITING FOR DATA</div>
+        </div>
+        <div style="width:200px">
+          <div style="height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden">
+            <div id="score-bar" style="width:0%;height:100%;border-radius:6px;background:var(--amber);transition:width 0.8s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(255,255,255,0.2);margin-top:3px">
+            <span>NO BUY</span><span>NEUTRAL</span><span>STRONG BUY</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live metric cards grid -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:24px" id="pulse-cards"></div>
+
+    <!-- Manual input section (collapsed) -->
+    <details class="panel" style="cursor:pointer">
+      <summary style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:700;list-style:none;display:flex;align-items:center;gap:8px"><span style="font-size:14px;transition:transform 0.2s" class="toggle-arrow">▶</span> Manual Data Entry (click to expand)</summary>
+      <p style="font-size:11px;color:rgba(255,255,255,0.25);margin:14px 0">Update from CNN, AAII, CBOE. Stored in session memory.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px" id="manual-inputs"></div>
+      <button onclick="recalcScore()" style="margin-top:12px;padding:8px 20px;border:1px solid var(--amber);border-radius:6px;background:rgba(245,158,11,0.1);color:var(--amber);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans)">
+        Recalculate Score
+      </button>
+    </details>
+
+    <!-- Signal breakdown -->
+    <div class="panel">
+      <div class="panel-title">Signal Breakdown — What Each Indicator Is Saying</div>
+      <div id="signal-breakdown"></div>
+    </div>
+
+    <!-- Coulling volume analysis -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(168,85,247,0.04),rgba(34,211,238,0.03));border-color:rgba(168,85,247,0.1)">
+      <div class="panel-title" style="color:var(--purple)">Volume Price Analysis — Coulling Framework (Live)</div>
+      <div id="volume-analysis"></div>
+    </div>
+
+    <!-- Technical Indicators (Alpha Vantage powered) -->
+    <div class="panel">
+      <div class="panel-title">Technical Indicators — Auto-Fetched <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(requires Alpha Vantage key)</span></div>
+      <div id="technicals-panel" style="font-size:11px;color:rgba(255,255,255,0.3)">Enter Alpha Vantage API key above, then click Refresh to populate RSI, SMA, and more.</div>
+    </div>
+
+    <!-- FRED Macro Data -->
+    <div class="panel">
+      <div class="panel-title">Macro Data — Auto-Fetched <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(requires FRED key)</span></div>
+      <div id="fred-panel" style="font-size:11px;color:rgba(255,255,255,0.3)">Enter FRED API key above, then click Refresh to populate HY spreads, unemployment, and more.</div>
+    </div>
+
+    <!-- News Headlines (NewsAPI powered) -->
+    <div class="panel">
+      <div class="panel-title">Live Headlines — Doom Meter <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(requires NewsAPI key)</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-bottom:10px">Per Coulling: when every headline screams crash, institutions are accumulating. Doom Score 8+ = contrarian buy zone.</p>
+      <div id="news-panel" style="font-size:11px;color:rgba(255,255,255,0.3)">Enter NewsAPI key above, then click Refresh to scan latest market headlines.</div>
+    </div>
+  </div>
+
+  <!-- ============ SENTIMENT TAB ============ -->
+  <div id="tab-sentiment" class="tab-panel">
+
+    <!-- Snapshot cards -->
+    <div class="snapshot-grid" id="snapshot-cards"></div>
+
+    <!-- Bars -->
+    <div class="bars-grid">
+      <div class="panel" style="margin-bottom:0">
+        <div id="bars-fg"></div>
+        <div id="bars-vix"></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div id="bars-dd"></div>
+        <div id="bars-aaii"></div>
+      </div>
+    </div>
+
+    <!-- Gauges -->
+    <div class="panel">
+      <div class="panel-title">Capitulation Gauges</div>
+      <div class="gauges-row" id="gauges-row"></div>
+      <div class="insight-box" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15)">
+        <strong style="color:var(--red)">Key:</strong> Every buyable bottom had F&amp;G ≤ 14. Current <strong style="color:var(--amber)">27</strong> = no capitulation.
+      </div>
+    </div>
+
+    <!-- Why different -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(239,68,68,0.06),rgba(239,68,68,0.02));border-color:rgba(239,68,68,0.12)">
+      <div class="panel-title" style="color:var(--red)">Why This Time Is Different</div>
+      <div class="why-grid" id="why-grid"></div>
+    </div>
+
+    <!-- Volume at Capitulation -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(168,85,247,0.05),rgba(34,211,238,0.03));border-color:rgba(168,85,247,0.12)">
+      <div class="panel-title" style="color:var(--purple)">Volume at Capitulation — Anna Coulling's Smart Money Footprint</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;line-height:1.7">
+        Per <em>A Complete Guide to Volume Price Analysis</em>: institutions accumulate at the bottom during retail panic. <strong style="color:var(--cyan)">Record volume at the lows = smart money absorbing supply while headlines scream doom.</strong> Ultra-high volume on down bars followed by narrowing range = accumulation. No extreme volume now = no institutional capitulation bottom being formed yet.
+      </p>
+      <div id="volume-bars"></div>
+      <div style="margin-top:14px;padding:10px 14px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.15);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.55);text-align:center">
+        <strong style="color:var(--purple)">Coulling's Rule:</strong> When volume is 2–3x average on a down bar with narrowing spread, smart money is absorbing. When volume is low on a down bar, there's no institutional demand yet — more downside likely.
+      </div>
+    </div>
+
+    <!-- Headlines at Bottoms -->
+    <div class="panel">
+      <div class="panel-title">Headlines at the Bottom vs Now — The Contrarian Signal</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;line-height:1.7">
+        Institutions use media to install fear at the lows (to buy cheap from panicked retail) and euphoria at the highs (to distribute to greedy retail). <strong style="color:var(--amber)">When every headline screams "end of the world" — that's the buy signal.</strong> When headlines say "new era" — that's the sell signal. Compare the headline severity below.
+      </p>
+      <div id="headline-cards"></div>
+      <div style="margin-top:16px;padding:12px 16px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:6px">The Signal You're Waiting For</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.7">
+          When CNN runs "Is this 2008 all over again?", WSJ says "Worst since the Great Depression", and retail forums are posting "I sold everything" — THAT is when you buy. Right now headlines are measured ("stocks shrug off Iran", "buy the dip") — the fear hasn't peaked. Wait for unanimous doom.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RETEST TAB ============ -->
+  <div id="tab-retest" class="tab-panel">
+
+    <!-- Thesis -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,211,238,0.06),rgba(168,85,247,0.04));border-color:rgba(34,211,238,0.15)">
+      <div class="panel-title" style="color:var(--cyan)">The Pattern — Former ATH Becomes Support</div>
+      <p style="font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:16px">
+        Your monthly SPY chart reveals a <strong style="color:var(--cyan)">structural pattern</strong> repeating at every major correction: <strong style="color:var(--amber)">price pulls back to retest the former all-time high as support</strong>. This isn't coincidence — it's how institutional positioning works. Former resistance becomes support because that's where big money accumulated and will defend.
+      </p>
+      <div class="retest-grid">
+        <div class="retest-card" style="border-left:3px solid var(--green)">
+          <div class="period">2022 Bear Market</div>
+          <div class="prices">Crashed from <strong style="color:var(--blue)">$480</strong> to <strong style="color:var(--green)">$348</strong></div>
+          <div class="result" style="color:var(--green)">Retested pre-COVID ATH $340 ✓</div>
+          <div class="accuracy">Within 2.4% — textbook</div>
+        </div>
+        <div class="retest-card" style="border-left:3px solid var(--blue)">
+          <div class="period">Apr 2025 Tariff Crash</div>
+          <div class="prices">Crashed from <strong style="color:var(--purple)">$585</strong> to <strong style="color:var(--blue)">$482</strong></div>
+          <div class="result" style="color:var(--blue)">Retested Jan 2022 ATH $480 ✓</div>
+          <div class="accuracy">Within 0.4% — near-perfect</div>
+        </div>
+        <div class="retest-card" style="border-left:3px solid var(--amber)">
+          <div class="period">Next Projected</div>
+          <div class="prices">If crashes from <strong style="color:var(--red)">$698</strong> target <strong style="color:var(--amber)">$565–590</strong></div>
+          <div class="result" style="color:var(--amber)">Mid-2024 ATH = next support</div>
+          <div class="accuracy">EMA ribbon + structure converge</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SVG Chart -->
+    <div class="panel">
+      <div class="panel-title">SPY Monthly — ATH Retest Levels (from your TradingView chart)</div>
+      <div class="chart-scroll" id="svg-chart"></div>
+    </div>
+
+    <!-- Evidence -->
+    <div class="panel">
+      <div class="panel-title">Retest Evidence — Price Is Not Coincidence</div>
+      <div id="evidence-table"></div>
+    </div>
+
+    <!-- Why it works -->
+    <div class="panel" style="background:rgba(168,85,247,0.04);border-color:rgba(168,85,247,0.12)">
+      <div class="panel-title" style="color:var(--purple)">Why Former ATH = Support (Market Structure)</div>
+      <div class="structure-grid" id="structure-grid"></div>
+    </div>
+  </div>
+
+  <!-- ============ SQUEEZE TO ATH TAB ============ -->
+  <div id="tab-squeeze" class="tab-panel">
+
+    <!-- Headline probability -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,197,94,0.06),rgba(34,211,238,0.04));border-color:rgba(34,197,94,0.15)">
+      <div class="panel-title" style="color:var(--green)">The Contrarian Read — Why Squeeze > Crash Right Now</div>
+      <p style="font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:16px">
+        Capitulation hasn't occurred — and that's exactly <strong style="color:var(--cyan)">why a squeeze back to ATH is the higher-probability path</strong>. At F&amp;G 27, there are still plenty of sidelined buyers. VIX at 28 means vol-targeting funds haven't de-risked. Put hedges and shorts from the Iran panic are fuel waiting to ignite on any ceasefire headline.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(34,197,94,0.15)">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:8px">Squeeze to ATH</div>
+          <div style="font-size:38px;font-weight:800;color:var(--green);font-family:var(--mono);line-height:1">55-60%</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">SPY $698–720+</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(249,115,22,0.15)">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:8px">Slide then Recover</div>
+          <div style="font-size:38px;font-weight:800;color:var(--orange);font-family:var(--mono);line-height:1">25-30%</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">SPY $620–650 first</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:18px;text-align:center;border:1px solid rgba(239,68,68,0.15)">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:8px">Full Capitulation</div>
+          <div style="font-size:38px;font-weight:800;color:var(--red);font-family:var(--mono);line-height:1">10-15%</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">SPY $565–590</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Polymarket ceasefire odds -->
+    <div class="panel">
+      <div class="panel-title">Polymarket Ceasefire Odds — The Binary Catalyst</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;line-height:1.6">
+        If ceasefire hits → oil collapses to $70–75 → inflation scare evaporates → mechanical unwind of every hedge → violent snap-back to ATH. <strong style="color:var(--cyan)">$12.8M traded on this market since Feb 28.</strong>
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px" id="ceasefire-odds"></div>
+      <div style="padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.12);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.55);text-align:center">
+        <strong style="color:var(--green)">62% by March 31</strong> — Market heavily pricing a near-term resolution. If it hits, oil drops, VIX crushes to 15–18, and vol-targeting funds mechanically re-lever into equities.
+      </div>
+    </div>
+
+    <!-- Squeeze Mechanics -->
+    <div class="panel">
+      <div class="panel-title">Squeeze Mechanics — Why It Works Without Capitulation</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px" id="squeeze-mechanics"></div>
+    </div>
+
+    <!-- Scenario Detail Cards -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,197,94,0.04),rgba(34,211,238,0.03));border-color:rgba(34,197,94,0.1)">
+      <div class="panel-title" style="color:var(--green)">Scenario A: Squeeze to ATH (55–60%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:8px" id="scenario-a-triggers"></div>
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center">
+        <div style="text-align:center">
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Entry</div>
+          <div style="font-size:16px;font-weight:800;color:var(--cyan);font-family:var(--mono)">$670</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2)">→</div>
+        <div style="text-align:center">
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Target</div>
+          <div style="font-size:16px;font-weight:800;color:var(--green);font-family:var(--mono)">$698–720</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2)">|</div>
+        <div style="text-align:center">
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Stop</div>
+          <div style="font-size:16px;font-weight:800;color:var(--red);font-family:var(--mono)">$655</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2)">|</div>
+        <div style="text-align:center">
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">R:R</div>
+          <div style="font-size:16px;font-weight:800;color:var(--amber);font-family:var(--mono)">~3:1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="background:linear-gradient(135deg,rgba(249,115,22,0.04),rgba(239,68,68,0.03));border-color:rgba(249,115,22,0.1)">
+      <div class="panel-title" style="color:var(--orange)">Scenario B: Slide to $620–650, Then Recover (25–30%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px" id="scenario-b-triggers"></div>
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.6;text-align:center">
+        200-DMA at ~$658 gets tested → if it breaks, former breakout ~$590–610 becomes the target. This is where your Tier 1 &amp; Tier 2 accumulation zones sit.
+      </div>
+    </div>
+
+    <div class="panel" style="background:linear-gradient(135deg,rgba(239,68,68,0.04),rgba(239,68,68,0.02));border-color:rgba(239,68,68,0.1)">
+      <div class="panel-title" style="color:var(--red)">Scenario C: Full Capitulation to $565–590 (10–15%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px" id="scenario-c-triggers"></div>
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.6;text-align:center">
+        This is your ATH retest pattern target — but requires extreme fear readings (F&amp;G sub-10, VIX 45+) that aren't present. Monthly EMA Cross Buy signal would fire here.
+      </div>
+    </div>
+
+    <!-- Visual probability bar -->
+    <div class="panel">
+      <div class="panel-title">Probability-Weighted SPY Path</div>
+      <div style="position:relative;margin-bottom:24px">
+        <!-- The bar -->
+        <div style="display:flex;height:44px;border-radius:10px;overflow:hidden;margin-bottom:8px">
+          <div style="width:60%;background:linear-gradient(90deg,#166534,var(--green));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#0a0e17;font-family:var(--mono);position:relative">
+            SQUEEZE 55–60%
+          </div>
+          <div style="width:27%;background:linear-gradient(90deg,#9a3412,var(--orange));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0e17;font-family:var(--mono)">
+            SLIDE 25–30%
+          </div>
+          <div style="width:13%;background:linear-gradient(90deg,#991b1b,var(--red));display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0a0e17;font-family:var(--mono)">
+            CRASH
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.25);font-family:var(--mono)">
+          <span>$698–720+ ATH</span>
+          <span>$620–650</span>
+          <span>$565–590</span>
+        </div>
+      </div>
+
+      <!-- Key insight -->
+      <div style="padding:14px 18px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:6px">The Uncomfortable Truth</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.7">
+          The contrarian trade right now isn't waiting for $590 — the market probably squeezes higher first. The worst outcome is sitting in cash while SPY rips to $720 on a ceasefire headline. Let the squeeze play out. If it fails at $700 on the 3rd or 4th attempt with deteriorating breadth — <strong style="color:var(--cyan)">THAT</strong> becomes the high-probability short setup that eventually takes you to your accumulation zone.
+        </div>
+      </div>
+    </div>
+
+    <!-- Key levels quick ref -->
+    <div class="panel">
+      <div class="panel-title">Key Levels Quick Reference</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px" id="key-levels"></div>
+    </div>
+  </div>
+
+  <!-- ============ ACCUMULATION TAB ============ -->
+  <div id="tab-accumulation" class="tab-panel">
+
+    <div class="panel">
+      <div class="panel-title">SPY Accumulation Playbook — Retest + Sentiment</div>
+      <p style="font-size:11px;color:var(--dim);margin-bottom:20px">Tiered entry when BOTH price levels AND sentiment extremes align</p>
+
+      <!-- Price bar -->
+      <div class="price-bar-container">
+        <div class="price-bar-bg"></div>
+        <!-- Zones injected by JS -->
+        <div class="zone-overlay" style="left:8.33%;width:43.75%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:var(--red)">T3: $480–565</div>
+        <div class="zone-overlay" style="left:54.17%;width:16.67%;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);color:var(--orange)">T2: $590–630</div>
+        <div class="zone-overlay" style="left:75%;width:8.33%;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--amber)">T1: $640–660</div>
+        <div class="ath-retest-border" style="left:43.75%;width:18.75%"></div>
+        <div class="ath-retest-label" style="left:45%">ATH RETEST</div>
+        <div class="now-marker" style="left:88.33%">
+          <div class="now-line"></div>
+          <div class="now-label">$672 NOW</div>
+        </div>
+        <div class="price-labels">
+          <span>$480</span><span>$520</span><span>$565</span><span>$590</span><span>$630</span><span>$660</span><span>$698</span>
+        </div>
+      </div>
+
+      <!-- Tiers -->
+      <div id="tier-cards"></div>
+    </div>
+
+    <!-- Convergence -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,211,238,0.06),rgba(249,115,22,0.04));border-color:rgba(34,211,238,0.15)">
+      <div class="panel-title" style="color:var(--cyan)">The Convergence — Sentiment + Structure</div>
+      <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7">
+        Contrarians (@davidhcontrarian, @2kaykim) were right at every bottom because <strong style="color:var(--cyan)">two things aligned</strong>:
+      </p>
+      <div class="convergence-grid">
+        <div class="conv-card" style="border:1px solid rgba(239,68,68,0.1)">
+          <div class="conv-title" style="color:var(--red)">1. Extreme Sentiment</div>
+          <div class="conv-desc">F&amp;G ≤ 14, VIX 40+, AAII bearish 50%+. Emotional capitulation that creates seller exhaustion.</div>
+          <div class="conv-status" style="color:var(--red)">Current: ✗ Not there (F&amp;G 27, VIX 28)</div>
+        </div>
+        <div class="conv-card" style="border:1px solid rgba(168,85,247,0.1)">
+          <div class="conv-title" style="color:var(--purple)">2. Structural Support</div>
+          <div class="conv-desc">Price retests former ATH while monthly EMA ribbon catches up. Institutional demand absorbs supply.</div>
+          <div class="conv-status" style="color:var(--purple)">Target: $565–610 (mid-2024 ATH zone)</div>
+        </div>
+      </div>
+      <div class="trade-box">
+        <div style="font-size:13px;font-weight:700;color:var(--amber)">The Trade: Wait for BOTH to align.</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">When SPY reaches $590–610 AND F&amp;G below 15 with VIX above 35 — the monthly EMA Cross "Buy" signal will likely fire again.</div>
+      </div>
+    </div>
+
+    <!-- Returns -->
+    <div class="panel">
+      <div class="panel-title">Post-Geopolitical Median Returns (Wells Fargo)</div>
+      <div class="returns-row" id="returns-row"></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--dim);line-height:1.6">
+        Gulf War I: +16% rally. Gulf War II: +14% in 3 months. But those lacked a <span style="color:var(--red)">stagflation overlay</span> + cracking labor.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CONFLICT CYCLE TAB ============ -->
+  <div id="tab-conflict" class="tab-panel">
+    <div class="panel" style="background:linear-gradient(135deg,rgba(239,68,68,0.05),rgba(249,115,22,0.03));border-color:rgba(239,68,68,0.12)">
+      <div class="panel-title" style="color:var(--red)">Trump's Conflict Playbook — Kobeissi Letter (10 Steps)</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:6px">Every conflict since inauguration follows the same pattern. The current Iran war maps directly to this cycle. <strong style="color:var(--cyan)">Identify which step we're on → anticipate what's next → position accordingly.</strong></p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid rgba(34,211,238,0.12)">
+        <span style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Current Phase:</span>
+        <span id="conflict-phase" style="font-size:18px;font-weight:800;color:var(--cyan);font-family:var(--mono)">Detecting...</span>
+        <span id="conflict-phase-name" style="font-size:12px;color:rgba(255,255,255,0.5)"></span>
+      </div>
+    </div>
+    <div id="conflict-steps"></div>
+    <div class="panel" style="background:rgba(34,211,238,0.04);border-color:rgba(34,211,238,0.12)">
+      <div class="panel-title" style="color:var(--cyan)">Key Takeaway</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.7">Every conflict involving Trump since inauguration ended with a deal. Trump is a dealmaker — follow the pattern. Smart money buys when retail sentiment collapses (Step 6–7 transition). The repricing at Step 10 is violent because it's driven by collapsing risk premia and defensive positioning unwinding.</p>
+      <p style="font-size:12px;color:var(--amber);font-weight:600;margin-top:8px">Watch for: Bond market stress (10Y > 4.60%), Oil > $90 sustained, Equity -5%+ from ATH, Gas +10% → these trigger Step 7 de-escalation.</p>
+    </div>
+  </div>
+
+  <!-- ============ TARIFF CYCLE TAB ============ -->
+  <div id="tab-tariff" class="tab-panel">
+    <div class="panel" style="background:linear-gradient(135deg,rgba(245,158,11,0.05),rgba(249,115,22,0.03));border-color:rgba(245,158,11,0.12)">
+      <div class="panel-title" style="color:var(--amber)">Trump's Tariff Playbook — Kobeissi Letter (13 Steps)</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:6px">Tariffs are episodic headwinds by design. They come when markets least expect it, then fizzle away. <strong style="color:var(--cyan)">The playbook repeats from Step 1 every time.</strong> Best traders capitalize on the swings.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid rgba(34,211,238,0.12)">
+        <span style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Current Phase:</span>
+        <span id="tariff-phase" style="font-size:18px;font-weight:800;color:var(--cyan);font-family:var(--mono)">Detecting...</span>
+        <span id="tariff-phase-name" style="font-size:12px;color:rgba(255,255,255,0.5)"></span>
+      </div>
+      <div style="padding:10px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.12);border-radius:8px;font-size:11px;color:rgba(255,255,255,0.45)">
+        <strong style="color:var(--amber)">Bond Market = The Tell.</strong> 10Y Yield rising above 4.60% is Trump's warning sign. That's when he pulls back. Watch bonds, not headlines.
+      </div>
+    </div>
+    <div id="tariff-steps"></div>
+    <div class="panel" style="background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.12)">
+      <div class="panel-title" style="color:var(--amber)">The Pattern in One Line</div>
+      <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;text-align:center"><strong>Threat → Action → Double-down → Markets panic → De-escalation → Deal → New ATH → Repeat.</strong></p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:8px;text-align:center">Smart money buys at Step 7 (dip buyers). Retail sells at Step 5–6 (emotional reaction). The deal at Step 12 sends markets to new records.</p>
+    </div>
+  </div>
+
+  <!-- ============ CRISIS DETAIL (always visible) ============ -->
+  <div class="panel">
+    <div class="panel-title">Deep Dive — Select Crisis</div>
+    <div class="crisis-btns" id="crisis-btns"></div>
+    <div class="detail-grid" id="crisis-detail"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Educational &amp; analysis purposes only. Not financial advice. March 8, 2026.
+    <br>Sources: CNN, AAII, CBOE, Wells Fargo, CNBC, TradingView. Handles: @davidhcontrarian @2kaykim
+  </div>
+</div>
+
+<script>
+// ===== DAILY PULSE ENGINE =====
+const pulseState = {
+  spyPrice:null, spyVol:null, spy20dAvgVol:null, spyPctFromATH:null,
+  vix:null, btcPrice:null, btcChange24h:null,
+  cryptoFG:null, cryptoFGLabel:null,
+  cnnFG:null, aaiiBull:null, aaiiBear:null,
+  putCallRatio:null, pctAbove200dma:null, naaimExposure:null,
+  hySpreads:null
+};
+
+// Thresholds for contrarian scoring
+const signals = [
+  {id:'cnnFG', name:'CNN Fear & Greed', type:'manual', threshold:'≤ 14', score:()=> pulseState.cnnFG!==null && pulseState.cnnFG<=14 ? 1 : pulseState.cnnFG!==null && pulseState.cnnFG<=25 ? 0.5 : 0, reading:()=>pulseState.cnnFG, color:()=>pulseState.cnnFG<=14?'#ef4444':pulseState.cnnFG<=25?'#f97316':pulseState.cnnFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cnnFG<=14?'EXTREME FEAR — contrarian buy zone':pulseState.cnnFG<=25?'FEAR — approaching buy zone':'NOT fearful enough yet'},
+  {id:'vix', name:'VIX', type:'auto', threshold:'≥ 35', score:()=> pulseState.vix!==null && pulseState.vix>=45 ? 1 : pulseState.vix>=35 ? 0.75 : pulseState.vix>=28 ? 0.25 : 0, reading:()=>pulseState.vix, color:()=>pulseState.vix>=45?'#ef4444':pulseState.vix>=35?'#f97316':pulseState.vix>=25?'#f59e0b':'#22c55e', interpret:()=>pulseState.vix>=45?'PANIC — capitulation level VIX':pulseState.vix>=35?'HIGH FEAR — approaching capitulation':pulseState.vix>=25?'Elevated but not extreme':'Low vol — complacent market'},
+  {id:'cryptoFG', name:'Crypto Fear & Greed', type:'auto', threshold:'≤ 15', score:()=> pulseState.cryptoFG!==null && pulseState.cryptoFG<=10 ? 1 : pulseState.cryptoFG<=20 ? 0.75 : pulseState.cryptoFG<=30 ? 0.25 : 0, reading:()=>pulseState.cryptoFG, color:()=>pulseState.cryptoFG<=15?'#ef4444':pulseState.cryptoFG<=25?'#f97316':pulseState.cryptoFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cryptoFG<=15?'EXTREME FEAR — historically 80% positive 30d returns':pulseState.cryptoFG<=25?'FEAR — crypto sentiment very negative':'Not extreme enough'},
+  {id:'aaii', name:'AAII Bear-Bull Spread', type:'manual', threshold:'Bear ≥ 50%', score:()=> pulseState.aaiiBear!==null && pulseState.aaiiBear>=55 ? 1 : pulseState.aaiiBear>=45 ? 0.75 : pulseState.aaiiBear>=38 ? 0.25 : 0, reading:()=>pulseState.aaiiBear!==null?pulseState.aaiiBear+'%':null, color:()=>pulseState.aaiiBear>=50?'#ef4444':pulseState.aaiiBear>=40?'#f97316':pulseState.aaiiBear>=35?'#f59e0b':'#22c55e', interpret:()=>pulseState.aaiiBear>=50?'EXTREME bearish — historically strong contrarian buy':pulseState.aaiiBear>=40?'Very bearish — approaching signal':'Mildly bearish — not extreme'},
+  {id:'putcall', name:'Put/Call Ratio', type:'manual', threshold:'≥ 1.2', score:()=> pulseState.putCallRatio!==null && pulseState.putCallRatio>=1.3 ? 1 : pulseState.putCallRatio>=1.1 ? 0.5 : 0, reading:()=>pulseState.putCallRatio, color:()=>pulseState.putCallRatio>=1.2?'#ef4444':pulseState.putCallRatio>=1.0?'#f97316':pulseState.putCallRatio>=0.8?'#f59e0b':'#22c55e', interpret:()=>pulseState.putCallRatio>=1.2?'Heavy put buying — maximum fear hedging':pulseState.putCallRatio>=1.0?'Elevated hedging activity':'Normal or low hedging'},
+  {id:'spyVolSpike', name:'SPY Volume vs 20d Avg', type:'auto', threshold:'≥ 2.0x', score:()=>{ if(!pulseState.spyVol||!pulseState.spy20dAvgVol)return 0; const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=3?1:r>=2?0.75:r>=1.5?0.25:0; }, reading:()=>pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(1)+'x':null, color:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'#ef4444':r>=1.8?'#f97316':r>=1.3?'#f59e0b':'#22c55e'; }, interpret:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'CAPITULATION VOLUME — Coulling accumulation signal':r>=1.8?'High volume — watch for narrowing spread':r>=1.3?'Above average — some institutional activity':'Normal volume — no panic selling'; }},
+  {id:'spyDrawdown', name:'SPY % from ATH', type:'auto', threshold:'≥ 10%', score:()=>{ const d=pulseState.spyPctFromATH; return d>=20?1:d>=10?0.75:d>=7?0.25:0; }, reading:()=>pulseState.spyPctFromATH!==null?'-'+pulseState.spyPctFromATH.toFixed(1)+'%':null, color:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'#ef4444':d>=10?'#f97316':d>=5?'#f59e0b':'#22c55e'; }, interpret:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'BEAR TERRITORY — deep correction':d>=10?'CORRECTION — historical buy zone':d>=5?'Pullback — not deep enough yet':'Near ATH — no discount'; }},
+  {id:'breadth', name:'% S&P above 200-DMA', type:'manual', threshold:'≤ 40%', score:()=>{ const v=pulseState.pctAbove200dma; return v!==null&&v<=30?1:v<=40?0.75:v<=50?0.25:0; }, reading:()=>pulseState.pctAbove200dma!==null?pulseState.pctAbove200dma+'%':null, color:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'#ef4444':v<=40?'#f97316':v<=50?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'WASHED OUT breadth — most stocks in downtrend':v<=40?'Weak breadth — approaching washout':'Breadth still OK — not a washout'; }},
+  {id:'naaim', name:'NAAIM Exposure Index', type:'manual', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v<=40?0.75:v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
+  {id:'hySpreads', name:'HY Credit Spreads (bps)', type:'manual', threshold:'≥ 500', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v>=500?0.75:v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?pulseState.hySpreads+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic'; }},
+];
+
+// Manual input fields config
+const manualFields = [
+  {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'cnn.com/markets/fear-and-greed'},
+  {id:'aaiiBull',label:'AAII Bullish %',placeholder:'e.g. 33.1',src:'aaii.com/sentimentsurvey'},
+  {id:'aaiiBear',label:'AAII Bearish %',placeholder:'e.g. 35.5',src:'aaii.com/sentimentsurvey'},
+  {id:'putCallRatio',label:'CBOE Put/Call Ratio',placeholder:'e.g. 1.05',src:'cboe.com'},
+  {id:'pctAbove200dma',label:'% S&P above 200-DMA',placeholder:'e.g. 58',src:'stockcharts.com ($SPXA200R)'},
+  {id:'naaimExposure',label:'NAAIM Exposure Index',placeholder:'e.g. 72',src:'naaim.org/programs/naaim-exposure-index'},
+  {id:'hySpreads',label:'HY Spreads (bps)',placeholder:'e.g. 350',src:'fred.stlouisfed.org (BAMLH0A0HYM2)'},
+];
+
+function renderManualInputs(){
+  document.getElementById('manual-inputs').innerHTML = manualFields.map(f=>`
+    <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+      <label style="font-size:10px;color:rgba(255,255,255,0.4);display:block;margin-bottom:4px">${f.label}</label>
+      <input id="input-${f.id}" type="number" step="any" placeholder="${f.placeholder}" value="${pulseState[f.id]||''}"
+        onchange="pulseState['${f.id}']=parseFloat(this.value)||null"
+        style="width:100%;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
+      <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:3px">${f.src}</div>
+    </div>
+  `).join('');
+}
+
+function renderPulseCards(){
+  const fmtChg=(v)=>v!==null&&v!==undefined?(v>0?'+':'')+v.toFixed(2)+'%':'';
+  const chgCol=(v)=>v>0?'#22c55e':v<0?'#ef4444':'#94a3b8';
+  const cards=[
+    {label:'SPY',val:pulseState.spyPrice?'$'+pulseState.spyPrice.toFixed(2):'--',sub:pulseState.spyPctFromATH?'-'+pulseState.spyPctFromATH.toFixed(1)+'% from ATH':'',color:'#22d3ee',type:'auto',date:pulseState.spyDate||'',chg:pulseState.spyChange},
+    {label:'VIX',val:pulseState.vix?pulseState.vix.toFixed(2):'--',sub:pulseState.vix?(pulseState.vix>=35?'PANIC':pulseState.vix>=25?'ELEVATED':'NORMAL'):'',color:pulseState.vix?vixColor(pulseState.vix):'#94a3b8',type:'auto',date:pulseState.vixDate||'',chg:pulseState.vixChange},
+    {label:'SPY Vol',val:pulseState.spyVol?(pulseState.spyVol/1e6).toFixed(1)+'M':'--',sub:pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(2)+'x avg':'',color:pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol>=1.8?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.spyDate||''},
+    {label:'QQQ',val:pulseState.qqqPrice?'$'+pulseState.qqqPrice.toFixed(2):'--',sub:'',color:'#a855f7',type:'auto',date:pulseState.qqqDate||'',chg:pulseState.qqqChange},
+    {label:'IWM',val:pulseState.iwmPrice?'$'+pulseState.iwmPrice.toFixed(2):'--',sub:'',color:'#3b82f6',type:'auto',date:pulseState.iwmDate||'',chg:pulseState.iwmChange},
+    {label:'BTC',val:pulseState.btcPrice?'$'+Math.round(pulseState.btcPrice).toLocaleString():'--',sub:pulseState.btcChange24h?fmtChg(pulseState.btcChange24h)+' 24h':'',color:pulseState.btcChange24h?(pulseState.btcChange24h>=0?'#22c55e':'#ef4444'):'#94a3b8',type:'auto',date:pulseState.btcDate||''},
+    {label:'Oil (WTI)',val:pulseState.oilPrice?'$'+pulseState.oilPrice.toFixed(2):'--',sub:'',color:pulseState.oilPrice?(pulseState.oilPrice>=90?'#ef4444':pulseState.oilPrice>=80?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.oilDate||'',chg:pulseState.oilChange},
+    {label:'10Y Yield',val:pulseState.tnx?pulseState.tnx.toFixed(2)+'%':'--',sub:pulseState.tnx?(pulseState.tnx>=4.6?'DANGER ZONE':pulseState.tnx>=4.3?'ELEVATED':'NORMAL'):'',color:pulseState.tnx?(pulseState.tnx>=4.6?'#ef4444':pulseState.tnx>=4.3?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.tnxDate||''},
+    {label:'Gold',val:pulseState.goldPrice?'$'+Math.round(pulseState.goldPrice).toLocaleString():'--',sub:'Safe haven',color:'#f59e0b',type:'auto',date:pulseState.goldDate||''},
+    {label:'Crypto F&G',val:pulseState.cryptoFG!==null?pulseState.cryptoFG:'--',sub:pulseState.cryptoFGLabel||'',color:pulseState.cryptoFG!==null?fearColor(pulseState.cryptoFG):'#94a3b8',type:'auto',date:pulseState.cryptoFGDate||''},
+    {label:'CNN F&G',val:pulseState.cnnFG!==null?pulseState.cnnFG:'--',sub:pulseState.cnnFG!==null?(pulseState.cnnFG<=14?'EXTREME FEAR':pulseState.cnnFG<=25?'FEAR':pulseState.cnnFG<=40?'FEAR':'NEUTRAL'):'Manual entry',color:pulseState.cnnFG!==null?fearColor(pulseState.cnnFG):'#94a3b8',type:'manual',date:''},
+  ];
+  document.getElementById('pulse-cards').innerHTML=cards.map(c=>`
+    <div class="snap-card">
+      <div class="top-line" style="background:linear-gradient(90deg,transparent,${c.color},transparent)"></div>
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div>
+          <div class="label">${c.label}</div>
+          <div class="value" style="color:${c.color};font-size:20px">${c.val}</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
+            ${c.chg!==undefined&&c.chg!==null?`<span style="font-size:11px;font-weight:700;color:${chgCol(c.chg)};font-family:var(--mono)">${fmtChg(c.chg)}</span>`:''}
+            <span class="sub">${c.sub}</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <span style="font-size:7px;padding:2px 5px;border-radius:3px;background:${c.type==='auto'?'rgba(34,211,238,0.1)':'rgba(245,158,11,0.1)'};color:${c.type==='auto'?'#22d3ee':'#f59e0b'};text-transform:uppercase;letter-spacing:0.5px">${c.type==='auto'?'LIVE':'MANUAL'}</span>
+          ${c.date?`<div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:3px">${c.date}</div>`:''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function recalcScore(){
+  // Read manual inputs
+  manualFields.forEach(f=>{
+    const el=document.getElementById('input-'+f.id);
+    if(el&&el.value)pulseState[f.id]=parseFloat(el.value);
+  });
+  let total=0, active=0;
+  signals.forEach(s=>{
+    const sc=s.score();
+    if(sc>0)active++;
+    total+=sc;
+  });
+  const pct=(total/signals.length)*100;
+  const scoreEl=document.getElementById('contrarian-score');
+  const barEl=document.getElementById('score-bar');
+  const labelEl=document.getElementById('score-label');
+  const activeEl=document.getElementById('active-signals');
+  scoreEl.textContent=total.toFixed(1);
+  activeEl.textContent=active;
+  barEl.style.width=pct+'%';
+  if(total>=7){scoreEl.style.color='#22c55e';barEl.style.background='#22c55e';labelEl.style.color='#22c55e';labelEl.textContent='STRONG CONTRARIAN BUY';}
+  else if(total>=5){scoreEl.style.color='#f59e0b';barEl.style.background='#f59e0b';labelEl.style.color='#f59e0b';labelEl.textContent='APPROACHING BUY ZONE';}
+  else if(total>=3){scoreEl.style.color='#f97316';barEl.style.background='#f97316';labelEl.style.color='#f97316';labelEl.textContent='EARLY SIGNALS — WAIT';}
+  else{scoreEl.style.color='#94a3b8';barEl.style.background='#94a3b8';labelEl.style.color='#94a3b8';labelEl.textContent='NO BUY SIGNAL';}
+
+  // Render signal breakdown
+  document.getElementById('signal-breakdown').innerHTML=signals.map(s=>{
+    const sc=s.score();const r=s.reading();const col=r!==null?s.color():'#555';const interp=r!==null?s.interpret():'No data';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);flex-wrap:wrap">
+      <div style="width:14px;height:14px;border-radius:50%;background:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'rgba(255,255,255,0.1)'};flex-shrink:0;box-shadow:${sc>=0.75?'0 0 8px #22c55e60':'none'}"></div>
+      <div style="width:160px;flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7)">${s.name}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25)">Buy when: ${s.threshold}</div>
+      </div>
+      <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:${col};min-width:70px">${r!==null?r:'--'}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);flex:1;min-width:150px">${interp}</div>
+      <div style="font-size:11px;font-weight:700;font-family:var(--mono);color:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'#555'}">${sc>0?'+'+sc.toFixed(2):'0'}</div>
+    </div>`;
+  }).join('');
+
+  // Coulling volume analysis
+  const volRatio=pulseState.spyVol&&pulseState.spy20dAvgVol?pulseState.spyVol/pulseState.spy20dAvgVol:null;
+  document.getElementById('volume-analysis').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+      <div class="why-card">
+        <div class="title">Volume Ratio</div>
+        <div style="font-size:28px;font-weight:800;font-family:var(--mono);color:${volRatio?( volRatio>=2.5?'#ef4444':volRatio>=1.5?'#f97316':'#22c55e'):'#555'};margin:8px 0">${volRatio?volRatio.toFixed(2)+'x':'--'}</div>
+        <div class="desc">${volRatio?(volRatio>=2.5?'Capitulation-level volume. Coulling: ultra-high vol on down bars with narrowing spread = smart money absorbing retail panic. THIS is the signal.':volRatio>=1.8?'Elevated volume. Watch for narrowing daily range — if spread narrows while volume stays high, accumulation is underway.':volRatio>=1.3?'Slightly above average. Some institutional interest but no panic liquidation. Not capitulation yet.':'Normal volume. No urgency from institutions. No evidence of accumulation or distribution.'):'Fetch data to analyze'}</div>
+      </div>
+      <div class="why-card">
+        <div class="title">Coulling Checklist</div>
+        <div style="margin-top:8px">
+          ${[
+            {check:volRatio>=2.0, label:'Volume ≥ 2x average (forced selling)'},
+            {check:pulseState.vix>=35, label:'VIX ≥ 35 (extreme hedging)'},
+            {check:pulseState.cnnFG!==null&&pulseState.cnnFG<=14, label:'CNN F&G ≤ 14 (extreme fear)'},
+            {check:pulseState.spyPctFromATH>=10, label:'SPY ≥ 10% from ATH (real discount)'},
+            {check:pulseState.cryptoFG!==null&&pulseState.cryptoFG<=15, label:'Crypto F&G ≤ 15 (risk-off extreme)'},
+          ].map(c=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:18px;height:18px;border-radius:4px;border:1px solid ${c.check?'#22c55e':'rgba(255,255,255,0.1)'};background:${c.check?'rgba(34,197,94,0.15)':'transparent'};display:flex;align-items:center;justify-content:center;font-size:11px;color:#22c55e;flex-shrink:0">${c.check?'✓':''}</div>
+            <span style="font-size:11px;color:${c.check?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.3)'}">${c.label}</span>
+          </div>`).join('')}
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:rgba(255,255,255,0.25);line-height:1.5">When 4/5 checks are green, headlines are screaming doom, and volume is 2x+ → institutions are accumulating while retail sells in panic. That's your entry.</div>
+      </div>
+      <div class="why-card">
+        <div class="title">Headline Tone (Manual Assessment)</div>
+        <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6">
+          Check today's front pages. Score 1-5:<br>
+          <strong style="color:#22c55e">1-2:</strong> "Buy the dip", "Stocks shrug off..."<br>
+          <strong style="color:#f59e0b">3:</strong> "Markets brace for...", "Uncertainty rises..."<br>
+          <strong style="color:#f97316">4:</strong> "Worst day since...", "Bear market fears..."<br>
+          <strong style="color:#ef4444">5:</strong> "Crash", "Worst since 1987/2008", "End of the bull"<br><br>
+          <strong>Contrarian buy = Level 5.</strong> When you can't find a single bullish headline, that's the signal.
+        </div>
+      </div>
+    </div>`;
+
+  renderPulseCards();
+}
+
+async function fetchAllData(){
+  const btn=document.getElementById('fetch-btn');
+  const status=document.getElementById('fetch-status');
+  btn.style.opacity='0.5';btn.textContent='⟳ Fetching...';
+  status.textContent='Connecting to free APIs...';
+  const log=[];
+  const SPY_ATH=698;
+
+  // Timeout helper for older browsers
+  function fetchWithTimeout(url,ms=8000){
+    const controller=new AbortController();
+    const tid=setTimeout(()=>controller.abort(),ms);
+    return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(tid));
+  }
+
+  // CORS proxies for Yahoo Finance (tried in order)
+  const PROXIES=[
+    url=>url, // direct (works on some networks)
+    url=>'https://corsproxy.io/?'+encodeURIComponent(url),
+    url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+  ];
+  const PROXY_NAMES=['direct','corsproxy.io','allorigins'];
+  let workingProxy=-1; // cache which proxy works
+
+  async function yahooChart(ticker,range='1mo',interval='1d'){
+    const baseUrl=`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+    // Try cached working proxy first, then all others
+    const order=workingProxy>=0?[workingProxy,...[0,1,2].filter(i=>i!==workingProxy)]:[0,1,2];
+    for(const pi of order){
+      try{
+        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
+        if(!r.ok) continue;
+        const d=await r.json();
+        if(!d.chart||!d.chart.result) continue;
+        const res=d.chart.result[0];
+        const ts=res.timestamp;
+        const q=res.indicators.quote[0];
+        const closes=q.close, volumes=q.volume;
+        let lastIdx=closes.length-1;
+        while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
+        if(lastIdx<0) continue;
+        workingProxy=pi; // cache for subsequent calls
+        const lastDate=new Date(ts[lastIdx]*1000);
+        const validCloses=closes.filter(v=>v!==null);
+        const validVols=volumes?volumes.filter(v=>v!==null):[];
+        return {
+          price:closes[lastIdx],
+          prevClose:lastIdx>0?closes[lastIdx-1]:null,
+          volume:volumes?volumes[lastIdx]:null,
+          avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
+          date:lastDate,
+          dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+          allCloses:validCloses,
+          allVols:validVols,
+          proxy:PROXY_NAMES[pi],
+          ok:true
+        };
+      }catch(e){ continue; }
+    }
+    return {ok:false};
+  }
+
+  // 1) Crypto Fear & Greed (most reliable)
+  status.textContent='Fetching Crypto Fear & Greed...';
+  try{
+    const r=await fetch('https://api.alternative.me/fng/?limit=1');
+    const d=await r.json();
+    pulseState.cryptoFG=parseInt(d.data[0].value);
+    pulseState.cryptoFGLabel=d.data[0].value_classification;
+    pulseState.cryptoFGDate=new Date(d.data[0].timestamp*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    log.push({src:'Crypto F&G',val:pulseState.cryptoFG+' ('+pulseState.cryptoFGLabel+')',date:pulseState.cryptoFGDate,ok:true});
+  }catch(e){ log.push({src:'Crypto F&G',val:'--',date:'--',ok:false}); }
+
+  // 2) BTC from CoinGecko
+  status.textContent='Fetching BTC price...';
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true');
+    const d=await r.json();
+    pulseState.btcPrice=d.bitcoin.usd;
+    pulseState.btcChange24h=d.bitcoin.usd_24h_change;
+    pulseState.btcDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})+' (live)';
+    log.push({src:'BTC',val:'$'+Math.round(pulseState.btcPrice).toLocaleString(),date:pulseState.btcDate,ok:true});
+  }catch(e){ log.push({src:'BTC',val:'--',date:'--',ok:false}); }
+
+  // 3) SPY
+  status.textContent='Fetching SPY...';
+  const spyData=await yahooChart('SPY','1mo','1d');
+  if(spyData.ok){
+    pulseState.spyPrice=spyData.price;
+    pulseState.spyPrevClose=spyData.prevClose;
+    pulseState.spyVol=spyData.volume;
+    pulseState.spy20dAvgVol=spyData.avg20Vol;
+    pulseState.spyPctFromATH=((SPY_ATH-spyData.price)/SPY_ATH)*100;
+    pulseState.spyDate=spyData.dateStr;
+    pulseState.spyChange=spyData.prevClose?((spyData.price-spyData.prevClose)/spyData.prevClose*100):null;
+    log.push({src:'SPY',val:'$'+spyData.price.toFixed(2),date:spyData.dateStr,ok:true,via:spyData.proxy});
+  }else{
+    log.push({src:'SPY',val:'All proxies failed',date:'--',ok:false});
+  }
+
+  // 4) VIX
+  status.textContent='Fetching VIX...';
+  const vixData=await yahooChart('%5EVIX','5d','1d');
+  if(vixData.ok){
+    pulseState.vix=vixData.price;
+    pulseState.vixDate=vixData.dateStr;
+    pulseState.vixPrevClose=vixData.prevClose;
+    pulseState.vixChange=vixData.prevClose?((vixData.price-vixData.prevClose)/vixData.prevClose*100):null;
+    log.push({src:'VIX',val:vixData.price.toFixed(2),date:vixData.dateStr,ok:true});
+  }else{
+    log.push({src:'VIX',val:'All proxies failed',date:'--',ok:false});
+  }
+
+  // 5) QQQ
+  status.textContent='Fetching QQQ...';
+  const qqqData=await yahooChart('QQQ','5d','1d');
+  if(qqqData.ok){
+    pulseState.qqqPrice=qqqData.price;
+    pulseState.qqqDate=qqqData.dateStr;
+    pulseState.qqqChange=qqqData.prevClose?((qqqData.price-qqqData.prevClose)/qqqData.prevClose*100):null;
+    log.push({src:'QQQ',val:'$'+qqqData.price.toFixed(2),date:qqqData.dateStr,ok:true});
+  }else{ log.push({src:'QQQ',val:'All proxies failed',date:'--',ok:false}); }
+
+  // 6) IWM
+  status.textContent='Fetching IWM...';
+  const iwmData=await yahooChart('IWM','5d','1d');
+  if(iwmData.ok){
+    pulseState.iwmPrice=iwmData.price;
+    pulseState.iwmDate=iwmData.dateStr;
+    pulseState.iwmChange=iwmData.prevClose?((iwmData.price-iwmData.prevClose)/iwmData.prevClose*100):null;
+    log.push({src:'IWM',val:'$'+iwmData.price.toFixed(2),date:iwmData.dateStr,ok:true});
+  }else{ log.push({src:'IWM',val:'All proxies failed',date:'--',ok:false}); }
+
+  // 7) Oil (CL=F)
+  status.textContent='Fetching Oil...';
+  const oilData=await yahooChart('CL=F','5d','1d');
+  if(oilData.ok){
+    pulseState.oilPrice=oilData.price;
+    pulseState.oilDate=oilData.dateStr;
+    pulseState.oilChange=oilData.prevClose?((oilData.price-oilData.prevClose)/oilData.prevClose*100):null;
+    log.push({src:'Oil (WTI)',val:'$'+oilData.price.toFixed(2),date:oilData.dateStr,ok:true});
+  }else{ log.push({src:'Oil',val:'All proxies failed',date:'--',ok:false}); }
+
+  // 8) 10Y Yield (^TNX)
+  status.textContent='Fetching 10Y Yield...';
+  const tnxData=await yahooChart('%5ETNX','5d','1d');
+  if(tnxData.ok){
+    pulseState.tnx=tnxData.price;
+    pulseState.tnxDate=tnxData.dateStr;
+    log.push({src:'10Y Yield',val:tnxData.price.toFixed(2)+'%',date:tnxData.dateStr,ok:true});
+  }else{ log.push({src:'10Y Yield',val:'All proxies failed',date:'--',ok:false}); }
+
+  // 9) Gold (GC=F)
+  status.textContent='Fetching Gold...';
+  const goldData=await yahooChart('GC=F','5d','1d');
+  if(goldData.ok){
+    pulseState.goldPrice=goldData.price;
+    pulseState.goldDate=goldData.dateStr;
+    log.push({src:'Gold',val:'$'+goldData.price.toFixed(0),date:goldData.dateStr,ok:true});
+  }else{ log.push({src:'Gold',val:'All proxies failed',date:'--',ok:false}); }
+
+  // Done fetching — update UI
+  const okCount=log.filter(l=>l.ok).length;
+  const failCount=log.filter(l=>!l.ok).length;
+  const latestDate=pulseState.spyDate||pulseState.btcDate||new Date().toLocaleDateString();
+
+  btn.style.opacity='1';btn.textContent='⟳ Refresh Data';
+  btn.style.borderColor=okCount>=5?'var(--green)':'var(--amber)';
+  btn.style.color=okCount>=5?'var(--green)':'var(--amber)';
+
+  const proxyUsed=workingProxy>=0?PROXY_NAMES[workingProxy]:'none';
+  status.innerHTML=`<span style="color:${okCount>=5?'#22c55e':'#f59e0b'}">${okCount}/${log.length} sources fetched</span>${proxyUsed!=='direct'&&proxyUsed!=='none'?' · <span style="color:rgba(255,255,255,0.3)">via '+proxyUsed+'</span>':''}${failCount>0&&okCount<5?' · <span style="color:rgba(255,255,255,0.25)">Some sources unreachable — check network</span>':''}`;
+
+  document.getElementById('last-updated').innerHTML=`
+    <span style="color:rgba(255,255,255,0.35)">Data as of: <strong style="color:var(--cyan)">${latestDate}</strong></span>
+    <span style="color:rgba(255,255,255,0.15)"> · Fetched ${new Date().toLocaleTimeString()}</span>`;
+
+  const logEl=document.getElementById('fetch-log');
+  if(logEl) logEl.innerHTML=log.map(l=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${l.ok?'#22c55e':'#ef4444'};flex-shrink:0"></div>
+      <span style="width:80px;color:rgba(255,255,255,0.4);flex-shrink:0">${l.src}</span>
+      <span style="color:${l.ok?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.2)'};font-family:var(--mono);font-weight:600;min-width:90px">${l.val}</span>
+      ${l.via?`<span style="font-size:8px;color:rgba(255,255,255,0.15)">via ${l.via}</span>`:''}
+      <span style="color:rgba(255,255,255,0.2);margin-left:auto">${l.date}</span>
+    </div>`).join('');
+
+  // ===== KEYED API FETCHES =====
+  const avKey=(document.getElementById('key-alphavantage')||{}).value||'';
+  const fredKey=(document.getElementById('key-fred')||{}).value||'';
+  const fhKey=(document.getElementById('key-finnhub')||{}).value||'';
+  const newsKey=(document.getElementById('key-newsapi')||{}).value||'';
+
+  // 10) Alpha Vantage — SPY RSI + SMA200
+  if(avKey){
+    status.textContent='Fetching RSI & SMA from Alpha Vantage...';
+    try{
+      const [rsiR,smaR]=await Promise.all([
+        fetch(`https://www.alphavantage.co/query?function=RSI&symbol=SPY&interval=daily&time_period=14&series_type=close&apikey=${avKey}`),
+        fetch(`https://www.alphavantage.co/query?function=SMA&symbol=SPY&interval=daily&time_period=200&series_type=close&apikey=${avKey}`)
+      ]);
+      const rsiD=await rsiR.json(), smaD=await smaR.json();
+      const rsiKey=Object.keys(rsiD['Technical Analysis: RSI']||{})[0];
+      const smaKey=Object.keys(smaD['Technical Analysis: SMA']||{})[0];
+      if(rsiKey) pulseState.rsi14=parseFloat(rsiD['Technical Analysis: RSI'][rsiKey]['RSI']);
+      if(smaKey) pulseState.sma200=parseFloat(smaD['Technical Analysis: SMA'][smaKey]['SMA']);
+      pulseState.rsiDate=rsiKey||'';
+      pulseState.smaDate=smaKey||'';
+      // SPY vs 200 SMA
+      if(pulseState.spyPrice&&pulseState.sma200){
+        pulseState.spyVs200=(pulseState.spyPrice-pulseState.sma200)/pulseState.sma200*100;
+      }
+      log.push({src:'Alpha Vantage',val:'RSI:'+pulseState.rsi14?.toFixed(1)+' SMA200:'+pulseState.sma200?.toFixed(0),date:rsiKey||'',ok:true});
+    }catch(e){ log.push({src:'Alpha Vantage',val:'Failed (check key)',date:'',ok:false}); }
+
+    // Also fetch MACD
+    try{
+      const macdR=await fetch(`https://www.alphavantage.co/query?function=MACD&symbol=SPY&interval=daily&series_type=close&apikey=${avKey}`);
+      const macdD=await macdR.json();
+      const macdKey=Object.keys(macdD['Technical Analysis: MACD']||{})[0];
+      if(macdKey){
+        pulseState.macd=parseFloat(macdD['Technical Analysis: MACD'][macdKey]['MACD']);
+        pulseState.macdSignal=parseFloat(macdD['Technical Analysis: MACD'][macdKey]['MACD_Signal']);
+        pulseState.macdHist=parseFloat(macdD['Technical Analysis: MACD'][macdKey]['MACD_Hist']);
+      }
+    }catch(e){}
+
+    // Render technicals panel
+    renderTechnicals();
+  }
+
+  // 11) FRED — HY spreads, Unemployment
+  if(fredKey){
+    status.textContent='Fetching macro data from FRED...';
+    try{
+      const [hyR,unR,cpiR]=await Promise.all([
+        fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=BAMLH0A0HYM2&limit=1&sort_order=desc&api_key=${fredKey}&file_type=json`),
+        fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&limit=1&sort_order=desc&api_key=${fredKey}&file_type=json`),
+        fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&limit=1&sort_order=desc&api_key=${fredKey}&file_type=json`)
+      ]);
+      const hyD=await hyR.json(), unD=await unR.json(), cpiD=await cpiR.json();
+      if(hyD.observations?.length){
+        pulseState.hySpreads=parseFloat(hyD.observations[0].value)*100; // Convert to bps
+        pulseState.hySpreadsDate=hyD.observations[0].date;
+        // Auto-fill manual input
+        const hyInput=document.getElementById('input-hySpreads');
+        if(hyInput){hyInput.value=Math.round(pulseState.hySpreads);}
+      }
+      if(unD.observations?.length){
+        pulseState.unemployment=parseFloat(unD.observations[0].value);
+        pulseState.unemploymentDate=unD.observations[0].date;
+      }
+      if(cpiD.observations?.length){
+        pulseState.cpi=parseFloat(cpiD.observations[0].value);
+        pulseState.cpiDate=cpiD.observations[0].date;
+      }
+      log.push({src:'FRED',val:'HY:'+pulseState.hySpreads?.toFixed(0)+'bps UE:'+pulseState.unemployment+'%',date:pulseState.hySpreadsDate||'',ok:true});
+    }catch(e){ log.push({src:'FRED',val:'Failed (check key)',date:'',ok:false}); }
+
+    renderFredPanel();
+  }
+
+  // 12) Finnhub — Real-time SPY quote (market hours)
+  if(fhKey){
+    status.textContent='Fetching real-time quotes from Finnhub...';
+    try{
+      const qR=await fetch(`https://finnhub.io/api/v1/quote?symbol=SPY&token=${fhKey}`);
+      const qD=await qR.json();
+      if(qD.c&&qD.c>0){
+        pulseState.spyRealtime=qD.c;
+        pulseState.spyRealtimeChange=qD.dp; // percent change
+        pulseState.spyRealtimeDate='Real-time';
+        // Override previous close with real-time during market hours
+        if(Math.abs(qD.c-pulseState.spyPrice)>0.5){
+          pulseState.spyPrice=qD.c;
+          pulseState.spyPctFromATH=((698-qD.c)/698)*100;
+        }
+      }
+      // Also get market sentiment
+      const sR=await fetch(`https://finnhub.io/api/v1/news-sentiment?symbol=SPY&token=${fhKey}`);
+      const sD=await sR.json();
+      if(sD.sentiment){
+        pulseState.finnhubSentiment=sD.sentiment.bearishPercent>sD.sentiment.bullishPercent?'Bearish':'Bullish';
+        pulseState.finnhubBearish=(sD.sentiment.bearishPercent*100).toFixed(0);
+        pulseState.finnhubBullish=(sD.sentiment.bullishPercent*100).toFixed(0);
+      }
+      log.push({src:'Finnhub',val:'SPY $'+qD.c?.toFixed(2)+' ('+qD.dp?.toFixed(2)+'%)',date:'Real-time',ok:true});
+    }catch(e){ log.push({src:'Finnhub',val:'Failed (check key)',date:'',ok:false}); }
+  }
+
+  // 13) NewsAPI — Market headlines for doom scoring
+  if(newsKey){
+    status.textContent='Scanning market headlines...';
+    try{
+      const nR=await fetch(`https://newsapi.org/v2/everything?q="stock market" OR "S&P 500" OR "Wall Street" OR "market crash"&language=en&sortBy=publishedAt&pageSize=12&apiKey=${newsKey}`);
+      const nD=await nR.json();
+      if(nD.articles) renderNewsPanel(nD.articles);
+      log.push({src:'NewsAPI',val:nD.articles?.length+' headlines',date:'Latest',ok:true});
+    }catch(e){ log.push({src:'NewsAPI',val:'Failed (check key/CORS)',date:'',ok:false});
+      // NewsAPI blocks from browser on free tier — try proxy
+      try{
+        const nR2=await fetchWithTimeout('https://corsproxy.io/?'+encodeURIComponent(`https://newsapi.org/v2/everything?q="stock market" OR "S&P 500"&language=en&sortBy=publishedAt&pageSize=12&apiKey=${newsKey}`),8000);
+        const nD2=await nR2.json();
+        if(nD2.articles) renderNewsPanel(nD2.articles);
+        log.splice(-1,1,{src:'NewsAPI',val:nD2.articles?.length+' headlines (via proxy)',date:'Latest',ok:true});
+      }catch(e2){}
+    }
+  }
+
+  // Re-render log with keyed API results
+  const logEl2=document.getElementById('fetch-log');
+  if(logEl2) logEl2.innerHTML=log.map(l=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${l.ok?'#22c55e':'#ef4444'};flex-shrink:0"></div>
+      <span style="width:80px;color:rgba(255,255,255,0.4);flex-shrink:0">${l.src}</span>
+      <span style="color:${l.ok?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.2)'};font-family:var(--mono);font-weight:600;min-width:90px">${l.val}</span>
+      ${l.via?`<span style="font-size:8px;color:rgba(255,255,255,0.15)">via ${l.via}</span>`:''}
+      <span style="color:rgba(255,255,255,0.2);margin-left:auto">${l.date}</span>
+    </div>`).join('');
+
+  // Final status update
+  const okFinal=log.filter(l=>l.ok).length;
+  status.innerHTML=`<span style="color:${okFinal>=7?'#22c55e':'#f59e0b'}">${okFinal}/${log.length} sources fetched</span>${workingProxy>=0&&PROXY_NAMES[workingProxy]!=='direct'?' · <span style="color:rgba(255,255,255,0.3)">Yahoo via '+PROXY_NAMES[workingProxy]+'</span>':''}`;
+
+  // Propagate data across all tabs
+  propagateData();
+  recalcScore();
+}
+
+// ===== TECHNICALS RENDERER =====
+function renderTechnicals(){
+  const p=pulseState;
+  const rsiCol=p.rsi14<30?'#22c55e':p.rsi14<40?'#f59e0b':p.rsi14>70?'#ef4444':'#94a3b8';
+  const rsiLabel=p.rsi14<30?'OVERSOLD — contrarian buy zone':p.rsi14<40?'Approaching oversold':p.rsi14>70?'OVERBOUGHT — caution':'Neutral';
+  const macdLabel=p.macdHist>0?'Bullish momentum':p.macdHist<0?'Bearish momentum':'Neutral';
+  const smaLabel=p.spyVs200>0?'Above 200-SMA (bullish trend)':'Below 200-SMA (bearish — watch for retest)';
+
+  document.getElementById('technicals-panel').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${rsiCol}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">SPY RSI(14)</div>
+        <div style="font-size:32px;font-weight:800;color:${rsiCol};font-family:var(--mono)">${p.rsi14?.toFixed(1)||'--'}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${rsiLabel}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:4px">${p.rsiDate||''}</div>
+        <div style="margin-top:8px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;position:relative">
+          <div style="position:absolute;left:28.5%;width:1px;height:100%;background:rgba(255,255,255,0.15)"></div>
+          <div style="position:absolute;left:70%;width:1px;height:100%;background:rgba(255,255,255,0.15)"></div>
+          <div style="width:${p.rsi14||0}%;height:100%;background:${rsiCol};border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:7px;color:rgba(255,255,255,0.12);margin-top:2px"><span>0 (oversold)</span><span>30</span><span>70</span><span>100</span></div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.sma200?'#22d3ee':'#555'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">SPY 200-Day SMA</div>
+        <div style="font-size:28px;font-weight:800;color:var(--cyan);font-family:var(--mono)">$${p.sma200?.toFixed(0)||'--'}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${p.spyVs200?((p.spyVs200>0?'+':'')+p.spyVs200.toFixed(1)+'% from SMA'):''}</div>
+        <div style="font-size:10px;color:${p.spyVs200>0?'#22c55e':'#ef4444'};margin-top:4px">${smaLabel}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:4px">${p.smaDate||''}</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.macdHist>0?'#22c55e':'#ef4444'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">SPY MACD</div>
+        <div style="font-size:22px;font-weight:800;color:${p.macdHist>0?'#22c55e':'#ef4444'};font-family:var(--mono)">${p.macd?.toFixed(2)||'--'}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">Signal: ${p.macdSignal?.toFixed(2)||'--'}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35)">Histogram: ${p.macdHist?.toFixed(2)||'--'}</div>
+        <div style="font-size:10px;color:${p.macdHist>0?'#22c55e':'#ef4444'};margin-top:4px">${macdLabel}</div>
+      </div>
+      ${p.finnhubSentiment?`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.finnhubSentiment==='Bearish'?'#ef4444':'#22c55e'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">News Sentiment (Finnhub)</div>
+        <div style="font-size:24px;font-weight:800;color:${p.finnhubSentiment==='Bearish'?'#ef4444':'#22c55e'}">${p.finnhubSentiment}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Bearish: ${p.finnhubBearish}% · Bullish: ${p.finnhubBullish}%</div>
+        <div style="margin-top:8px;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
+          <div style="width:${p.finnhubBearish}%;background:#ef4444;border-radius:4px 0 0 4px"></div>
+          <div style="width:${p.finnhubBullish}%;background:#22c55e;border-radius:0 4px 4px 0"></div>
+        </div>
+      </div>`:''}
+    </div>`;
+}
+
+// ===== FRED RENDERER =====
+function renderFredPanel(){
+  const p=pulseState;
+  const hyCol=p.hySpreads>=500?'#ef4444':p.hySpreads>=400?'#f97316':p.hySpreads>=350?'#f59e0b':'#22c55e';
+  document.getElementById('fred-panel').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${hyCol}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">HY Credit Spreads</div>
+        <div style="font-size:28px;font-weight:800;color:${hyCol};font-family:var(--mono)">${p.hySpreads?Math.round(p.hySpreads)+'bps':'--'}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${p.hySpreads>=500?'CREDIT STRESS — panic zone':p.hySpreads>=400?'Widening — caution':'Contained — no stress'}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:4px">${p.hySpreadsDate||''}</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.unemployment>=4.5?'#ef4444':'#22c55e'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Unemployment Rate</div>
+        <div style="font-size:28px;font-weight:800;color:${p.unemployment>=4.5?'#ef4444':p.unemployment>=4.0?'#f59e0b':'#22c55e'};font-family:var(--mono)">${p.unemployment||'--'}%</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${p.unemployment>=4.5?'Rising — recessionary signal':p.unemployment>=4.0?'Weakening':'Healthy labor market'}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:4px">${p.unemploymentDate||''}</div>
+      </div>
+      ${p.tnx?`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.tnx>=4.6?'#ef4444':'#22c55e'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">10Y Yield (Kobeissi Trigger)</div>
+        <div style="font-size:28px;font-weight:800;color:${p.tnx>=4.6?'#ef4444':p.tnx>=4.3?'#f97316':'#22c55e'};font-family:var(--mono)">${p.tnx?.toFixed(2)||'--'}%</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${p.tnx>=4.6?'ABOVE 4.60% — Trump pullback trigger':p.tnx>=4.3?'Approaching danger zone':'Below trigger level'}</div>
+      </div>`:''}
+    </div>`;
+}
+
+// ===== NEWS HEADLINES RENDERER =====
+function renderNewsPanel(articles){
+  const doomWords=['crash','plunge','plummet','worst','fear','panic','bear','recession','crisis','collapse','sell-off','selloff','tank','tumble','freefall','catastroph','meltdown'];
+  const bullWords=['rally','surge','record','high','boom','bullish','soar','gain','recover','optimis'];
+  let doomScore=0, bullScore=0;
+  const scored=articles.map(a=>{
+    const txt=(a.title+' '+(a.description||'')).toLowerCase();
+    const doomHits=doomWords.filter(w=>txt.includes(w)).length;
+    const bullHits=bullWords.filter(w=>txt.includes(w)).length;
+    doomScore+=doomHits; bullScore+=bullHits;
+    const tone=doomHits>bullHits?'doom':bullHits>doomHits?'bull':'neutral';
+    return {...a,tone,doomHits,bullHits};
+  });
+  const totalTone=doomScore-bullScore;
+  const doomPct=Math.min(Math.round((doomScore/(doomScore+bullScore+1))*10),10);
+  const doomCol=doomPct>=7?'#ef4444':doomPct>=5?'#f97316':doomPct>=3?'#f59e0b':'#22c55e';
+
+  document.getElementById('news-panel').innerHTML=`
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid ${doomCol}20">
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Doom Score</div>
+        <div style="font-size:36px;font-weight:800;color:${doomCol};font-family:var(--mono)">${doomPct}/10</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+          ${doomPct>=7?'<strong style="color:#ef4444">MAXIMUM DOOM</strong> — Headlines screaming fear. Per Coulling, this is when institutions accumulate. Contrarian buy zone.':
+            doomPct>=5?'<strong style="color:#f97316">Elevated Fear</strong> — Growing negativity but not unanimous doom yet. Getting closer.':
+            doomPct>=3?'<strong style="color:#f59e0b">Mixed</strong> — Some fear, some optimism. Not a contrarian signal.':
+            '<strong style="color:#22c55e">Complacent/Bullish</strong> — Headlines positive. NOT a buy signal — possibly a distribution zone.'}
+        </div>
+        <div style="margin-top:6px;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
+          <div style="width:${doomScore/(doomScore+bullScore+1)*100}%;background:#ef4444;border-radius:4px 0 0 4px"></div>
+          <div style="width:${bullScore/(doomScore+bullScore+1)*100}%;background:#22c55e;border-radius:0 4px 4px 0"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px"><span>Doom keywords: ${doomScore}</span><span>Bull keywords: ${bullScore}</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto">
+      ${scored.slice(0,10).map(a=>{
+        const toneCol=a.tone==='doom'?'#ef4444':a.tone==='bull'?'#22c55e':'#94a3b8';
+        const timeAgo=a.publishedAt?new Date(a.publishedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+        return `<div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border-left:3px solid ${toneCol}">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+            <div>
+              <div style="font-size:8px;color:${toneCol};font-weight:700;text-transform:uppercase;letter-spacing:0.5px">${a.source?.name||'Unknown'} · ${a.tone}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.4;margin-top:2px">${a.title}</div>
+            </div>
+            <span style="font-size:8px;color:rgba(255,255,255,0.15);flex-shrink:0">${timeAgo}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function propagateData(){
+  // Update Sentiment tab snapshot cards with live data
+  const snapEls=document.querySelectorAll('[data-live]');
+  snapEls.forEach(el=>{
+    const key=el.dataset.live;
+    if(key==='spy'&&pulseState.spyPrice) el.innerHTML=`$${pulseState.spyPrice.toFixed(2)} <span style="font-size:10px;color:rgba(255,255,255,0.2)">${pulseState.spyDate||''}</span>`;
+    if(key==='vix'&&pulseState.vix) el.innerHTML=`${pulseState.vix.toFixed(2)} <span style="font-size:10px;color:rgba(255,255,255,0.2)">${pulseState.vixDate||''}</span>`;
+    if(key==='oil'&&pulseState.oilPrice) el.innerHTML=`$${pulseState.oilPrice.toFixed(2)} <span style="font-size:10px;color:rgba(255,255,255,0.2)">${pulseState.oilDate||''}</span>`;
+  });
+
+  // Update the Iran crisis data with live values
+  const iranData=crisisData.find(c=>c.id==='iran');
+  if(pulseState.vix) iranData.vixPeak=Math.max(iranData.vixPeak,pulseState.vix);
+  if(pulseState.spyPrice){
+    iranData.spyBottom=Math.min(iranData.spyBottom,pulseState.spyPrice);
+    iranData.drawdown=((698-pulseState.spyPrice)/698*100);
+  }
+
+  // Refresh Sentiment tab cards
+  if(typeof renderSentimentSnapshots==='function') renderSentimentSnapshots();
+
+  // Re-render crisis detail if Iran is selected
+  if(typeof renderCrisisDetail==='function') renderCrisisDetail();
+}
+
+// Initial render
+renderManualInputs();
+renderPulseCards();
+recalcScore();
+
+// ===== DATA =====
+const crisisData = [
+  { id:"covid", name:"COVID Crash", date:"Mar 2020", fearGreed:3, vixPeak:82.69, spyBottom:218, drawdown:34, aaiiBearish:52, catalyst:"Pandemic shutdown, zero earnings visibility", resolution:"Unlimited QE, rates to zero", timeToATH:"~6 months", contrariansRight:true, oilContext:"Oil crashed to negative $37", fedResponse:"Emergency cuts + unlimited QE", laborMarket:"Unemployment spiked to 14.7%", formerATH:null, retestLevel:null },
+  { id:"inflation", name:"Inflation Lows", date:"Oct 2022", fearGreed:13, vixPeak:36, spyBottom:348, drawdown:27, aaiiBearish:61, catalyst:"9% CPI, fastest rate hikes in 40yr", resolution:"Inflation peaked, Fed pivot expectations", timeToATH:"~24 months", contrariansRight:true, oilContext:"Oil elevated $80-90 (Russia/Ukraine)", fedResponse:"Aggressive hiking cycle near end", laborMarket:"Strong — 3.5% unemployment", formerATH:340, retestLevel:348 },
+  { id:"yen", name:"Yen Unwind", date:"Aug 2024", fearGreed:14, vixPeak:65.73, spyBottom:510, drawdown:10, aaiiBearish:37, catalyst:"Yen carry trade unwind, BOJ hike", resolution:"Mechanical flush, BOJ walked back", timeToATH:"~3 weeks", contrariansRight:true, oilContext:"Oil stable ~$75", fedResponse:"Dovish tilt, cuts coming", laborMarket:"Solid — 4.2% unemployment", formerATH:480, retestLevel:510 },
+  { id:"tariff", name:"Tariff Crisis", date:"Apr 2025", fearGreed:3, vixPeak:60.13, spyBottom:482, drawdown:18, aaiiBearish:62, catalyst:"Liberation Day tariffs, trade war panic", resolution:"Tariff rollbacks, 90-day pause", timeToATH:"~8 months", contrariansRight:true, oilContext:"Oil fell to ~$58 on recession fears", fedResponse:"On hold, market priced cuts", laborMarket:"Weakening — 4.2% unemployment", formerATH:480, retestLevel:482 },
+  { id:"iran", name:"Iran War", date:"Mar 2026", fearGreed:27, vixPeak:28.15, spyBottom:670, drawdown:3.8, aaiiBearish:35.5, catalyst:"US-Israel strikes on Iran, oil shock", resolution:"No resolution — Strait of Hormuz closed", timeToATH:"TBD", contrariansRight:null, oilContext:"Oil surging $90+ (Strait of Hormuz)", fedResponse:"Trapped — stagflation risk", laborMarket:"Cracking — payrolls -92K, UE 4.4%", formerATH:590, retestLevel:null }
+];
+
+const fearColor = v => v<=10?'#ef4444':v<=25?'#f97316':v<=40?'#f59e0b':'#22c55e';
+const vixColor = v => v>=60?'#ef4444':v>=35?'#f97316':v>=25?'#f59e0b':'#22c55e';
+const ddColor = v => v>=25?'#ef4444':v>=15?'#f97316':v>=8?'#f59e0b':'#22c55e';
+const aaiiColor = v => v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e';
+
+// ===== TABS =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== SNAPSHOT CARDS =====
+function renderSentimentSnapshots(){
+  const snapshots = [
+    { label:"Fear & Greed", value:pulseState.cnnFG!==null?pulseState.cnnFG:"27", sub:"FEAR", color:pulseState.cnnFG!==null?fearColor(pulseState.cnnFG):"#f59e0b", note:"Not extreme", date:'' },
+    { label:"VIX", value:pulseState.vix?pulseState.vix.toFixed(1):"28.2", sub:pulseState.vix?(pulseState.vix>=35?'PANIC':'ELEVATED'):"ELEVATED", color:pulseState.vix?vixColor(pulseState.vix):"#f59e0b", note:"vs 82 COVID", date:pulseState.vixDate||'' },
+    { label:"SPY", value:pulseState.spyPrice?'$'+pulseState.spyPrice.toFixed(2):"$672", sub:pulseState.spyPctFromATH?'-'+pulseState.spyPctFromATH.toFixed(1)+'% ATH':"-3.8% ATH", color:"#22d3ee", note:"Shallow", date:pulseState.spyDate||'' },
+    { label:"AAII Bear", value:pulseState.aaiiBear?pulseState.aaiiBear+'%':"35.5%", sub:"MILD", color:"#94a3b8", note:"vs 62% Apr'25", date:'' },
+    { label:"Oil WTI", value:pulseState.oilPrice?'$'+pulseState.oilPrice.toFixed(2):"$90.9", sub:pulseState.oilPrice?(pulseState.oilPrice>=90?'SURGING':'ELEVATED'):"SURGING", color:pulseState.oilPrice?(pulseState.oilPrice>=90?'#ef4444':'#f97316'):"#ef4444", note:"Strait closed", date:pulseState.oilDate||'' },
+  ];
+  document.getElementById('snapshot-cards').innerHTML = snapshots.map(m => `
+    <div class="snap-card">
+      <div class="top-line" style="background:linear-gradient(90deg,transparent,${m.color},transparent)"></div>
+      <div class="label">${m.label}</div>
+      <div class="value" style="color:${m.color}">${m.value}</div>
+      <div class="sub">${m.sub}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="note">${m.note}</div>
+        ${m.date?`<span style="font-size:8px;color:rgba(255,255,255,0.12)">${m.date}</span>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+renderSentimentSnapshots();
+
+// ===== BAR CHARTS =====
+function renderBars(containerId, label, field, max, colorFn, unit='') {
+  const el = document.getElementById(containerId);
+  el.innerHTML = `
+    <div class="bar-section">
+      <div class="bar-label">${label}</div>
+      ${crisisData.map(d => {
+        const val = d[field], pct = (val/max)*100, col = colorFn(val), isIran = d.id==='iran';
+        return `<div class="bar-row" style="opacity:${isIran?1:0.85}">
+          <div class="bar-date ${isIran?'highlight':''}">${d.date}</div>
+          <div class="bar-track">
+            <div class="bar-fill ${isIran?'highlight':''}" style="width:${pct}%;background:${isIran?`linear-gradient(90deg,${col},#22d3ee)`:col}"></div>
+            <div class="bar-val">${val}${unit}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+renderBars('bars-fg', 'Fear & Greed (lower = more fear)', 'fearGreed', 100, fearColor);
+renderBars('bars-vix', 'VIX Peak', 'vixPeak', 90, vixColor);
+renderBars('bars-dd', 'Max Drawdown %', 'drawdown', 40, ddColor, '%');
+renderBars('bars-aaii', 'AAII Bearish %', 'aaiiBearish', 70, aaiiColor, '%');
+
+// ===== GAUGES =====
+function makeGauge(value, max, size, color) {
+  const pct = Math.min(value/max,1), r=(size-14)/2, circ=2*Math.PI*r, offset=circ*(1-pct*0.75);
+  return `<svg width="${size}" height="${size}" style="transform:rotate(135deg)">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-dasharray="${circ*0.75} ${circ*0.25}" stroke-linecap="round"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-dasharray="${circ*0.75} ${circ*0.25}" stroke-dashoffset="${offset}" stroke-linecap="round" style="filter:drop-shadow(0 0 6px ${color}80);transition:stroke-dashoffset 1s ease"/>
+  </svg>`;
+}
+document.getElementById('gauges-row').innerHTML = crisisData.map(d => {
+  const col = fearColor(d.fearGreed), isIran = d.id==='iran';
+  return `<div class="gauge-item ${isIran?'':'dim'}">
+    <div class="gauge-label" style="color:${isIran?'#22d3ee':'rgba(255,255,255,0.45)'}">${d.name}</div>
+    <div class="gauge-wrapper">
+      ${makeGauge(d.fearGreed, 100, 90, col)}
+      <div class="gauge-text" style="margin-top:-6px">
+        <div class="num" style="color:${col};font-size:23px">${d.fearGreed}</div>
+        <div class="of">/ 100</div>
+      </div>
+    </div>
+  </div>`;
+}).join('');
+
+// ===== WHY DIFFERENT =====
+const whyItems = [
+  { icon:"📉", title:"Fear Not Extreme", desc:"F&G at 27 vs single digits at every buyable bottom." },
+  { icon:"🛢️", title:"Oil = Inflation Tax", desc:"Oil $90+ from Strait closure. Prior crises lacked this." },
+  { icon:"📊", title:"Shallow Drawdown", desc:"Only -3.8% from ATH. Prior setups were -10% to -34%." },
+  { icon:"🏭", title:"Labor Cracking", desc:"Payrolls -92K, UE 4.4%. Stagflation risk traps the Fed." },
+  { icon:"🏛️", title:"No Resolution Path", desc:"War ongoing, no ceasefire. Prior crises had endpoints." },
+  { icon:"⚖️", title:"Bonds Falling Too", desc:"Treasuries selling off with stocks. Hedges not working." },
+];
+document.getElementById('why-grid').innerHTML = whyItems.map(w => `
+  <div class="why-card"><div class="icon">${w.icon}</div><div class="title">${w.title}</div><div class="desc">${w.desc}</div></div>
+`).join('');
+
+// ===== VOLUME AT CAPITULATION =====
+const volData=[
+  {id:"covid",name:"COVID Mar 2020",vol:"~26B shares",volMultiple:"3.2x",avgVol:"~8B avg",circuitBreakers:"3 circuit breakers in 1 week",volBar:100,color:"#ef4444",note:"NYSE went all-electronic. Margin calls forced liquidation across all assets including gold."},
+  {id:"inflation",name:"Inflation Oct 2022",vol:"~14B shares",volMultiple:"1.8x",avgVol:"~8B avg",circuitBreakers:"None triggered",volBar:54,color:"#f97316",note:"Elevated but orderly. Selling was gradual over months, not panic. Smart money accumulated through Q4."},
+  {id:"yen",name:"Yen Unwind Aug 2024",vol:"~16B shares",volMultiple:"1.9x",avgVol:"~8.5B avg",circuitBreakers:"Japan -12% (circuit breaker)",volBar:62,color:"#f59e0b",note:"Mechanical unwind, not fundamental. Volume spike was concentrated in 2 days then evaporated — classic flush."},
+  {id:"tariff",name:"Tariff Apr 2025",vol:"~29B shares",volMultiple:"3.4x",avgVol:"~8.5B avg",circuitBreakers:"Largest intraday swing ever",volBar:112,color:"#ef4444",note:"Highest volume in 18+ years. Record Dow intraday swing of 2,595 pts. Extreme capitulation volume = the bottom."},
+  {id:"iran",name:"Iran War Mar 2026",vol:"~12B shares",volMultiple:"1.3x",avgVol:"~9B avg",circuitBreakers:"None triggered",volBar:46,color:"#22d3ee",note:"Volume slightly above average. No panic liquidation. No margin call cascade. This is NOT capitulation volume."},
+];
+document.getElementById('volume-bars').innerHTML = `
+  <div class="bar-section">
+    <div class="bar-label">Peak Daily Volume at Crisis Low (shares traded)</div>
+    ${volData.map(d => {
+      const isIran = d.id==='iran';
+      return `<div style="margin-bottom:10px">
+        <div class="bar-row" style="opacity:${isIran?1:0.85}">
+          <div class="bar-date ${isIran?'highlight':''}" style="width:110px">${d.name.split(' ').slice(-2).join(' ')}</div>
+          <div class="bar-track" style="height:28px">
+            <div class="bar-fill ${isIran?'highlight':''}" style="width:${Math.min(d.volBar,100)}%;background:${isIran?'linear-gradient(90deg,'+d.color+',#22d3ee)':d.color}"></div>
+            <div class="bar-val" style="font-size:11px">${d.volMultiple} avg</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;padding-left:110px;margin-top:3px;flex-wrap:wrap">
+          <span style="font-size:9px;color:rgba(255,255,255,0.3)">${d.vol}</span>
+          <span style="font-size:9px;color:${d.circuitBreakers.includes('None')?'rgba(255,255,255,0.2)':d.color}">${d.circuitBreakers}</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.25);font-style:italic">${d.note}</span>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+// ===== HEADLINES AT BOTTOMS =====
+const headlineData=[
+  {
+    crisis:"COVID Crash",date:"Mar 16–23, 2020",fearLevel:100,
+    headlines:[
+      {src:"Washington Post",text:"Stock market suffers worst crash since 1987",tone:"apocalyptic"},
+      {src:"WSJ",text:"Worst Crisis Since '30s, With No End Yet in Sight",tone:"apocalyptic"},
+      {src:"Financial Times",text:"Panic Grips Credit Markets",tone:"apocalyptic"},
+      {src:"NYT",text:"A New Phase in Finance Crisis as Investors Run to Safety",tone:"extreme fear"},
+      {src:"USA Today",text:"Dow plunges 2,997 — biggest one-day point drop EVER",tone:"apocalyptic"},
+    ],
+    retailSentiment:"'I sold everything' posts flooded Reddit/Twitter. Robinhood crashed from traffic.",
+    whatHappened:"SPY bottomed $218 → rallied 100% in 354 days. Fastest doubling since WWII.",
+    volumeSignal:"Record volume + circuit breakers = forced selling exhaustion. Smart money absorbed every share retail dumped."
+  },
+  {
+    crisis:"Inflation Lows",date:"Sep–Oct 2022",fearLevel:80,
+    headlines:[
+      {src:"CNN",text:"Dow enters bear market, worst since 2020",tone:"extreme fear"},
+      {src:"Bloomberg",text:"Stock rout deepens as recession fears grip Wall Street",tone:"extreme fear"},
+      {src:"CNBC",text:"Markets brace for more pain as Fed vows to keep hiking",tone:"severe fear"},
+      {src:"WSJ",text:"Investors flee stocks at fastest pace in two years",tone:"extreme fear"},
+    ],
+    retailSentiment:"AAII bearish hit 60.9% — third highest in 35 years. 'Don't fight the Fed' was consensus.",
+    whatHappened:"SPY bottomed $348 → rallied 100% to $698 over 2 years. Every retail seller was wrong.",
+    volumeSignal:"Elevated volume on selloff but orderly. Accumulation visible in weekly candle wicks — smart money buying the dips retail was selling."
+  },
+  {
+    crisis:"Tariff Crisis",date:"Apr 4–7, 2025",fearLevel:95,
+    headlines:[
+      {src:"CNBC",text:"Dow slides in worst day since COVID crash",tone:"apocalyptic"},
+      {src:"NYT",text:"Stocks plunge as trade war fears intensify",tone:"extreme fear"},
+      {src:"Reuters",text:"Global markets in freefall as tariff retaliation escalates",tone:"apocalyptic"},
+      {src:"CNN",text:"Fear & Greed Index hits 3 — lowest since March 2020",tone:"apocalyptic"},
+    ],
+    retailSentiment:"AAII bearish hit 61.9% — highest in years. '29 billion shares traded — 18-year record.'",
+    whatHappened:"SPY bottomed $482 → rallied 45% to $698 in 8 months. Record volume = the exact bottom.",
+    volumeSignal:"29B shares — highest in 18 years. Record intraday Dow swing. This was textbook Coulling: ultra-high volume on the low = institutions buying everything retail was panic-selling."
+  },
+  {
+    crisis:"Iran War (NOW)",date:"Mar 1–7, 2026",fearLevel:40,
+    headlines:[
+      {src:"CNN",text:"Why stocks are acting so nonchalant about a spiraling war",tone:"measured"},
+      {src:"CNBC",text:"S&P 500 closes flat, rebounding from lows as traders buy the dip",tone:"cautious"},
+      {src:"WSJ",text:"Oil surges but stocks shrug — is the market too complacent?",tone:"questioning"},
+      {src:"Seeking Alpha",text:"Bull market remains intact but showing signs of fragility",tone:"cautious"},
+    ],
+    retailSentiment:"AAII bearish only 35.5%. Retail sentiment for SPY is positive per VandaTrack. No panic.",
+    whatHappened:"TBD — only -3.8% from ATH. No capitulation event has occurred.",
+    volumeSignal:"~12B shares, just 1.3x average. No circuit breakers. No margin call cascade. Volume says this is a normal pullback, NOT a capitulation bottom."
+  }
+];
+
+const toneColor = t => t==='apocalyptic'?'#ef4444':t==='extreme fear'?'#f97316':t==='severe fear'?'#f59e0b':t==='cautious'?'#94a3b8':'#22c55e';
+
+document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
+  const isNow = h.crisis.includes('NOW');
+  return `
+  <div style="background:rgba(0,0,0,0.25);border:1px solid ${isNow?'rgba(34,211,238,0.15)':'rgba(255,255,255,0.04)'};border-radius:10px;padding:16px;margin-bottom:12px;${isNow?'box-shadow:0 0 20px rgba(34,211,238,0.05)':''}">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div>
+        <span style="font-size:13px;font-weight:700;color:${isNow?'var(--cyan)':'rgba(255,255,255,0.7)'}">${h.crisis}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.3);margin-left:8px">${h.date}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase">Fear Intensity</span>
+        <div style="width:80px;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+          <div style="width:${h.fearLevel}%;height:100%;background:${h.fearLevel>=80?'var(--red)':h.fearLevel>=60?'var(--orange)':'var(--amber)'};border-radius:4px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:800;color:${h.fearLevel>=80?'var(--red)':h.fearLevel>=60?'var(--orange)':'var(--amber)'};font-family:var(--mono)">${h.fearLevel}%</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+      ${h.headlines.map(hl => `
+        <div style="background:rgba(0,0,0,0.4);border:1px solid ${toneColor(hl.tone)}20;border-left:2px solid ${toneColor(hl.tone)};border-radius:4px;padding:6px 10px;flex:1 1 200px">
+          <div style="font-size:9px;color:${toneColor(hl.tone)};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">${hl.src}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.4;font-style:italic">"${hl.text}"</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);line-height:1.5">
+        <strong style="color:rgba(255,255,255,0.45)">Retail:</strong> ${h.retailSentiment}
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);line-height:1.5">
+        <strong style="color:rgba(255,255,255,0.45)">Volume Signal:</strong> ${h.volumeSignal}
+      </div>
+      <div style="font-size:10px;line-height:1.5;color:${isNow?'var(--cyan)':'var(--green)'}">
+        <strong>Result:</strong> ${h.whatHappened}
+      </div>
+    </div>
+  </div>`;
+}).join('');
+
+// ===== SVG CHART =====
+(function(){
+  const pts = [
+    {y:2014,p:178},{y:2015,p:205},{y:2016,p:210},{y:2017,p:260},{y:2018,p:280},{y:2019,p:320},
+    {y:2020,p:218,l:"COVID|$218",ev:1},{y:2020.5,p:340},{y:2021,p:460},
+    {y:2022,p:480,l:"ATH $480",ath:1},{y:2022.7,p:348,l:"Retest|$348",ev:1},
+    {y:2023,p:450},{y:2023.5,p:480},{y:2024,p:530},{y:2024.3,p:565,l:"ATH $565",ath:1},
+    {y:2024.5,p:510,l:"Yen|$510",ev:1},{y:2024.8,p:585},{y:2025,p:565},
+    {y:2025.3,p:482,l:"Tariff|$482",ev:1},{y:2025.5,p:560},{y:2025.8,p:650},
+    {y:2026,p:698,l:"ATH $698",ath:1},{y:2026.2,p:672,l:"NOW $672",cur:1}
+  ];
+  const W=740,H=320,pL=50,pR=30,pT=40,pB=40,cW=W-pL-pR,cH=H-pT-pB,mnY=160,mxY=720,mnX=2014,mxX=2026.5;
+  const sx=x=>pL+((x-mnX)/(mxX-mnX))*cW, sy=y=>pT+cH-((y-mnY)/(mxY-mnY))*cH;
+  const pathD=pts.map((p,i)=>`${i?'L':'M'}${sx(p.y)},${sy(p.p)}`).join(' ');
+
+  const athLines=[{p:340,l:"Pre-COVID ATH $340",c:"#22c55e"},{p:480,l:"Jan 2022 ATH $480",c:"#3b82f6"},{p:565,l:"Mid-2024 ATH $565",c:"#a855f7"},{p:590,l:"Projected ~$590",c:"#f59e0b",d:1}];
+
+  const gridY=[200,300,400,500,600,700].map(y=>`<line x1="${pL}" y1="${sy(y)}" x2="${W-pR}" y2="${sy(y)}" stroke="rgba(255,255,255,0.04)"/><text x="${pL-6}" y="${sy(y)+4}" fill="rgba(255,255,255,0.2)" font-size="9" text-anchor="end" font-family="JetBrains Mono">$${y}</text>`).join('');
+  const gridX=[2014,2016,2018,2020,2022,2024,2026].map(x=>`<text x="${sx(x)}" y="${H-8}" fill="rgba(255,255,255,0.2)" font-size="9" text-anchor="middle" font-family="JetBrains Mono">${x}</text>`).join('');
+  const athSvg=athLines.map(l=>`<line x1="${pL}" y1="${sy(l.p)}" x2="${W-pR}" y2="${sy(l.p)}" stroke="${l.c}" stroke-width="1" ${l.d?'stroke-dasharray="6,4"':''} opacity="0.4"/><text x="${W-pR-4}" y="${sy(l.p)-5}" fill="${l.c}" font-size="7.5" opacity="0.7" font-family="JetBrains Mono" text-anchor="end">${l.l}</text>`).join('');
+
+  const dots=pts.filter(p=>p.ev||p.ath||p.cur).map(p=>{
+    const col=p.cur?'#22d3ee':p.ev?'#ef4444':'#f59e0b', r=p.cur?6:p.ev?5:4;
+    let lbl='';
+    if(p.l){
+      const dy=p.ev||p.cur?16:-10;
+      const lines=p.l.split('|');
+      lbl=`<text x="${sx(p.y)}" y="${sy(p.p)+dy}" fill="${col}" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">${lines.map((ln,i)=>`<tspan x="${sx(p.y)}" dy="${i?10:0}">${ln}</tspan>`).join('')}</text>`;
+    }
+    return `<circle cx="${sx(p.y)}" cy="${sy(p.p)}" r="${r}" fill="${col}" style="filter:drop-shadow(0 0 6px ${col}80)"/>${lbl}`;
+  }).join('');
+
+  const retestLabels=`
+    <rect x="${sx(2022.7)-32}" y="${sy(355)}" width="64" height="14" rx="3" fill="#22c55e" opacity="0.2"/>
+    <text x="${sx(2022.7)}" y="${sy(355)+10}" fill="#22c55e" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">RETEST ✓</text>
+    <rect x="${sx(2025.3)-32}" y="${sy(495)}" width="64" height="14" rx="3" fill="#3b82f6" opacity="0.2"/>
+    <text x="${sx(2025.3)}" y="${sy(495)+10}" fill="#3b82f6" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">RETEST ✓</text>`;
+
+  const projZone=`<rect x="${pL}" y="${sy(610)}" width="${cW}" height="${sy(565)-sy(610)}" fill="#f59e0b" opacity="0.06" rx="4"/>
+    <text x="${pL+8}" y="${sy(590)}" fill="#f59e0b" font-size="9" font-weight="700" opacity="0.6" font-family="JetBrains Mono">PROJECTED RETEST ZONE $565–610</text>`;
+
+  const buyLabels=[{x:2016,y:200},{x:2020.1,y:245},{x:2022.8,y:375},{x:2025.4,y:508}].map(b=>
+    `<rect x="${sx(b.x)-14}" y="${sy(b.y)-7}" width="28" height="14" rx="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+     <text x="${sx(b.x)}" y="${sy(b.y)+4}" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle" font-weight="600">Buy</text>`
+  ).join('');
+
+  document.getElementById('svg-chart').innerHTML=`
+    <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      ${gridY}${gridX}${athSvg}
+      <defs><linearGradient id="pF" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22d3ee" stop-opacity="0.15"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
+      <path d="${pathD} L${sx(2026.2)},${sy(mnY)} L${sx(2014)},${sy(mnY)} Z" fill="url(#pF)"/>
+      <path d="${pathD}" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" style="filter:drop-shadow(0 0 4px rgba(34,211,238,0.4))"/>
+      ${projZone}${retestLabels}${dots}${buyLabels}
+    </svg>`;
+})();
+
+// ===== EVIDENCE TABLE =====
+const evidence=[
+  {period:"Pre-COVID ATH",ath:340,target:"~$340",actual:"$348 (Oct 2022 low)",held:true,note:"2022 bear bottomed within 2.4% of pre-COVID ATH — textbook retest"},
+  {period:"Jan 2022 ATH",ath:480,target:"~$480",actual:"$482 (Apr 2025 low)",held:true,note:"Tariff crash bottomed within 0.4% of 2022 ATH — near-perfect"},
+  {period:"Mid-2024 ATH",ath:565,target:"~$565–590",actual:"Not yet tested",held:null,note:"If pattern holds, this is where next major pullback finds support"},
+  {period:"Current ATH",ath:698,target:"~$590–610",actual:"Projected zone",held:null,note:"EMA ribbon + former breakout zone = high-probability support"},
+];
+document.getElementById('evidence-table').innerHTML=evidence.map(r=>{
+  const heldCol=r.held===true?'#22c55e':'#f59e0b';
+  const badgeText=r.held===true?'HELD ✓':r.held===null?'PENDING':'BROKE';
+  return `<div class="evidence-row">
+    <div class="evidence-left">
+      <div class="name" style="color:${heldCol}">${r.period}</div>
+      <div class="price">$${r.ath}</div>
+    </div>
+    <div class="evidence-right">
+      <div class="evidence-meta">
+        <span style="color:rgba(255,255,255,0.4)">Target:</span>
+        <span style="color:#f59e0b;font-weight:700;font-family:var(--mono)">${r.target}</span>
+        <span style="color:rgba(255,255,255,0.3)">Actual:</span>
+        <span style="color:${heldCol};font-weight:600;font-family:var(--mono)">${r.actual}</span>
+        <span class="badge" style="color:${heldCol};border:1px solid ${heldCol}40;background:${heldCol}15">${badgeText}</span>
+      </div>
+      <div class="evidence-note">${r.note}</div>
+    </div>
+  </div>`;
+}).join('');
+
+// ===== STRUCTURE GRID =====
+const structItems=[
+  {title:"Institutional Memory",desc:"Big funds accumulated at breakout levels. They defend those positions with buy orders, creating a natural floor."},
+  {title:"Anchoring Bias",desc:"Traders remember old ATH as 'fair value.' When price returns, it feels cheap — triggering demand."},
+  {title:"EMA Ribbon Confluence",desc:"Monthly EMA ribbon catches up to former ATH levels over time. Price + MAs converge = high probability support."},
+  {title:"Volume Profile",desc:"Former ATH zones are high-volume nodes. Massive shares traded there = strong support from position defenders."},
+];
+document.getElementById('structure-grid').innerHTML=structItems.map(s=>`
+  <div class="why-card"><div class="title">${s.title}</div><div class="desc">${s.desc}</div></div>
+`).join('');
+
+// ===== TIER CARDS =====
+const tiers=[
+  {tier:1,label:"Starter Position",alloc:"25%",color:"#f59e0b",range:"$640–660",conds:["Fear & Greed drops below 15","VIX spikes above 35–40","SPY tests 200-day MA","OR ceasefire / Strait reopens, oil < $80"]},
+  {tier:2,label:"Add Meaningfully",alloc:"50%",color:"#f97316",range:"$590–630",conds:["AAII bearish exceeds 50%","VIX above 40 with reversal candle","SPY retests former ATH breakout (~$590)","EMA Cross nears buy signal on monthly"]},
+  {tier:3,label:"Full Position",alloc:"100%",color:"#ef4444",range:"$480–565",conds:["Fear & Greed in single digits","VIX above 45 + mean reversion","SPY retests Jan 2022 ATH (~$480)","Monthly EMA Cross fires Buy signal"]},
+];
+document.getElementById('tier-cards').innerHTML=tiers.map(z=>`
+  <div class="tier-card" style="border:1px solid ${z.color}20;border-left:3px solid ${z.color}">
+    <div class="tier-header">
+      <div class="tier-num" style="background:${z.color}">${z.tier}</div>
+      <div class="tier-name">${z.label}</div>
+      <span class="badge" style="color:${z.color};border:1px solid ${z.color}40;background:${z.color}15">${z.alloc}</span>
+      <span class="tier-range" style="color:${z.color}">SPY ${z.range}</span>
+    </div>
+    <div class="tier-conditions">
+      ${z.conds.map(c=>`<div class="tier-condition"><div class="tier-dot" style="background:${z.color}"></div>${c}</div>`).join('')}
+    </div>
+  </div>
+`).join('');
+
+// ===== RETURNS =====
+const returns=[
+  {p:"1D",r:"-0.2%",c:"#ef4444"},{p:"3D",r:"-0.1%",c:"#ef4444"},{p:"7D",r:"-0.3%",c:"#ef4444"},
+  {p:"2W",r:"+0.4%",c:"#22c55e"},{p:"1M",r:"+1.2%",c:"#22c55e"},{p:"3M",r:"+2.7%",c:"#22c55e"},{p:"12M",r:"+11.2%",c:"#22c55e"},
+];
+document.getElementById('returns-row').innerHTML=returns.map(r=>`
+  <div class="return-card" style="border:1px solid ${r.c}12">
+    <div class="return-period">${r.p}</div>
+    <div class="return-val" style="color:${r.c}">${r.r}</div>
+  </div>
+`).join('');
+
+// ===== CRISIS SELECTOR =====
+let selectedCrisis = 'iran';
+
+function renderCrisisDetail() {
+  const d = crisisData.find(c=>c.id===selectedCrisis);
+  document.getElementById('crisis-btns').innerHTML = crisisData.map(c=>
+    `<button class="crisis-btn ${c.id===selectedCrisis?'active':''}" onclick="selectCrisis('${c.id}')">${c.name}<span class="date">${c.date}</span></button>`
+  ).join('');
+
+  const rows = [
+    {l:"Catalyst",v:d.catalyst},{l:"Resolution",v:d.resolution},{l:"Oil Context",v:d.oilContext},
+    {l:"Fed Response",v:d.fedResponse},{l:"Labor Market",v:d.laborMarket},{l:"Time to ATH",v:d.timeToATH},
+  ];
+  if(d.formerATH) rows.push({l:"ATH Retest",v:`Former ATH $${d.formerATH} → Bottom $${d.retestLevel||'TBD'}`});
+
+  const metrics = [
+    {l:"F&G",v:d.fearGreed,c:fearColor(d.fearGreed)},
+    {l:"VIX Peak",v:d.vixPeak,c:vixColor(d.vixPeak)},
+    {l:"Drawdown",v:d.drawdown+'%',c:ddColor(d.drawdown)},
+    {l:"SPY Low",v:'$'+d.spyBottom,c:'#22d3ee'},
+  ];
+
+  const contrCol = d.contrariansRight===null?'#22d3ee':'#22c55e';
+  const contrBg = d.contrariansRight===null?'rgba(34,211,238,0.06)':'rgba(34,197,94,0.06)';
+  const contrBorder = d.contrariansRight===null?'rgba(34,211,238,0.15)':'rgba(34,197,94,0.15)';
+  const contrText = d.contrariansRight===null?'PENDING — Waiting for setup':'YES — Rally to new ATH';
+
+  document.getElementById('crisis-detail').innerHTML = `
+    <div>
+      ${rows.map(r=>`<div class="detail-row"><div class="detail-label">${r.l}</div><div class="detail-value">${r.v}</div></div>`).join('')}
+    </div>
+    <div>
+      <div class="metric-grid">
+        ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}15"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c}">${m.v}</div></div>`).join('')}
+        <div class="contrarian-box" style="grid-column:1/-1;background:${contrBg};border:1px solid ${contrBorder}">
+          <div style="font-size:10px;color:rgba(255,255,255,0.35)">Contrarians Correct?</div>
+          <div style="font-size:14px;font-weight:700;margin-top:3px;color:${contrCol}">${contrText}</div>
+        </div>
+      </div>
+    </div>`;
+}
+window.selectCrisis = function(id) { selectedCrisis=id; renderCrisisDetail(); };
+renderCrisisDetail();
+
+// ===== SQUEEZE TAB =====
+// Ceasefire odds
+const cfOdds=[
+  {date:"Mar 6",pct:23,passed:true},{date:"Mar 15",pct:41,passed:false},{date:"Mar 31",pct:62,passed:false},{date:"Apr 30",pct:76,passed:false}
+];
+document.getElementById('ceasefire-odds').innerHTML=cfOdds.map(o=>{
+  const col=o.pct>=60?'#22c55e':o.pct>=40?'#f59e0b':'#f97316';
+  return `<div style="flex:1 1 100px;background:rgba(0,0,0,0.3);border-radius:10px;padding:14px;text-align:center;border:1px solid ${col}20;${o.passed?'opacity:0.4':''}">
+    <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${o.date}${o.passed?' (passed)':''}</div>
+    <div style="font-size:28px;font-weight:800;color:${col};font-family:var(--mono);line-height:1">${o.pct}%</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:4px">ceasefire prob</div>
+    <div style="margin-top:8px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+      <div style="width:${o.pct}%;height:100%;background:${col};border-radius:3px"></div>
+    </div>
+  </div>`;
+}).join('');
+
+// Squeeze mechanics
+const sqMechanics=[
+  {icon:"🛡️",title:"$7B in Put Hedges",desc:"SPY saw $7B net outflows in 5 days. That's protective positioning that unwinds violently on good news — dealers buy back futures to de-hedge, accelerating the rally."},
+  {icon:"⚡",title:"VIX Crush = Re-Leverage",desc:"VIX at 28 → if it drops to 16, vol-targeting and risk-parity funds mechanically add ~$50B+ in equity exposure. This is systematic, not discretionary."},
+  {icon:"🧲",title:"Gamma Wall at 6,900",desc:"Heavy call option concentration at 6,900–7,000. Once price crosses that level, dealer hedging flips from selling into rallies to buying into rallies — acceleration."},
+  {icon:"💰",title:"Sidelined Cash = Fuel",desc:"F&G at 27 means investors are scared but haven't sold everything. That's dry powder. In true capitulation (F&G 3), everyone already sold — no buyers left."},
+  {icon:"📈",title:"Earnings Still Growing",desc:"2026 EPS growth forecast +15.9%. Forward P/E compressed to 21.6x from 22.3x. Fundamental engine hasn't broken — the selloff is sentiment, not structural."},
+  {icon:"🏛️",title:"Fed Put Still Alive",desc:"If oil stabilizes and labor weakens further, the Fed has room to cut. Bad economic data could paradoxically become bullish again — 'bad news is good news.'"}
+];
+document.getElementById('squeeze-mechanics').innerHTML=sqMechanics.map(s=>`
+  <div class="why-card"><div class="icon">${s.icon}</div><div class="title">${s.title}</div><div class="desc">${s.desc}</div></div>
+`).join('');
+
+// Scenario A triggers
+const scA=[
+  {title:"Ceasefire / De-escalation",desc:"Polymarket 62% by Mar 31. Any headline → oil drops to $70–75, VIX crushes."},
+  {title:"NVIDIA GTC Mar 16–19",desc:"Jensen Huang keynote = AI catalyst to reignite momentum. Market loves forward-looking narratives."},
+  {title:"Short Covering Cascade",desc:"Shorts from Iran panic + puts unwinding = mechanical buying pressure that feeds on itself."},
+];
+document.getElementById('scenario-a-triggers').innerHTML=scA.map(s=>`
+  <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;border:1px solid rgba(34,197,94,0.08)">
+    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:4px">${s.title}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5">${s.desc}</div>
+  </div>
+`).join('');
+
+// Scenario B triggers
+const scB=[
+  {title:"War Escalates 2–4 Weeks",desc:"Strait stays closed, oil pushes above $100. Sustained energy shock feeds into real inflation data."},
+  {title:"Labor Deterioration",desc:"Follow-up jobs reports confirm Feb wasn't a fluke. Claims rising, hiring freeze spreading."},
+  {title:"200-DMA Test ($658)",desc:"Technical breakdown triggers systematic selling from trend-followers and CTAs."},
+];
+document.getElementById('scenario-b-triggers').innerHTML=scB.map(s=>`
+  <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;border:1px solid rgba(249,115,22,0.08)">
+    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:4px">${s.title}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5">${s.desc}</div>
+  </div>
+`).join('');
+
+// Scenario C triggers
+const scC=[
+  {title:"Multi-Month Strait Closure",desc:"Oil $100+ for months. Inflation re-accelerates. Fed forced to hike or hold indefinitely."},
+  {title:"Recession Confirmed",desc:"GDP turns negative. Earnings estimates slashed. Credit spreads blow out."},
+  {title:"Contagion Spreads",desc:"Taiwan Strait tensions layer on top. Multiple simultaneous geopolitical shocks overwhelm markets."},
+];
+document.getElementById('scenario-c-triggers').innerHTML=scC.map(s=>`
+  <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;border:1px solid rgba(239,68,68,0.08)">
+    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:4px">${s.title}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5">${s.desc}</div>
+  </div>
+`).join('');
+
+// Key levels
+const keyLevels=[
+  {level:"$698",label:"ATH / Target",color:"#22c55e",note:"Jan 28 high"},
+  {level:"$690",label:"Gamma Wall",color:"#22d3ee",note:"Call concentration"},
+  {level:"$672",label:"Current Price",color:"#22d3ee",note:"Mar 8 close"},
+  {level:"$658",label:"200-DMA",color:"#f59e0b",note:"Key support"},
+  {level:"$640",label:"100-DMA Break",color:"#f97316",note:"Tier 1 zone"},
+  {level:"$610",label:"Former Breakout",color:"#f97316",note:"Tier 2 zone"},
+  {level:"$590",label:"ATH Retest",color:"#a855f7",note:"Mid-2024 ATH"},
+  {level:"$565",label:"Structure",color:"#ef4444",note:"Tier 3 begins"},
+];
+document.getElementById('key-levels').innerHTML=keyLevels.map(l=>`
+  <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;text-align:center;border-left:3px solid ${l.color}">
+    <div style="font-size:20px;font-weight:800;color:${l.color};font-family:var(--mono)">${l.level}</div>
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);margin-top:2px">${l.label}</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px">${l.note}</div>
+  </div>
+`).join('');
+
+// ===== CONFLICT PLAYBOOK =====
+const conflictSteps=[
+  {step:1,name:"Verbal Pressure",desc:"Cryptic messages, threats, urging target to 'make a deal.' Social media posts escalate rhetoric.",marker:"Trump posts about Iran/target on Truth Social, 'Armada heading to Iran'",market:"Markets drift slightly, uncertainty begins. Mostly ignored.",smartMoney:"No action yet — watching.",timing:"Weeks to months before action",iranStatus:"COMPLETE — Jan 28 'Armada heading' posts, weeks of pressure",iranDate:"Jan–Feb 2026"},
+  {step:2,name:"Strategic Posturing",desc:"Visible military/economic preparation. Alliance coordination. Public positioning without engagement.",marker:"Military repositioning, alliance meetings, executive reviews, public notices",market:"VIX ticks up slightly. Oil begins to drift higher on speculation.",smartMoney:"Begin watching put/call ratios for hedging buildup.",timing:"Days to weeks before strike",iranStatus:"COMPLETE — Military repositioning, coalition coordination with Israel",iranDate:"Feb 2026"},
+  {step:3,name:"The Friday Night Strike",desc:"Major strike/tariff/action, timed for after market close. Maximizes weekend digest time.",marker:"Friday evening or Saturday announcement. Futures closed or illiquid.",market:"No immediate price discovery. Weekend of fear, uncertainty, and speculation.",smartMoney:"Positioned defensively before weekend. Cash raised.",timing:"Friday night / Saturday",iranStatus:"COMPLETE — Feb 28 strikes on Iran, killing Supreme Leader",iranDate:"Feb 28, 2026"},
+  {step:4,name:"Risk Premium Expansion",desc:"Futures open Sunday 6PM ET with violent gap. But markets doubt longevity — partial reversal by Monday.",marker:"Oil spikes, futures gap down, but partial recovery as 'deal' expected",market:"Oil +12%, S&P gaps down then reverses intraday. Whipsaw action.",smartMoney:"Watch the intraday reversal quality. If it holds = still early.",timing:"Sunday–Monday",iranStatus:"COMPLETE — Oil hit $81, S&P reversed to flat on Mar 2",iranDate:"Mar 2, 2026"},
+  {step:5,name:"'Forever' Conflict Rhetoric",desc:"After dip-buyers pile in, Trump blindsides with escalation language. 'Wars can be fought forever.'",marker:"Trump posts about unlimited weapons, forever war. Doubling down.",market:"Second leg down. Dip buyers get trapped. New weekly lows.",smartMoney:"Smart money watches for sentiment polarity shift. Not buying yet.",timing:"Days 3–5 after strike",iranStatus:"COMPLETE — Trump: 'wars fought forever,' 'unlimited weaponry' Mar 2–3",iranDate:"Mar 2–3, 2026"},
+  {step:6,name:"Markets Price Prolonged Conflict",desc:"Oil above $85, equities hit new weekly lows, rush to sidelines accelerates. Positioning changes structurally.",marker:"Brent >$85, equities erase gains, gold/silver sell off (cash hoarding), VIX elevated",market:"Dow -1,100 pts. Oil $90+. Silver -20% in 24hrs. Defensive flows.",smartMoney:"SMART MONEY begins scanning for entry. Sentiment polarity extreme.",timing:"Week 1–2",iranStatus:"ACTIVE — Oil hit $90.90, Dow worst week since Apr, silver crashed",iranDate:"Mar 3–7, 2026"},
+  {step:7,name:"Conditional De-Escalation",desc:"After sufficient risk premia expansion, Trump introduces calibrated de-escalation. NOT a retreat — conditional.",marker:"Language shifts to 'negotiations possible if...' Talks, frameworks mentioned quietly.",market:"VIX plateaus. Oil stops making new highs. Equity selling exhausts.",smartMoney:"THIS IS THE BUY ZONE. Smart money enters while headlines still negative.",timing:"Highly variable — days to months",iranStatus:"PENDING — watching for: Iran govt collapse OR bond market stress trigger",iranDate:"TBD"},
+  {step:8,name:"Market & Political Feedback",desc:"Financial markets become part of negotiation. Oil >$90 conflicts with Trump's policy priorities (low gas, low inflation, peace).",marker:"Brent >$90 sustained, CPI estimates rising, gas prices +10%, consumer sentiment falling",market:"Market stress forces Trump's hand. Bond market is the ultimate tell.",smartMoney:"Conviction builds. Adding to positions on each dip.",timing:"Overlaps with Step 7",iranStatus:"DEVELOPING — Oil at $90, Jobs -92K, but not yet at 'breaking' level",iranDate:"Ongoing"},
+  {step:9,name:"The Deal & Narrative Framing",desc:"Resolution framed as strategic victory. 'Maximum pressure produced concessions.'",marker:"Ceasefire tied to nuclear concessions, or Iranian govt collapse declared 'mission success'",market:"Headline shock — but initially met with skepticism. Smart money already positioned.",smartMoney:"Already long. Holding through volatility.",timing:"After Step 7–8 catalysts",iranStatus:"NOT YET — Polymarket: 62% ceasefire by Mar 31",iranDate:"TBD"},
+  {step:10,name:"Violent Repricing & Victory Lap",desc:"Positions unwind abruptly. Markets reprice not on improving fundamentals, but on collapsing worst-case probabilities.",marker:"Oil crashes, VIX implodes, equities gap up violently. Record single-day gains.",market:"SPY gaps +3–5%. Oil drops 15–20%. VIX crashes to teens. New ATH within weeks.",smartMoney:"Taking profits on the rip. Rotating into next opportunity.",timing:"Days after deal announcement",iranStatus:"NOT YET — This is where the squeeze to ATH occurs",iranDate:"TBD"},
+];
+
+const currentConflictStep=6; // Step 6 ACTIVE based on current conditions
+function renderConflictSteps(){
+  document.getElementById('conflict-phase').textContent='Step '+currentConflictStep+' of 10';
+  document.getElementById('conflict-phase-name').textContent='— '+conflictSteps[currentConflictStep-1].name;
+  document.getElementById('conflict-steps').innerHTML=conflictSteps.map(s=>{
+    const isCurrent=s.step===currentConflictStep;
+    const isPast=s.step<currentConflictStep;
+    const isFuture=s.step>currentConflictStep;
+    const borderCol=isCurrent?'var(--cyan)':isPast?'var(--green)':'rgba(255,255,255,0.06)';
+    const statusCol=s.iranStatus.startsWith('COMPLETE')?'#22c55e':s.iranStatus.startsWith('ACTIVE')?'#22d3ee':s.iranStatus.startsWith('DEVELOPING')?'#f59e0b':'rgba(255,255,255,0.25)';
+    const statusBg=isCurrent?'rgba(34,211,238,0.06)':isPast?'rgba(34,197,94,0.03)':'rgba(255,255,255,0.01)';
+    return `<div style="background:${statusBg};border:1px solid ${borderCol};border-left:4px solid ${borderCol};border-radius:0 10px 10px 0;padding:16px;margin-bottom:8px;${isCurrent?'box-shadow:0 0 20px rgba(34,211,238,0.08)':''}${isFuture?'opacity:0.5':''}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:32px;height:32px;border-radius:50%;background:${isPast?'var(--green)':isCurrent?'var(--cyan)':'rgba(255,255,255,0.06)'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${isPast||isCurrent?'#0a0e17':'rgba(255,255,255,0.3)'};font-family:var(--mono);flex-shrink:0">${s.step}</div>
+        <div style="font-size:14px;font-weight:700;color:${isCurrent?'var(--cyan)':'rgba(255,255,255,0.7)'}">${s.name}</div>
+        ${isCurrent?'<span class="badge" style="color:#22d3ee;border:1px solid rgba(34,211,238,0.3);background:rgba(34,211,238,0.1);animation:pulse 2s infinite">← WE ARE HERE</span>':''}
+        ${isPast?'<span class="badge" style="color:#22c55e;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.1)">COMPLETE ✓</span>':''}
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);line-height:1.6;margin-bottom:8px">${s.desc}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-size:10px">
+        <div style="color:rgba(255,255,255,0.3)"><strong style="color:rgba(255,255,255,0.45)">Marker:</strong> ${s.marker}</div>
+        <div style="color:rgba(255,255,255,0.3)"><strong style="color:rgba(255,255,255,0.45)">Market:</strong> ${s.market}</div>
+        <div style="color:rgba(255,255,255,0.3)"><strong style="color:rgba(255,255,255,0.45)">Smart $:</strong> ${s.smartMoney}</div>
+      </div>
+      <div style="margin-top:8px;padding:6px 10px;background:rgba(0,0,0,0.2);border-radius:4px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:${statusCol}">IRAN:</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.4)">${s.iranStatus}</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.2);margin-left:auto">${s.iranDate}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+renderConflictSteps();
+
+// ===== TARIFF PLAYBOOK =====
+const tariffSteps=[
+  {step:1,name:"Cryptic Signal",desc:"Friday: Trump posts cryptic message signaling tariffs on a specific country/sector. Markets drift lower.",marker:"Truth Social post, vague threats, 'big announcement coming'",market:"Slight drift lower. Uncertainty starts.",timing:"Friday",buy:"No"},
+  {step:2,name:"Big Tariff Announcement",desc:"Same day or Saturday: Large new tariff (25%+). Shock value maximized.",marker:"Formal tariff announcement with specific % and date",market:"After-hours fear. Weekend anxiety builds.",timing:"Fri/Sat",buy:"No"},
+  {step:3,name:"Weekend Doubling Down",desc:"Saturday–Sunday: Trump repeatedly doubles down while markets are closed. Maximum psychological pressure.",marker:"Multiple Truth Social posts, interviews confirming tariffs",market:"No price discovery. Fear compounds in a vacuum.",timing:"Sat–Sun",buy:"No"},
+  {step:4,name:"Target Responds",desc:"Target country responds publicly or signals willingness to negotiate.",marker:"Foreign leader statements, diplomatic meetings announced",market:"Mixed signals — hope vs fear.",timing:"Weekend",buy:"No"},
+  {step:5,name:"Futures Gap Down",desc:"Sunday 6PM ET: Futures reopen. Emotional selloff as tariff headlines hit price discovery.",marker:"ES futures -1.5% to -4%. Oil may spike. VIX jumps.",market:"Gap down open. Panic selling. Circuit breakers possible.",timing:"Sunday 6PM",buy:"No — too early"},
+  {step:6,name:"Continued Pressure",desc:"Mon–Tue: Trump continues public pressure. But investors realize tariffs aren't live yet (weeks away).",marker:"More threats, but tariff effective date is 2–4 weeks out",market:"Selling continues but pace slows. Volume still elevated.",timing:"Mon–Tue",buy:"No — still falling"},
+  {step:7,name:"Dip Buyers Step In",desc:"Wednesday: Relief rally as dip buyers enter. BUT this often fades and leads to another push lower.",marker:"Intraday reversal, volume spike on green candles, then fade",market:"Brief rally that fades. Creates a bull trap for early buyers.",timing:"Wed of first week",buy:"SMART MONEY starts buying here"},
+  {step:8,name:"Discussion Headlines",desc:"Following weekend: Trump posts that 'discussions are underway' with target country leaders.",marker:"'Working toward a solution,' 'productive talks,' 'good meeting'",market:"Optimism creeps in. Oil may ease. Defensive positioning starts loosening.",timing:"Weekend 2",buy:"Add to positions"},
+  {step:9,name:"Futures Gap Up",desc:"Sunday 6PM: Futures open sharply higher on deal optimism. But gains fade into Monday open.",marker:"ES futures +1–2% at Sunday open, then fade by Mon 9:30AM",market:"Gap up that partially fills. Still volatile. Testing conviction.",timing:"Sunday 6PM (week 2)",buy:"Hold — don't chase"},
+  {step:10,name:"Administration Reassurance",desc:"Monday: Treasury Secretary/officials appear on TV to reassure markets. 'Progress toward a deal.'",marker:"Bessent, Lutnick on CNBC/Fox Business. Optimistic tone.",market:"Stabilization. VIX starts declining. Bond yields normalize.",timing:"Mon (week 2)",buy:"Confidence building"},
+  {step:11,name:"Slow Drip of Progress",desc:"2–4 weeks of various admin officials teasing progress. Market grinds higher on hope.",marker:"'Framework in place,' 'details being finalized,' advisor quotes",market:"Grinding higher. Shorts covering slowly. FOMO building.",timing:"Weeks 2–4",buy:"Hold long positions"},
+  {step:12,name:"Deal Announced → New ATH",desc:"Trade deal announced. Markets hit new record highs. Violent repricing as defensive positions unwind.",marker:"Official deal announcement. Trump victory lap. Photo ops.",market:"SPY gaps +2–4%. VIX crushed. New ATH within days.",timing:"Day tariff was supposed to go live",buy:"Take profits on the rip"},
+  {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Volatility is the feature, not the bug.",marker:"New country/sector targeted. 'We're looking at [X] very strongly.'",market:"Markets initially ignore, then the cycle restarts.",timing:"Weeks to months later",buy:"Reload cash. Wait for Step 5–7."},
+];
+
+const currentTariffStep=0; // 0 = not in active tariff cycle. Set >0 when active.
+function renderTariffSteps(){
+  if(currentTariffStep>0){
+    document.getElementById('tariff-phase').textContent='Step '+currentTariffStep+' of 13';
+    document.getElementById('tariff-phase-name').textContent='— '+tariffSteps[currentTariffStep-1].name;
+  }else{
+    document.getElementById('tariff-phase').textContent='Dormant';
+    document.getElementById('tariff-phase-name').textContent='— No active tariff cycle. Iran conflict is the dominant playbook.';
+  }
+  document.getElementById('tariff-steps').innerHTML=tariffSteps.map(s=>{
+    const isCurrent=s.step===currentTariffStep;
+    const isPast=currentTariffStep>0&&s.step<currentTariffStep;
+    const borderCol=isCurrent?'var(--cyan)':isPast?'var(--green)':'rgba(255,255,255,0.06)';
+    const bg=isCurrent?'rgba(34,211,238,0.06)':isPast?'rgba(34,197,94,0.03)':'rgba(255,255,255,0.01)';
+    const buyCol=s.buy.includes('SMART')?'#22c55e':s.buy.includes('Add')||s.buy.includes('Hold')?'#f59e0b':s.buy.includes('Take')?'#a855f7':'rgba(255,255,255,0.2)';
+    return `<div style="background:${bg};border:1px solid ${borderCol};border-left:4px solid ${borderCol};border-radius:0 10px 10px 0;padding:14px;margin-bottom:6px;${isCurrent?'box-shadow:0 0 20px rgba(34,211,238,0.08)':''}${!isCurrent&&!isPast&&currentTariffStep>0?'opacity:0.5':''}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${isPast?'var(--green)':isCurrent?'var(--cyan)':'rgba(255,255,255,0.06)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${isPast||isCurrent?'#0a0e17':'rgba(255,255,255,0.3)'};font-family:var(--mono);flex-shrink:0">${s.step}</div>
+        <div style="font-size:13px;font-weight:700;color:${isCurrent?'var(--cyan)':'rgba(255,255,255,0.65)'}">${s.name}</div>
+        <span style="font-size:9px;color:rgba(255,255,255,0.2)">${s.timing}</span>
+        ${isCurrent?'<span class="badge" style="color:#22d3ee;border:1px solid rgba(34,211,238,0.3);background:rgba(34,211,238,0.1);animation:pulse 2s infinite">← CURRENT</span>':''}
+        <span style="margin-left:auto;font-size:10px;font-weight:700;color:${buyCol}">${s.buy}</span>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;margin-bottom:6px">${s.desc}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:9px;color:rgba(255,255,255,0.25)">
+        <span><strong style="color:rgba(255,255,255,0.35)">Marker:</strong> ${s.marker}</span>
+        <span><strong style="color:rgba(255,255,255,0.35)">Market:</strong> ${s.market}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+renderTariffSteps();
+</script>
+</body>
+</html>
