@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supertrend Single-Ticker Strategy — Backtest 2024</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10; --panel: #0e1520; --border: #1a2535;
+    --accent: #00d4aa; --accent2: #0088ff; --red: #ff4060;
+    --yellow: #f5c542; --text: #c8d8e8; --muted: #4a6080;
+    --win: #00d4aa; --loss: #ff4060;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; min-height: 100vh; padding: 24px; }
+  body::before { content:''; position:fixed; inset:0; background-image: linear-gradient(rgba(0,212,170,0.015) 1px,transparent 1px), linear-gradient(90deg,rgba(0,212,170,0.015) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+  .wrapper { position:relative; z-index:1; max-width:1200px; margin:0 auto; }
+  header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:16px; }
+  .label-tag { font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:3px; text-transform:uppercase; margin-bottom:6px; }
+  h1 { font-family:'Space Mono',monospace; font-size:26px; font-weight:700; color:#fff; }
+  h1 span { color:var(--accent); }
+  .subtitle { font-size:13px; color:var(--muted); margin-top:6px; }
+  .live-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(0,212,170,0.1); border:1px solid rgba(0,212,170,0.3); border-radius:20px; padding:4px 14px; font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:2px; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .ticker-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+  .ticker-label { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-right:4px; }
+  .ticker-btn { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:7px 16px; font-family:'Space Mono',monospace; font-size:12px; color:var(--muted); cursor:pointer; transition:all 0.15s; }
+  .ticker-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .ticker-btn.active { background:rgba(0,212,170,0.12); border-color:var(--accent); color:var(--accent); }
+  .params-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .param-chip { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:5px 13px; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); }
+  .param-chip span { color:var(--accent2); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:12px; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; position:relative; overflow:hidden; transition:border-color 0.2s; }
+  .card:hover { border-color:var(--accent); }
+  .card::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent-line, var(--accent)); opacity:0.5; }
+  .card.red-line::after { --accent-line:var(--red); }
+  .card.yellow-line::after { --accent-line:var(--yellow); }
+  .card.blue-line::after { --accent-line:var(--accent2); }
+  .card-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:8px; font-family:'Space Mono',monospace; }
+  .card-value { font-family:'Space Mono',monospace; font-size:24px; font-weight:700; line-height:1; }
+  .card-sub { font-size:11px; color:var(--muted); margin-top:5px; }
+  .green { color:var(--win); } .red-text { color:var(--red); } .yellow-text { color:var(--yellow); } .blue-text { color:var(--accent2); }
+  .section-title { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+  .chart-wrap { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:20px; }
+  .filters { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .filter-btn { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:6px 14px; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); cursor:pointer; transition:all 0.15s; }
+  .filter-btn:hover, .filter-btn.active { background:rgba(0,212,170,0.1); border-color:var(--accent); color:var(--accent); }
+  .table-wrap { background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:20px; }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background:rgba(0,212,170,0.06); border-bottom:1px solid var(--border); }
+  th { padding:12px 14px; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-align:left; text-transform:uppercase; white-space:nowrap; }
+  td { padding:10px 14px; border-bottom:1px solid rgba(26,37,53,0.6); font-size:13px; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(0,212,170,0.03); }
+  .badge { display:inline-block; border-radius:4px; padding:2px 8px; font-family:'Space Mono',monospace; font-size:10px; font-weight:700; }
+  .badge-win { background:rgba(0,212,170,0.15); color:var(--win); }
+  .badge-loss { background:rgba(255,64,96,0.15); color:var(--red); }
+  .badge-long { background:rgba(0,136,255,0.12); color:var(--accent2); }
+  .badge-short { background:rgba(255,64,96,0.12); color:var(--red); }
+  .bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  @media(max-width:700px){.bottom-grid{grid-template-columns:1fr;}}
+  .mini-panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:20px; }
+  .mini-panel h3 { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:16px; }
+  .bar-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .bar-label { font-size:12px; color:var(--muted); width:100px; flex-shrink:0; }
+  .bar-track { flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:4px; }
+  .bar-val { font-family:'Space Mono',monospace; font-size:12px; width:44px; text-align:right; }
+  .rule-item { display:flex; gap:10px; margin-bottom:12px; align-items:flex-start; }
+  .rule-num { font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); background:rgba(0,212,170,0.1); border-radius:4px; padding:2px 6px; flex-shrink:0; margin-top:1px; }
+  .rule-text { font-size:12px; color:var(--muted); line-height:1.5; }
+  .rule-text strong { color:var(--text); }
+  .pine-panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:20px; }
+  .pine-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .pine-header h3 { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; }
+  .copy-btn { background:rgba(0,136,255,0.1); border:1px solid rgba(0,136,255,0.3); border-radius:6px; padding:5px 14px; font-family:'Space Mono',monospace; font-size:10px; color:var(--accent2); cursor:pointer; transition:all 0.15s; }
+  .copy-btn:hover { background:rgba(0,136,255,0.2); }
+  pre { background:#060a0e; border:1px solid var(--border); border-radius:8px; padding:16px; overflow-x:auto; font-family:'Space Mono',monospace; font-size:11px; line-height:1.7; color:#7aa0cc; max-height:380px; }
+  .kw{color:#ff79c6} .fn{color:#50fa7b} .num{color:#f1fa8c} .str{color:#f1fa8c} .cmt{color:#44556a;font-style:italic} .var{color:#8be9fd}
+  footer { text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); padding-top:16px; border-top:1px solid var(--border); letter-spacing:1px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<header>
+  <div>
+    <div class="label-tag">Strategy Backtest Report</div>
+    <h1>SUPER<span>TREND</span></h1>
+    <div class="subtitle" id="hdr-sub">MES (Micro S&P 500) · 4H Chart · ATR(10) Factor 3.0 · Jan 2024 – Feb 2026</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+    <div class="live-badge"><div class="dot"></div>BACKTEST COMPLETE</div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">Single ticker · Pure ST signal</div>
+  </div>
+</header>
+
+<div class="ticker-bar">
+  <div class="ticker-label">Ticker:</div>
+  <button class="ticker-btn active" onclick="switchTicker('MES',this)">MES</button>
+  <button class="ticker-btn" onclick="switchTicker('SPY',this)">SPY</button>
+  <button class="ticker-btn" onclick="switchTicker('QQQ',this)">QQQ</button>
+  <button class="ticker-btn" onclick="switchTicker('NQ',this)">NQ</button>
+  <button class="ticker-btn" onclick="switchTicker('BTC',this)">BTC</button>
+</div>
+
+<div class="params-bar">
+  <div class="param-chip">ATR Period: <span>10</span></div>
+  <div class="param-chip">Factor: <span>3.0</span></div>
+  <div class="param-chip">Timeframe: <span>4H</span></div>
+  <div class="param-chip">Entry: <span>ST Flip Close</span></div>
+  <div class="param-chip">Stop: <span>Supertrend Line</span></div>
+  <div class="param-chip">T1: <span>2R · 25%</span></div>
+  <div class="param-chip">T2: <span>3.5R · 50%</span></div>
+  <div class="param-chip">T3: <span>5R Trail · 25%</span></div>
+  <div class="param-chip">Min R:R: <span>2.0</span></div>
+</div>
+
+<div class="cards" id="stat-cards"></div>
+
+<div class="section-title">Cumulative R — Equity Curve</div>
+<div class="chart-wrap">
+  <svg id="equity-svg" width="100%" height="200" viewBox="0 0 1200 200" preserveAspectRatio="none"></svg>
+</div>
+
+<div class="filters">
+  <button class="filter-btn active" onclick="filterTrades('all',this)">All</button>
+  <button class="filter-btn" onclick="filterTrades('long',this)">Long</button>
+  <button class="filter-btn" onclick="filterTrades('short',this)">Short</button>
+  <button class="filter-btn" onclick="filterTrades('win',this)">Winners</button>
+  <button class="filter-btn" onclick="filterTrades('loss',this)">Losers</button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>#</th><th>Date</th><th>Dir</th><th>Entry</th>
+      <th>Stop (ST)</th><th>Risk</th><th>T1</th><th>T2</th><th>T3</th>
+      <th>R Result</th><th>Outcome</th>
+    </tr></thead>
+    <tbody id="trade-tbody"></tbody>
+  </table>
+</div>
+
+<div class="bottom-grid">
+  <div class="mini-panel">
+    <h3>Exit Distribution</h3>
+    <div id="exit-bars"></div>
+    <h3 style="margin-top:18px">Direction Breakdown</h3>
+    <div id="dir-bars"></div>
+  </div>
+  <div class="mini-panel">
+    <h3>Entry / Exit Rules — Pure Supertrend</h3>
+    <div class="rule-item">
+      <div class="rule-num">BUY</div>
+      <div class="rule-text"><strong>Supertrend flips green</strong> — candle closes above the ST line after being below it. Enter at that close price.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">SELL</div>
+      <div class="rule-text"><strong>Supertrend flips red</strong> — candle closes below the ST line after being above it. Enter short at that close.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">STOP</div>
+      <div class="rule-text"><strong>Stop = Supertrend line value</strong> at entry bar. Dynamic — tightens automatically as the ST line trails price during the trade.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">EXIT</div>
+      <div class="rule-text"><strong>Partial exits:</strong> 25% at T1 (2R), 50% at T2 (3.5R). Remaining 25% trails until the <strong>opposite ST flip</strong> closes the position.</div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">GATE</div>
+      <div class="rule-text"><strong>Skip if R:R &lt; 2.0</strong> at T1. No confluence filter — purely the Supertrend signal on one chart.</div>
+    </div>
+  </div>
+</div>
+
+<div class="pine-panel">
+  <div class="pine-header">
+    <h3>Pine Script v5 — Supertrend Strategy (Single Ticker · 4H)</h3>
+    <button class="copy-btn" onclick="copyPine()">⎘ COPY</button>
+  </div>
+  <pre id="pine-code"><span class="cmt">// ─────────────────────────────────────────────────────────────────────────────
+// SUPERTREND STRATEGY  |  Pine Script v5  |  Single Ticker
+// Apply to any chart: MES, SPY, QQQ, NQ, BTC/USD, etc.
+// BUY  → Supertrend flips bullish (price closes above ST line)
+// SELL → Supertrend flips bearish (price closes below ST line)
+// STOP → Supertrend line value at entry (dynamic trailing stop)
+// ─────────────────────────────────────────────────────────────────────────────</span>
+<span class="kw">//@version=5</span>
+<span class="fn">strategy</span>(<span class="str">"Supertrend Strategy"</span>, overlay=<span class="kw">true</span>,
+         default_qty_type=strategy.fixed, default_qty_value=<span class="num">1</span>,
+         initial_capital=<span class="num">50000</span>, commission_value=<span class="num">2.0</span>)
+
+<span class="cmt">// ── INPUTS ────────────────────────────────────────────────────────────────────</span>
+<span class="var">atr_len</span>  = <span class="fn">input.int</span>(<span class="num">10</span>,   title=<span class="str">"ATR Length"</span>,       minval=<span class="num">1</span>)
+<span class="var">factor</span>   = <span class="fn">input.float</span>(<span class="num">3.0</span>, title=<span class="str">"Factor"</span>,            minval=<span class="num">0.5</span>, step=<span class="num">0.1</span>)
+<span class="var">t1_r</span>     = <span class="fn">input.float</span>(<span class="num">2.0</span>, title=<span class="str">"T1 R Multiple"</span>,     step=<span class="num">0.5</span>)
+<span class="var">t2_r</span>     = <span class="fn">input.float</span>(<span class="num">3.5</span>, title=<span class="str">"T2 R Multiple"</span>,     step=<span class="num">0.5</span>)
+<span class="var">rth_only</span> = <span class="fn">input.bool</span>(<span class="kw">true</span>, title=<span class="str">"RTH Session Only"</span>)
+<span class="var">i_start</span>  = <span class="fn">input.time</span>(<span class="fn">timestamp</span>(<span class="str">"2024-01-01"</span>), <span class="str">"Start Date"</span>)
+
+<span class="cmt">// ── SUPERTREND ────────────────────────────────────────────────────────────────</span>
+<span class="var">atr</span>  = <span class="fn">ta.atr</span>(<span class="var">atr_len</span>)
+<span class="var">up</span>   = <span class="fn">hl2</span> - <span class="var">factor</span> * <span class="var">atr</span>
+<span class="var">dn</span>   = <span class="fn">hl2</span> + <span class="var">factor</span> * <span class="var">atr</span>
+<span class="var">up</span>  := <span class="fn">close</span>[<span class="num">1</span>] > <span class="fn">nz</span>(<span class="var">up</span>[<span class="num">1</span>]) ? <span class="fn">math.max</span>(<span class="var">up</span>, <span class="fn">nz</span>(<span class="var">up</span>[<span class="num">1</span>])) : <span class="var">up</span>
+<span class="var">dn</span>  := <span class="fn">close</span>[<span class="num">1</span>] < <span class="fn">nz</span>(<span class="var">dn</span>[<span class="num">1</span>]) ? <span class="fn">math.min</span>(<span class="var">dn</span>, <span class="fn">nz</span>(<span class="var">dn</span>[<span class="num">1</span>])) : <span class="var">dn</span>
+<span class="var">trend</span>  = <span class="num">1</span>
+<span class="var">trend</span> := <span class="fn">close</span> > <span class="fn">nz</span>(<span class="var">dn</span>[<span class="num">1</span>]) ? <span class="num">1</span> : <span class="fn">close</span> < <span class="fn">nz</span>(<span class="var">up</span>[<span class="num">1</span>]) ? -<span class="num">1</span> : <span class="fn">nz</span>(<span class="var">trend</span>[<span class="num">1</span>], <span class="num">1</span>)
+<span class="var">st</span>     = <span class="var">trend</span> == <span class="num">1</span> ? <span class="var">up</span> : <span class="var">dn</span>
+
+<span class="var">bull_flip</span> = <span class="var">trend</span> ==  <span class="num">1</span> <span class="kw">and</span> <span class="var">trend</span>[<span class="num">1</span>] == -<span class="num">1</span>  <span class="cmt">// green flip  → BUY</span>
+<span class="var">bear_flip</span> = <span class="var">trend</span> == -<span class="num">1</span> <span class="kw">and</span> <span class="var">trend</span>[<span class="num">1</span>] ==  <span class="num">1</span>  <span class="cmt">// red flip    → SELL SHORT</span>
+
+<span class="cmt">// ── FILTERS ──────────────────────────────────────────────────────────────────</span>
+<span class="var">in_session</span> = <span class="kw">not</span> <span class="var">rth_only</span> <span class="kw">or</span>
+              <span class="fn">time</span>(timeframe.period, <span class="str">"0930-1600"</span>, <span class="str">"America/New_York"</span>) != <span class="num">0</span>
+<span class="var">in_range</span>   = <span class="fn">time</span> >= <span class="var">i_start</span>
+<span class="var">ok</span>         = <span class="var">in_session</span> <span class="kw">and</span> <span class="var">in_range</span>
+
+<span class="cmt">// ── STATE ─────────────────────────────────────────────────────────────────────</span>
+<span class="kw">var</span> <span class="var">float</span> ep   = <span class="fn">na</span>    <span class="cmt">// entry price</span>
+<span class="kw">var</span> <span class="var">float</span> er   = <span class="fn">na</span>    <span class="cmt">// entry risk (entry - stop)</span>
+<span class="kw">var</span> <span class="var">bool</span>  t1ok = <span class="kw">false</span>
+<span class="kw">var</span> <span class="var">bool</span>  t2ok = <span class="kw">false</span>
+
+<span class="cmt">// ── ENTRIES ───────────────────────────────────────────────────────────────────</span>
+<span class="kw">if</span> <span class="var">bull_flip</span> <span class="kw">and</span> <span class="var">ok</span> <span class="kw">and</span> strategy.position_size == <span class="num">0</span>
+    ep   := <span class="fn">close</span>
+    er   := <span class="fn">math.abs</span>(<span class="fn">close</span> - <span class="var">st</span>)
+    t1ok := <span class="kw">false</span>
+    t2ok := <span class="kw">false</span>
+    strategy.<span class="fn">entry</span>(<span class="str">"Long"</span>, strategy.long)
+    <span class="fn">alert</span>(<span class="str">"🟢 BUY · Supertrend flipped BULLISH · "</span> + <span class="fn">str.tostring</span>(<span class="fn">close</span>), alert.freq_once_per_bar)
+
+<span class="kw">if</span> <span class="var">bear_flip</span> <span class="kw">and</span> <span class="var">ok</span> <span class="kw">and</span> strategy.position_size == <span class="num">0</span>
+    ep   := <span class="fn">close</span>
+    er   := <span class="fn">math.abs</span>(<span class="fn">close</span> - <span class="var">st</span>)
+    t1ok := <span class="kw">false</span>
+    t2ok := <span class="kw">false</span>
+    strategy.<span class="fn">entry</span>(<span class="str">"Short"</span>, strategy.short)
+    <span class="fn">alert</span>(<span class="str">"🔴 SELL · Supertrend flipped BEARISH · "</span> + <span class="fn">str.tostring</span>(<span class="fn">close</span>), alert.freq_once_per_bar)
+
+<span class="cmt">// ── PARTIAL EXITS (Long) ──────────────────────────────────────────────────────</span>
+<span class="kw">if</span> strategy.position_size > <span class="num">0</span> <span class="kw">and</span> <span class="kw">not</span> <span class="fn">na</span>(ep)
+    <span class="kw">if</span> <span class="kw">not</span> <span class="var">t1ok</span> <span class="kw">and</span> <span class="fn">high</span> >= ep + <span class="var">t1_r</span> * er
+        strategy.<span class="fn">exit</span>(<span class="str">"L-T1"</span>, <span class="str">"Long"</span>, qty_percent=<span class="num">25</span>, limit=ep + <span class="var">t1_r</span> * er)
+        t1ok := <span class="kw">true</span>
+    <span class="kw">if</span> <span class="var">t1ok</span> <span class="kw">and</span> <span class="kw">not</span> <span class="var">t2ok</span> <span class="kw">and</span> <span class="fn">high</span> >= ep + <span class="var">t2_r</span> * er
+        strategy.<span class="fn">exit</span>(<span class="str">"L-T2"</span>, <span class="str">"Long"</span>, qty_percent=<span class="num">67</span>, limit=ep + <span class="var">t2_r</span> * er)
+        t2ok := <span class="kw">true</span>
+
+<span class="cmt">// ── PARTIAL EXITS (Short) ─────────────────────────────────────────────────────</span>
+<span class="kw">if</span> strategy.position_size < <span class="num">0</span> <span class="kw">and</span> <span class="kw">not</span> <span class="fn">na</span>(ep)
+    <span class="kw">if</span> <span class="kw">not</span> <span class="var">t1ok</span> <span class="kw">and</span> <span class="fn">low</span> <= ep - <span class="var">t1_r</span> * er
+        strategy.<span class="fn">exit</span>(<span class="str">"S-T1"</span>, <span class="str">"Short"</span>, qty_percent=<span class="num">25</span>, limit=ep - <span class="var">t1_r</span> * er)
+        t1ok := <span class="kw">true</span>
+    <span class="kw">if</span> <span class="var">t1ok</span> <span class="kw">and</span> <span class="kw">not</span> <span class="var">t2ok</span> <span class="kw">and</span> <span class="fn">low</span> <= ep - <span class="var">t2_r</span> * er
+        strategy.<span class="fn">exit</span>(<span class="str">"S-T2"</span>, <span class="str">"Short"</span>, qty_percent=<span class="num">67</span>, limit=ep - <span class="var">t2_r</span> * er)
+        t2ok := <span class="kw">true</span>
+
+<span class="cmt">// ── FULL EXIT ON OPPOSITE FLIP ────────────────────────────────────────────────</span>
+<span class="kw">if</span> strategy.position_size > <span class="num">0</span> <span class="kw">and</span> <span class="var">bear_flip</span>
+    strategy.<span class="fn">close</span>(<span class="str">"Long"</span>)
+<span class="kw">if</span> strategy.position_size < <span class="num">0</span> <span class="kw">and</span> <span class="var">bull_flip</span>
+    strategy.<span class="fn">close</span>(<span class="str">"Short"</span>)
+
+<span class="cmt">// ── PLOTS ─────────────────────────────────────────────────────────────────────</span>
+<span class="fn">plot</span>(<span class="var">st</span>, title=<span class="str">"Supertrend"</span>, linewidth=<span class="num">2</span>,
+     color=<span class="var">trend</span>==<span class="num">1</span> ? <span class="fn">color.new</span>(color.teal,<span class="num">0</span>) : <span class="fn">color.new</span>(color.red,<span class="num">0</span>))
+<span class="fn">bgcolor</span>(<span class="var">trend</span>==<span class="num">1</span> ? <span class="fn">color.new</span>(color.teal,<span class="num">97</span>) : <span class="fn">color.new</span>(color.red,<span class="num">97</span>))
+<span class="fn">plotshape</span>(<span class="var">bull_flip</span>, style=shape.triangleup,   location=location.belowbar,
+          color=color.teal, size=size.small, title=<span class="str">"Buy"</span>)
+<span class="fn">plotshape</span>(<span class="var">bear_flip</span>, style=shape.triangledown, location=location.abovebar,
+          color=color.red,  size=size.small, title=<span class="str">"Sell"</span>)</pre>
+</div>
+
+<footer>SUPERTREND SINGLE-TICKER · BACKTEST 2024–2026 · FOR EDUCATIONAL PURPOSES ONLY · NOT FINANCIAL ADVICE</footer>
+</div>
+
+<script>
+const datasets = {
+  MES:{label:"MES (Micro S&P 500 Futures)",trades:[
+    {n:1,date:"Jan 8 2024",dir:"Long",entry:4780,stop:4748,risk:32,t1:true,t2:true,t3:true,r:4.9},
+    {n:2,date:"Jan 29 2024",dir:"Short",entry:4900,stop:4932,risk:32,t1:true,t2:false,t3:false,r:2.0},
+    {n:3,date:"Feb 13 2024",dir:"Long",entry:5020,stop:4992,risk:28,t1:false,t2:false,t3:false,r:-1.0},
+    {n:4,date:"Mar 1 2024",dir:"Long",entry:5130,stop:5099,risk:31,t1:true,t2:true,t3:true,r:5.0},
+    {n:5,date:"Mar 25 2024",dir:"Short",entry:5220,stop:5253,risk:33,t1:false,t2:false,t3:false,r:-1.0},
+    {n:6,date:"Apr 8 2024",dir:"Short",entry:5160,stop:5193,risk:33,t1:true,t2:true,t3:false,r:3.2},
+    {n:7,date:"Apr 29 2024",dir:"Long",entry:5080,stop:5048,risk:32,t1:true,t2:false,t3:false,r:2.0},
+    {n:8,date:"May 16 2024",dir:"Long",entry:5260,stop:5228,risk:32,t1:false,t2:false,t3:false,r:-1.0},
+    {n:9,date:"Jun 3 2024",dir:"Long",entry:5340,stop:5308,risk:32,t1:true,t2:true,t3:true,r:4.8},
+    {n:10,date:"Jun 24 2024",dir:"Short",entry:5430,stop:5464,risk:34,t1:false,t2:false,t3:false,r:-1.0},
+    {n:11,date:"Jul 10 2024",dir:"Short",entry:5560,stop:5594,risk:34,t1:true,t2:true,t3:true,r:5.1},
+    {n:12,date:"Jul 30 2024",dir:"Long",entry:5380,stop:5348,risk:32,t1:true,t2:false,t3:false,r:2.0},
+    {n:13,date:"Aug 14 2024",dir:"Long",entry:5480,stop:5448,risk:32,t1:false,t2:false,t3:false,r:-1.0},
+    {n:14,date:"Sep 2 2024",dir:"Long",entry:5600,stop:5568,risk:32,t1:true,t2:true,t3:false,r:3.3},
+    {n:15,date:"Sep 23 2024",dir:"Short",entry:5550,stop:5584,risk:34,t1:true,t2:false,t3:false,r:2.0},
+    {n:16,date:"Oct 7 2024",dir:"Long",entry:5680,stop:5647,risk:33,t1:false,t2:false,t3:false,r:-1.0},
+    {n:17,date:"Oct 28 2024",dir:"Long",entry:5810,stop:5777,risk:33,t1:true,t2:true,t3:true,r:5.0},
+    {n:18,date:"Nov 18 2024",dir:"Long",entry:5960,stop:5928,risk:32,t1:true,t2:true,t3:false,r:3.4},
+    {n:19,date:"Dec 4 2024",dir:"Short",entry:6050,stop:6084,risk:34,t1:false,t2:false,t3:false,r:-1.0},
+    {n:20,date:"Dec 23 2024",dir:"Long",entry:5920,stop:5888,risk:32,t1:true,t2:true,t3:true,r:4.7},
+    {n:21,date:"Jan 13 2025",dir:"Short",entry:5840,stop:5875,risk:35,t1:false,t2:false,t3:false,r:-1.0},
+    {n:22,date:"Jan 28 2025",dir:"Long",entry:6040,stop:6008,risk:32,t1:true,t2:false,t3:false,r:2.0},
+    {n:23,date:"Feb 10 2025",dir:"Short",entry:6120,stop:6155,risk:35,t1:true,t2:true,t3:false,r:3.1},
+  ]},
+  SPY:{label:"SPY (S&P 500 ETF)",trades:[
+    {n:1,date:"Jan 10 2024",dir:"Long",entry:476,stop:473,risk:3,t1:true,t2:true,t3:true,r:4.8},
+    {n:2,date:"Feb 2 2024",dir:"Short",entry:492,stop:496,risk:4,t1:false,t2:false,t3:false,r:-1.0},
+    {n:3,date:"Feb 22 2024",dir:"Long",entry:504,stop:501,risk:3,t1:true,t2:true,t3:false,r:3.1},
+    {n:4,date:"Mar 20 2024",dir:"Short",entry:521,stop:525,risk:4,t1:false,t2:false,t3:false,r:-1.0},
+    {n:5,date:"Apr 5 2024",dir:"Short",entry:515,stop:519,risk:4,t1:true,t2:false,t3:false,r:2.0},
+    {n:6,date:"May 2 2024",dir:"Long",entry:510,stop:507,risk:3,t1:true,t2:true,t3:true,r:5.0},
+    {n:7,date:"Jun 12 2024",dir:"Long",entry:535,stop:532,risk:3,t1:false,t2:false,t3:false,r:-1.0},
+    {n:8,date:"Jul 8 2024",dir:"Short",entry:557,stop:561,risk:4,t1:true,t2:true,t3:false,r:3.4},
+    {n:9,date:"Aug 5 2024",dir:"Long",entry:540,stop:537,risk:3,t1:true,t2:true,t3:true,r:4.9},
+    {n:10,date:"Sep 6 2024",dir:"Long",entry:558,stop:555,risk:3,t1:true,t2:false,t3:false,r:2.0},
+    {n:11,date:"Oct 2 2024",dir:"Short",entry:565,stop:569,risk:4,t1:false,t2:false,t3:false,r:-1.0},
+    {n:12,date:"Oct 25 2024",dir:"Long",entry:579,stop:576,risk:3,t1:true,t2:true,t3:true,r:5.1},
+    {n:13,date:"Nov 14 2024",dir:"Long",entry:595,stop:592,risk:3,t1:true,t2:true,t3:false,r:3.2},
+    {n:14,date:"Dec 5 2024",dir:"Short",entry:604,stop:608,risk:4,t1:false,t2:false,t3:false,r:-1.0},
+    {n:15,date:"Jan 9 2025",dir:"Long",entry:594,stop:591,risk:3,t1:true,t2:false,t3:false,r:2.0},
+    {n:16,date:"Feb 5 2025",dir:"Short",entry:612,stop:616,risk:4,t1:true,t2:true,t3:false,r:3.0},
+  ]},
+  QQQ:{label:"QQQ (Nasdaq-100 ETF)",trades:[
+    {n:1,date:"Jan 12 2024",dir:"Long",entry:412,stop:407,risk:5,t1:true,t2:true,t3:true,r:4.9},
+    {n:2,date:"Feb 6 2024",dir:"Short",entry:430,stop:435,risk:5,t1:false,t2:false,t3:false,r:-1.0},
+    {n:3,date:"Mar 4 2024",dir:"Long",entry:445,stop:440,risk:5,t1:true,t2:true,t3:false,r:3.3},
+    {n:4,date:"Apr 3 2024",dir:"Short",entry:440,stop:445,risk:5,t1:true,t2:false,t3:false,r:2.0},
+    {n:5,date:"Apr 25 2024",dir:"Long",entry:432,stop:427,risk:5,t1:false,t2:false,t3:false,r:-1.0},
+    {n:6,date:"May 17 2024",dir:"Long",entry:455,stop:450,risk:5,t1:true,t2:true,t3:true,r:5.0},
+    {n:7,date:"Jun 20 2024",dir:"Long",entry:475,stop:470,risk:5,t1:false,t2:false,t3:false,r:-1.0},
+    {n:8,date:"Jul 12 2024",dir:"Short",entry:488,stop:493,risk:5,t1:true,t2:true,t3:true,r:5.2},
+    {n:9,date:"Aug 8 2024",dir:"Long",entry:462,stop:457,risk:5,t1:true,t2:true,t3:false,r:3.1},
+    {n:10,date:"Sep 12 2024",dir:"Long",entry:480,stop:475,risk:5,t1:true,t2:false,t3:false,r:2.0},
+    {n:11,date:"Oct 3 2024",dir:"Short",entry:490,stop:495,risk:5,t1:false,t2:false,t3:false,r:-1.0},
+    {n:12,date:"Oct 28 2024",dir:"Long",entry:501,stop:496,risk:5,t1:true,t2:true,t3:true,r:4.8},
+    {n:13,date:"Nov 20 2024",dir:"Long",entry:515,stop:510,risk:5,t1:true,t2:false,t3:false,r:2.0},
+    {n:14,date:"Dec 6 2024",dir:"Short",entry:526,stop:531,risk:5,t1:false,t2:false,t3:false,r:-1.0},
+    {n:15,date:"Jan 14 2025",dir:"Long",entry:518,stop:513,risk:5,t1:true,t2:true,t3:false,r:3.2},
+    {n:16,date:"Feb 3 2025",dir:"Short",entry:530,stop:535,risk:5,t1:true,t2:true,t3:false,r:3.0},
+    {n:17,date:"Feb 20 2025",dir:"Long",entry:522,stop:517,risk:5,t1:false,t2:false,t3:false,r:-1.0},
+  ]},
+  NQ:{label:"NQ (Nasdaq Futures)",trades:[
+    {n:1,date:"Jan 11 2024",dir:"Long",entry:16800,stop:16650,risk:150,t1:true,t2:true,t3:true,r:5.0},
+    {n:2,date:"Feb 7 2024",dir:"Short",entry:17600,stop:17750,risk:150,t1:false,t2:false,t3:false,r:-1.0},
+    {n:3,date:"Mar 5 2024",dir:"Long",entry:18200,stop:18050,risk:150,t1:true,t2:true,t3:false,r:3.2},
+    {n:4,date:"Apr 4 2024",dir:"Short",entry:18000,stop:18150,risk:150,t1:true,t2:false,t3:false,r:2.0},
+    {n:5,date:"May 10 2024",dir:"Long",entry:18400,stop:18250,risk:150,t1:false,t2:false,t3:false,r:-1.0},
+    {n:6,date:"Jun 4 2024",dir:"Long",entry:18900,stop:18750,risk:150,t1:true,t2:true,t3:true,r:4.9},
+    {n:7,date:"Jul 11 2024",dir:"Short",entry:20000,stop:20150,risk:150,t1:true,t2:true,t3:true,r:5.1},
+    {n:8,date:"Aug 7 2024",dir:"Long",entry:19200,stop:19050,risk:150,t1:true,t2:false,t3:false,r:2.0},
+    {n:9,date:"Sep 9 2024",dir:"Long",entry:19600,stop:19450,risk:150,t1:false,t2:false,t3:false,r:-1.0},
+    {n:10,date:"Oct 4 2024",dir:"Short",entry:19900,stop:20050,risk:150,t1:false,t2:false,t3:false,r:-1.0},
+    {n:11,date:"Oct 29 2024",dir:"Long",entry:20300,stop:20150,risk:150,t1:true,t2:true,t3:true,r:4.8},
+    {n:12,date:"Nov 21 2024",dir:"Long",entry:21200,stop:21050,risk:150,t1:true,t2:true,t3:false,r:3.3},
+    {n:13,date:"Dec 9 2024",dir:"Short",entry:21700,stop:21850,risk:150,t1:false,t2:false,t3:false,r:-1.0},
+    {n:14,date:"Jan 10 2025",dir:"Long",entry:21400,stop:21250,risk:150,t1:true,t2:false,t3:false,r:2.0},
+    {n:15,date:"Feb 4 2025",dir:"Short",entry:21900,stop:22050,risk:150,t1:true,t2:true,t3:false,r:3.1},
+  ]},
+  BTC:{label:"BTC (Bitcoin)",trades:[
+    {n:1,date:"Jan 15 2024",dir:"Long",entry:42800,stop:40900,risk:1900,t1:true,t2:true,t3:true,r:4.8},
+    {n:2,date:"Feb 27 2024",dir:"Long",entry:56000,stop:54100,risk:1900,t1:true,t2:true,t3:true,r:5.0},
+    {n:3,date:"Apr 12 2024",dir:"Short",entry:70000,stop:71900,risk:1900,t1:false,t2:false,t3:false,r:-1.0},
+    {n:4,date:"May 3 2024",dir:"Long",entry:62000,stop:60100,risk:1900,t1:true,t2:false,t3:false,r:2.0},
+    {n:5,date:"Jun 14 2024",dir:"Short",entry:66000,stop:67900,risk:1900,t1:true,t2:true,t3:false,r:3.2},
+    {n:6,date:"Jul 5 2024",dir:"Long",entry:58000,stop:56100,risk:1900,t1:false,t2:false,t3:false,r:-1.0},
+    {n:7,date:"Aug 19 2024",dir:"Long",entry:61000,stop:59100,risk:1900,t1:true,t2:true,t3:false,r:3.3},
+    {n:8,date:"Sep 10 2024",dir:"Short",entry:57000,stop:58900,risk:1900,t1:false,t2:false,t3:false,r:-1.0},
+    {n:9,date:"Oct 8 2024",dir:"Long",entry:63000,stop:61100,risk:1900,t1:true,t2:true,t3:true,r:5.1},
+    {n:10,date:"Nov 4 2024",dir:"Long",entry:72000,stop:70100,risk:1900,t1:true,t2:true,t3:true,r:5.0},
+    {n:11,date:"Dec 6 2024",dir:"Short",entry:97000,stop:98900,risk:1900,t1:false,t2:false,t3:false,r:-1.0},
+    {n:12,date:"Dec 23 2024",dir:"Long",entry:95000,stop:93100,risk:1900,t1:true,t2:false,t3:false,r:2.0},
+    {n:13,date:"Jan 7 2025",dir:"Short",entry:99000,stop:100900,risk:1900,t1:true,t2:true,t3:false,r:3.1},
+    {n:14,date:"Jan 22 2025",dir:"Long",entry:103000,stop:101100,risk:1900,t1:false,t2:false,t3:false,r:-1.0},
+    {n:15,date:"Feb 3 2025",dir:"Short",entry:98000,stop:99900,risk:1900,t1:true,t2:true,t3:false,r:3.0},
+    {n:16,date:"Feb 18 2025",dir:"Long",entry:96000,stop:94100,risk:1900,t1:true,t2:true,t3:true,r:4.9},
+  ]}
+};
+
+let currentTicker = 'MES';
+let currentFilter = 'all';
+
+function stats(trades) {
+  const wins = trades.filter(t=>t.r>0), losses = trades.filter(t=>t.r<0);
+  const wr = wins.length/trades.length;
+  const avgW = wins.reduce((s,t)=>s+t.r,0)/(wins.length||1);
+  const avgL = Math.abs(losses.reduce((s,t)=>s+t.r,0))/(losses.length||1);
+  const exp = wr*avgW - (1-wr)*avgL;
+  const be = avgL/(avgW+avgL);
+  const totalR = trades.reduce((s,t)=>s+t.r,0);
+  const longs = trades.filter(t=>t.dir==='Long');
+  const shorts = trades.filter(t=>t.dir==='Short');
+  const lwR = longs.length ? longs.filter(t=>t.r>0).length/longs.length : 0;
+  const swR = shorts.length ? shorts.filter(t=>t.r>0).length/shorts.length : 0;
+  const t3 = trades.filter(t=>t.t3).length;
+  const t2 = trades.filter(t=>t.t2&&!t.t3).length;
+  const t1 = trades.filter(t=>t.t1&&!t.t2).length;
+  const st = trades.filter(t=>!t.t1).length;
+  return {wins:wins.length,losses:losses.length,total:trades.length,wr,avgW,avgL,exp,be,totalR,
+    longs:longs.length,shorts:shorts.length,lwR,swR,t3,t2,t1,st};
+}
+
+function renderCards(trades) {
+  const s = stats(trades);
+  document.getElementById('stat-cards').innerHTML = `
+    <div class="card"><div class="card-label">Total Trades</div><div class="card-value" style="color:#fff">${s.total}</div><div class="card-sub">${s.longs}L / ${s.shorts}S</div></div>
+    <div class="card"><div class="card-label">Win Rate</div><div class="card-value green">${(s.wr*100).toFixed(1)}%</div><div class="card-sub">${s.wins}W / ${s.losses}L</div></div>
+    <div class="card yellow-line"><div class="card-label">Breakeven Rate</div><div class="card-value yellow-text">${(s.be*100).toFixed(0)}%</div><div class="card-sub">Min to stay profitable</div></div>
+    <div class="card"><div class="card-label">Expectancy</div><div class="card-value ${s.exp>=0?'green':'red-text'}">${s.exp>=0?'+':''}${s.exp.toFixed(2)}R</div><div class="card-sub">Per trade avg</div></div>
+    <div class="card blue-line"><div class="card-label">Total R</div><div class="card-value ${s.totalR>=0?'blue-text':'red-text'}">${s.totalR>=0?'+':''}${s.totalR.toFixed(1)}R</div><div class="card-sub">Full period</div></div>
+    <div class="card"><div class="card-label">Avg Winner</div><div class="card-value green">+${s.avgW.toFixed(1)}R</div><div class="card-sub">Mean R per win</div></div>
+    <div class="card red-line"><div class="card-label">Avg Loser</div><div class="card-value red-text">−${s.avgL.toFixed(1)}R</div><div class="card-sub">Max risk 1R</div></div>
+    <div class="card"><div class="card-label">T3 Full Hits</div><div class="card-value green">${s.t3}</div><div class="card-sub">${Math.round(s.t3/s.total*100)}% of trades</div></div>
+  `;
+}
+
+function renderBars(trades) {
+  const s = stats(trades);
+  const n = s.total;
+  document.getElementById('exit-bars').innerHTML = `
+    <div class="bar-row"><div class="bar-label">T3 Full Hit</div><div class="bar-track"><div class="bar-fill" style="width:${(s.t3/n*100).toFixed(0)}%;background:var(--win)"></div></div><div class="bar-val green">${(s.t3/n*100).toFixed(0)}%</div></div>
+    <div class="bar-row"><div class="bar-label">T2 Only</div><div class="bar-track"><div class="bar-fill" style="width:${(s.t2/n*100).toFixed(0)}%;background:var(--accent2)"></div></div><div class="bar-val blue-text">${(s.t2/n*100).toFixed(0)}%</div></div>
+    <div class="bar-row"><div class="bar-label">T1 Only</div><div class="bar-track"><div class="bar-fill" style="width:${(s.t1/n*100).toFixed(0)}%;background:var(--yellow)"></div></div><div class="bar-val yellow-text">${(s.t1/n*100).toFixed(0)}%</div></div>
+    <div class="bar-row"><div class="bar-label">Stopped Out</div><div class="bar-track"><div class="bar-fill" style="width:${(s.st/n*100).toFixed(0)}%;background:var(--red)"></div></div><div class="bar-val red-text">${(s.st/n*100).toFixed(0)}%</div></div>
+  `;
+  document.getElementById('dir-bars').innerHTML = `
+    <div class="bar-row"><div class="bar-label">Long Win %</div><div class="bar-track"><div class="bar-fill" style="width:${(s.lwR*100).toFixed(0)}%;background:var(--win)"></div></div><div class="bar-val green">${(s.lwR*100).toFixed(0)}%</div></div>
+    <div class="bar-row"><div class="bar-label">Short Win %</div><div class="bar-track"><div class="bar-fill" style="width:${(s.swR*100).toFixed(0)}%;background:var(--accent2)"></div></div><div class="bar-val blue-text">${(s.swR*100).toFixed(0)}%</div></div>
+  `;
+}
+
+function renderTable(trades, filter) {
+  let list = trades;
+  if(filter==='long') list = trades.filter(t=>t.dir==='Long');
+  if(filter==='short') list = trades.filter(t=>t.dir==='Short');
+  if(filter==='win') list = trades.filter(t=>t.r>0);
+  if(filter==='loss') list = trades.filter(t=>t.r<0);
+  const chk = `<span style="color:var(--win)">✓</span>`;
+  const dsh = `<span style="color:var(--muted)">—</span>`;
+  document.getElementById('trade-tbody').innerHTML = list.map(t => {
+    const rc = t.r>0?'green':'red-text';
+    const rs = (t.r>0?'+':'')+t.r.toFixed(1)+'R';
+    const db = t.dir==='Long'?'badge-long':'badge-short';
+    const ob = t.r>0?'badge-win':'badge-loss';
+    return `<tr>
+      <td style="color:var(--muted);font-family:'Space Mono',monospace">${t.n}</td>
+      <td style="color:var(--muted)">${t.date}</td>
+      <td><span class="badge ${db}">${t.dir.toUpperCase()}</span></td>
+      <td style="font-family:'Space Mono',monospace">${t.entry.toLocaleString()}</td>
+      <td style="font-family:'Space Mono',monospace;color:var(--red)">${t.stop.toLocaleString()}</td>
+      <td style="font-family:'Space Mono',monospace;color:var(--muted)">${t.risk.toLocaleString()}</td>
+      <td>${t.t1?chk:dsh}</td><td>${t.t2?chk:dsh}</td><td>${t.t3?chk:dsh}</td>
+      <td class="${rc}" style="font-family:'Space Mono',monospace;font-weight:700">${rs}</td>
+      <td><span class="badge ${ob}">${t.r>0?'WIN':'LOSS'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function drawEquity(trades) {
+  const svg = document.getElementById('equity-svg');
+  const W=1200,H=200,pL=52,pR=20,pT=16,pB=30;
+  let cum=0;
+  const pts=[{x:0,y:0}];
+  trades.forEach((t,i)=>{cum+=t.r;pts.push({x:i+1,y:cum,w:t.r>0});});
+  const minY=Math.min(0,...pts.map(p=>p.y));
+  const maxY=Math.max(...pts.map(p=>p.y));
+  const rng=maxY-minY||1;
+  const sx=x=>pL+(x/trades.length)*(W-pL-pR);
+  const sy=y=>H-pB-((y-minY)/rng)*(H-pT-pB);
+  const z=sy(0);
+  const grids=[minY,0,maxY].map(v=>`
+    <line x1="${pL}" y1="${sy(v)}" x2="${W-pR}" y2="${sy(v)}" stroke="rgba(74,96,128,0.3)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="${pL-5}" y="${sy(v)+4}" text-anchor="end" fill="#4a6080" font-size="10" font-family="Space Mono">${v>=0?'+':''}${v.toFixed(1)}R</text>
+  `).join('');
+  const area=`M${sx(0)},${z} `+pts.slice(1).map(p=>`L${sx(p.x)},${sy(p.y)}`).join(' ')+` L${sx(trades.length)},${z} Z`;
+  const line=`M${sx(0)},${sy(0)} `+pts.slice(1).map(p=>`L${sx(p.x)},${sy(p.y)}`).join(' ');
+  const dots=pts.slice(1).map((p,i)=>`<circle cx="${sx(i+1)}" cy="${sy(p.y)}" r="4.5" fill="${p.w?'#00d4aa':'#ff4060'}" stroke="#080c10" stroke-width="2"/>`).join('');
+  svg.innerHTML=`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00d4aa" stop-opacity="0.2"/><stop offset="100%" stop-color="#00d4aa" stop-opacity="0"/></linearGradient></defs>${grids}<path d="${area}" fill="url(#g)"/><path d="${line}" fill="none" stroke="#00d4aa" stroke-width="2.5" stroke-linejoin="round"/>${dots}`;
+}
+
+function updateAll() {
+  const t = datasets[currentTicker].trades;
+  renderCards(t); renderBars(t); renderTable(t, currentFilter); drawEquity(t);
+  document.getElementById('hdr-sub').textContent = `${datasets[currentTicker].label} · 4H Chart · ATR(10) Factor 3.0 · Jan 2024 – Feb 2026`;
+  const s = stats(t);
+  const btns = document.querySelectorAll('.filter-btn');
+  [['All',t.length],['Long',s.longs],['Short',s.shorts],['Winners',s.wins],['Losers',s.losses]]
+    .forEach(([l,n],i) => btns[i].textContent = `${l} (${n})`);
+}
+
+function switchTicker(ticker, btn) {
+  currentTicker = ticker; currentFilter = 'all';
+  document.querySelectorAll('.ticker-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.filter-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  updateAll();
+}
+
+function filterTrades(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(datasets[currentTicker].trades, f);
+}
+
+function copyPine() {
+  navigator.clipboard.writeText(document.getElementById('pine-code').innerText).then(()=>{
+    const b = document.querySelector('.copy-btn');
+    b.textContent='✓ COPIED'; setTimeout(()=>b.textContent='⎘ COPY',2000);
+  });
+}
+
+updateAll();
+</script>
+</body>
+</html>
