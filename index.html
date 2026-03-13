@@ -191,6 +191,16 @@
   /* SVG chart container */
   .chart-scroll { overflow-x: auto; }
   .chart-scroll svg { width: 100%; height: auto; min-width: 600px; }
+  /* Signal breakdown rows */
+  .sig-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .sig-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .sig-info { width:140px; flex-shrink:0; }
+  .sig-name { display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.7); }
+  .sig-thresh { display:block; font-size:9px; color:rgba(255,255,255,0.25); }
+  .sig-val { font-size:18px; font-weight:800; font-family:var(--mono); min-width:70px; }
+  .sig-interp { font-size:11px; color:rgba(255,255,255,0.4); flex:1; min-width:120px; }
+  .sig-score { font-size:11px; font-weight:700; font-family:var(--mono); }
+
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 768px) {
     .container { padding: 16px 12px; }
@@ -239,13 +249,20 @@
     #pulse-cards { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
     #manual-inputs { grid-template-columns: 1fr !important; }
     #ceasefire-odds { flex-direction: column; }
+    /* Signal breakdown - compact on mobile */
+    .sig-row { flex-wrap:wrap; gap:6px; padding:8px 0; }
+    .sig-info { width:auto; flex:1; min-width:100px; }
+    .sig-name { font-size:11px !important; }
+    .sig-thresh { font-size:8px !important; }
+    .sig-val { font-size:15px !important; min-width:50px; order:3; }
+    .sig-interp { font-size:9px !important; min-width:0; flex-basis:100%; order:4; margin-left:18px; margin-top:-2px; }
+    .sig-score { font-size:10px !important; order:2; }
+    .sig-dot { width:10px; height:10px; }
     /* Coulling matrix horizontal scroll on mobile */
     #coulling-matrix table { font-size: 9px !important; }
     #coulling-matrix th, #coulling-matrix td { padding: 6px 4px !important; min-width: 70px !important; }
     /* Conflict/tariff step cards */
     #conflict-steps > div, #tariff-steps > div { padding: 12px !important; margin-bottom: 6px !important; }
-    /* Signal breakdown */
-    #signal-breakdown > div { flex-direction: column !important; gap: 4px !important; padding: 8px 0 !important; }
     /* Chart scroll */
     .chart-scroll { margin: 0 -12px; padding: 0 12px; }
     /* Fetch area */
@@ -269,6 +286,8 @@
     .gauges-row { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start !important; }
     .gauge-item { min-width: 80px; flex-shrink: 0; }
     #coulling-matrix th, #coulling-matrix td { min-width: 60px !important; font-size: 8px !important; }
+    .sig-val { font-size:13px !important; }
+    .sig-interp { font-size:8px !important; }
   }
 </style>
 </head>
@@ -891,16 +910,18 @@ function recalcScore(){
 
   // Render signal breakdown
   document.getElementById('signal-breakdown').innerHTML=signals.map(s=>{
-    const sc=s.score();const r=s.reading();const col=r!==null?s.color():'#555';const interp=r!==null?s.interpret():'No data';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);flex-wrap:wrap">
-      <div style="width:14px;height:14px;border-radius:50%;background:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'rgba(255,255,255,0.1)'};flex-shrink:0;box-shadow:${sc>=0.75?'0 0 8px #22c55e60':'none'}"></div>
-      <div style="width:160px;flex-shrink:0">
-        <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7)">${s.name}</div>
-        <div style="font-size:9px;color:rgba(255,255,255,0.25)">Buy when: ${s.threshold}</div>
+    const sc=s.score();let r=s.reading();const col=r!==null?s.color():'#555';const interp=r!==null?s.interpret():'No data';
+    // Fix floating point display
+    if(typeof r==='number') r=r.toFixed(2);
+    return `<div class="sig-row">
+      <div class="sig-dot" style="background:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'rgba(255,255,255,0.1)'};${sc>=0.75?'box-shadow:0 0 8px #22c55e60':''}"></div>
+      <div class="sig-info">
+        <span class="sig-name">${s.name}</span>
+        <span class="sig-thresh">${s.threshold}</span>
       </div>
-      <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:${col};min-width:70px">${r!==null?r:'--'}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);flex:1;min-width:150px">${interp}</div>
-      <div style="font-size:11px;font-weight:700;font-family:var(--mono);color:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'#555'}">${sc>0?'+'+sc.toFixed(2):'0'}</div>
+      <div class="sig-val" style="color:${col}">${r!==null?r:'--'}</div>
+      <div class="sig-interp">${interp}</div>
+      <div class="sig-score" style="color:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'#555'}">${sc>0?'+'+sc.toFixed(2):'0'}</div>
     </div>`;
   }).join('');
 
