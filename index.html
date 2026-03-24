@@ -976,23 +976,6 @@
       <div id="alert-status" style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:6px"></div>
     </div>
 
-    <!-- Trade Log -->
-    <div class="panel" style="border-color:rgba(34,197,94,0.15)">
-      <div class="panel-title" style="color:var(--green)">📒 Trade Log</div>
-      <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px">Track entries/exits against dashboard signals. Saved to browser localStorage.</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px">
-        <input id="tl-ticker" type="text" placeholder="Ticker (SPY)" style="padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px">
-        <select id="tl-action" style="padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-size:11px">
-          <option value="BUY">BUY</option><option value="SELL">SELL</option>
-        </select>
-        <input id="tl-price" type="number" placeholder="Price" step="0.01" style="padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px">
-        <input id="tl-qty" type="number" placeholder="Qty" style="padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px">
-        <input id="tl-note" type="text" placeholder="Note (optional)" style="padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-size:11px">
-        <button onclick="addTrade()" style="padding:6px 12px;border:1px solid var(--green);border-radius:4px;background:rgba(34,197,94,0.1);color:var(--green);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans)">+ Add</button>
-      </div>
-      <div id="trade-log-table" style="overflow-x:auto"></div>
-    </div>
-
     <!-- Export -->
     <div class="panel" style="border-color:rgba(168,85,247,0.15)">
       <div class="panel-title" style="color:var(--purple)">📸 Export Dashboard</div>
@@ -3245,56 +3228,11 @@ function checkAlerts() {
   }
 }
 
-// ===== TOOLS TAB: TRADE LOG =====
-function getTradeLog() { try { return JSON.parse(localStorage.getItem('btf-trades')||'[]'); } catch(e) { return []; } }
-function saveTradeLog(log) { try { localStorage.setItem('btf-trades', JSON.stringify(log)); } catch(e) {} }
-
-function addTrade() {
-  const ticker = document.getElementById('tl-ticker').value.trim().toUpperCase() || 'SPY';
-  const action = document.getElementById('tl-action').value;
-  const price = parseFloat(document.getElementById('tl-price').value);
-  const qty = parseInt(document.getElementById('tl-qty').value) || 1;
-  const note = document.getElementById('tl-note').value.trim();
-  if(isNaN(price)) { alert('Enter a valid price'); return; }
-  const log = getTradeLog();
-  log.unshift({id:Date.now(),ticker,action,price,qty,note,
-    date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
-    score:document.getElementById('score-value')?.textContent||'--',
-    conflictStep:currentConflictStep, vix:pulseState.vix?.toFixed(1)||'--', spyPrice:pulseState.spyPrice?.toFixed(2)||'--'
-  });
-  saveTradeLog(log); renderTradeLog();
-  document.getElementById('tl-price').value=''; document.getElementById('tl-qty').value=''; document.getElementById('tl-note').value='';
-}
-window.deleteTrade = function(id) { saveTradeLog(getTradeLog().filter(t=>t.id!==id)); renderTradeLog(); };
-
-function renderTradeLog() {
-  const log=getTradeLog(), el=document.getElementById('trade-log-table');
-  if(!el) return;
-  if(!log.length) { el.innerHTML='<div style="font-size:10px;color:rgba(255,255,255,0.2)">No trades logged yet.</div>'; return; }
-  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
-    <th style="text-align:left;padding:5px 6px;color:rgba(255,255,255,0.3)">Date</th><th style="padding:5px 6px;color:rgba(255,255,255,0.3)">Action</th>
-    <th style="padding:5px 6px;color:rgba(255,255,255,0.3)">Ticker</th><th style="text-align:right;padding:5px 6px;color:rgba(255,255,255,0.3)">Price</th>
-    <th style="text-align:center;padding:5px 6px;color:rgba(255,255,255,0.3)">Score</th><th style="text-align:center;padding:5px 6px;color:rgba(255,255,255,0.3)">Step</th>
-    <th style="padding:5px 6px;color:rgba(255,255,255,0.3)">Note</th><th></th>
-  </tr></thead><tbody>${log.map(t=>`<tr style="border-bottom:1px solid rgba(255,255,255,0.03)">
-    <td style="padding:4px 6px;color:rgba(255,255,255,0.5);font-family:var(--mono);white-space:nowrap">${t.date}</td>
-    <td style="padding:4px 6px;color:${t.action==='BUY'?'#22c55e':'#ef4444'};font-weight:800">${t.action}</td>
-    <td style="padding:4px 6px;color:rgba(255,255,255,0.6);font-weight:700">${t.ticker}</td>
-    <td style="padding:4px 6px;text-align:right;color:rgba(255,255,255,0.7);font-family:var(--mono)">$${t.price.toFixed(2)}</td>
-    <td style="padding:4px 6px;text-align:center;color:var(--amber);font-family:var(--mono);font-weight:700">${t.score}</td>
-    <td style="padding:4px 6px;text-align:center;color:var(--cyan);font-family:var(--mono)">${t.conflictStep||'--'}</td>
-    <td style="padding:4px 6px;color:rgba(255,255,255,0.3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.note||''}</td>
-    <td style="padding:4px 6px"><button onclick="deleteTrade(${t.id})" style="background:none;border:none;color:rgba(255,255,255,0.15);cursor:pointer;font-size:12px">×</button></td>
-  </tr>`).join('')}</tbody></table>
-  <div style="font-size:9px;color:rgba(255,255,255,0.15);margin-top:6px">${log.length} trade(s) · Context preserved at entry</div>`;
-}
-renderTradeLog();
-
 // ===== TOOLS TAB: EXPORT =====
 function exportDashboard(format) {
   const statusEl=document.getElementById('export-status');
   if(format==='json') {
-    const data={exportDate:new Date().toISOString(),pulseState,conflictStep:currentConflictStep,tariffStep:currentTariffStep,trades:getTradeLog(),headlines:headlineSignals.slice(0,10)};
+    const data={exportDate:new Date().toISOString(),pulseState,conflictStep:currentConflictStep,tariffStep:currentTariffStep,headlines:headlineSignals.slice(0,10)};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='buy-the-fear-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
