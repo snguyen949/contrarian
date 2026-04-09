@@ -572,6 +572,16 @@
           <input id="key-newsapi" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
           <a href="https://newsapi.org/register" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Twelve Data <span style="color:rgba(255,255,255,0.15)">— reliable quotes + technicals (800/day)</span></label>
+          <input id="key-twelvedata" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://twelvedata.com/account/api-keys" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Marketaux <span style="color:rgba(255,255,255,0.15)">— AI news sentiment (100/day)</span></label>
+          <input id="key-marketaux" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://www.marketaux.com/account/dashboard" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
       </div>
     </details>
 
@@ -581,7 +591,7 @@
         <div>
           <div class="panel-title" style="color:var(--cyan);margin-bottom:6px">Contrarian Buy Signal Score</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.35);max-width:500px;line-height:1.5">
-            Composite of all sentiment, volume, and positioning indicators below. Per Coulling: institutions install fear at lows via headlines to buy cheap from retail. Score of 7+ = strong contrarian buy. Currently tracking <span id="active-signals" style="color:var(--amber);font-weight:700">--</span> of 10 signals.
+            Composite of all sentiment, volume, positioning, and <strong style="color:var(--cyan)">leading indicators</strong> below. Per Coulling: institutions install fear at lows via headlines to buy cheap from retail. Score of 7+ = strong contrarian buy. Currently tracking <span id="active-signals" style="color:var(--amber);font-weight:700">--</span> of 13 signals (★ = leading indicator, weighted higher).
           </div>
         </div>
         <div style="text-align:center">
@@ -1038,7 +1048,25 @@ const pulseState = {
   // StockTwits sentiment
   stwSpy:null, stwQqq:null,
   // AAII auto
-  aaiiAutoDate:null
+  aaiiAutoDate:null,
+  // Polymarket
+  polyIranCeasefire:null, polyRecession:null, polyOil100:null,
+  // Treasury yield curve
+  yield2y:null, yield10y:null, yield30y:null, yieldCurveInverted:null,
+  // Twelve Data
+  tdRsi:null, tdMacd:null, tdAdx:null, tdBbUpper:null, tdBbLower:null,
+  // Marketaux AI sentiment
+  mktauxSentiment:null, mktauxScore:null, mktauxHeadlines:null,
+  // CBOE Put/Call
+  putCallTotal:null,
+  // ===== LEADING INDICATORS (the real edge) =====
+  vix3m:null,           // 3-month VIX — Yahoo ^VIX3M
+  vixRatio:null,        // VIX/VIX3M — >1.0 = backwardation = panic peak
+  skew:null,            // CBOE SKEW — tail risk pricing — Yahoo ^SKEW
+  nfci:null,            // Chicago Fed Financial Conditions — FRED weekly
+  anfci:null,           // Adjusted NFCI — isolates financial vs economic
+  moneyMarket:null,     // Money market fund assets ($T) — FRED WMMNS
+  igSpreads:null,       // IG credit spreads — FRED BAMLC0A0CM
 };
 
 // Thresholds for contrarian scoring
@@ -1053,6 +1081,10 @@ const signals = [
   {id:'breadth', name:'% S&P above 200-DMA', type:'manual', threshold:'≤ 40%', score:()=>{ const v=pulseState.pctAbove200dma; return v!==null&&v<=30?1:v<=40?0.75:v<=50?0.25:0; }, reading:()=>pulseState.pctAbove200dma!==null?pulseState.pctAbove200dma+'%':null, color:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'#ef4444':v<=40?'#f97316':v<=50?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'WASHED OUT breadth — most stocks in downtrend':v<=40?'Weak breadth — approaching washout':'Breadth still OK — not a washout'; }},
   {id:'naaim', name:'NAAIM Exposure Index', type:'manual', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v<=40?0.75:v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
   {id:'hySpreads', name:'HY Credit Spreads (bps)', type:'manual', threshold:'≥ 500', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v>=500?0.75:v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?pulseState.hySpreads+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic'; }},
+  // === LEADING INDICATORS (higher weight — these PREDICT bottoms) ===
+  {id:'vixTermStructure', name:'VIX/VIX3M Ratio ★', type:'auto', threshold:'> 1.0 (backwardation)', score:()=>{ const r=pulseState.vixRatio; return r!==null&&r>1.05?1.5:r>1.0?1.25:r>0.95?0.5:0; }, reading:()=>pulseState.vixRatio!==null?pulseState.vixRatio.toFixed(3):null, color:()=>{ const r=pulseState.vixRatio; return r>1.0?'#ef4444':r>0.92?'#f97316':'#22c55e'; }, interpret:()=>{ const r=pulseState.vixRatio; return r>1.0?'⚡ BACKWARDATION — strongest contrarian buy signal. Only 4 times since 2005 (GFC, 2011, Vol, COVID). All preceded massive rallies.':r>0.92?'Flattening — approaching signal. Near-term fear rising faster than long-term.':'Contango — normal. No term structure signal.'; }},
+  {id:'nfci', name:'NFCI Financial Conditions ★', type:'auto', threshold:'> 0 (tightening)', score:()=>{ const n=pulseState.nfci; if(n===null)return 0; const loosening=pulseState.nfciPrev!==undefined&&n<pulseState.nfciPrev; return n>0.5?1.25:n>0?(loosening?1:0.5):0; }, reading:()=>pulseState.nfci!==null?pulseState.nfci.toFixed(2):null, color:()=>{ const n=pulseState.nfci; return n>0.5?'#ef4444':n>0?'#f97316':'#22c55e'; }, interpret:()=>{ const n=pulseState.nfci; const dir=pulseState.nfciPrev!==undefined?(n>pulseState.nfciPrev?'Still tightening ↑':'Peaked & loosening ↓ — BUY SIGNAL'):''; return n>0.5?'SEVERE tightening — credit stress. '+dir:n>0?'Tight conditions — stress building. '+dir:'Loose — no systemic stress. Equity selloff is sentiment-driven.'; }},
+  {id:'skew', name:'SKEW Index', type:'auto', threshold:'< 120 (fear exhausting)', score:()=>{ const s=pulseState.skew; return s!==null&&s<115?0.75:s<120?0.5:0; }, reading:()=>pulseState.skew!==null?pulseState.skew.toFixed(0):null, color:()=>{ const s=pulseState.skew; return s<120?'#22c55e':s>145?'#ef4444':'#94a3b8'; }, interpret:()=>{ const s=pulseState.skew; return s<120?'Low SKEW = market NOT pricing further tail risk. Fear exhausting — contrarian bullish.':s>145?'High SKEW — significant tail risk priced. Market expects more downside.':'Normal tail risk pricing.'; }},
 ];
 
 // Manual input fields config
@@ -1107,6 +1139,15 @@ function renderPulseCards(){
     {label:'Crypto F&G',val:pulseState.cryptoFG!==null?pulseState.cryptoFG:'--',sub:pulseState.cryptoFGLabel||'',color:pulseState.cryptoFG!==null?fearColor(pulseState.cryptoFG):'#94a3b8',type:'auto',date:pulseState.cryptoFGDate||''},
     {label:'CNN F&G',val:pulseState.cnnFG!==null?pulseState.cnnFG:'--',sub:pulseState.cnnFGRating||pulseState.cnnFG!==null?(pulseState.cnnFG<=14?'EXTREME FEAR':pulseState.cnnFG<=25?'FEAR':pulseState.cnnFG<=40?'FEAR':'NEUTRAL'):'',color:pulseState.cnnFG!==null?fearColor(pulseState.cnnFG):'#94a3b8',type:pulseState.cnnFGDate?'auto':'manual',date:pulseState.cnnFGDate||''},
     {label:'StockTwits',val:pulseState.stwSpy?'Bear '+pulseState.stwSpy.bear+'%':'--',sub:pulseState.stwSpy?pulseState.stwSpy.total+' posts':'',color:pulseState.stwSpy?(pulseState.stwSpy.bear>=60?'#ef4444':pulseState.stwSpy.bear>=45?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:'Live'},
+    {label:'Ceasefire Odds',val:pulseState.polyIranCeasefire?pulseState.polyIranCeasefire.pct+'%':'--',sub:pulseState.polyIranCeasefire?'Polymarket':'',color:pulseState.polyIranCeasefire?(pulseState.polyIranCeasefire.pct>=60?'#22c55e':pulseState.polyIranCeasefire.pct>=40?'#f59e0b':'#ef4444'):'#94a3b8',type:'auto',date:'Live'},
+    {label:'Recession Odds',val:pulseState.polyRecession?pulseState.polyRecession.pct+'%':'--',sub:pulseState.polyRecession?'Polymarket':'',color:pulseState.polyRecession?(pulseState.polyRecession.pct>=50?'#ef4444':pulseState.polyRecession.pct>=30?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:'Live'},
+    {label:'30Y Yield',val:pulseState.yield30y?pulseState.yield30y.toFixed(2)+'%':'--',sub:pulseState.yieldCurveInverted?'⚠️ INVERTED':'Normal',color:pulseState.yieldCurveInverted?'#ef4444':pulseState.yield30y?'#22c55e':'#94a3b8',type:'auto',date:''},
+    {label:'AI Sentiment',val:pulseState.mktauxSentiment||'--',sub:pulseState.mktauxScore?'Score: '+pulseState.mktauxScore.toFixed(2):'Needs Marketaux key',color:pulseState.mktauxScore?(pulseState.mktauxScore>0.1?'#22c55e':pulseState.mktauxScore<-0.1?'#ef4444':'#f59e0b'):'#94a3b8',type:pulseState.mktauxScore?'auto':'manual',date:pulseState.mktauxScore?'Latest':''},
+    // === LEADING INDICATORS ===
+    {label:'VIX/VIX3M',val:pulseState.vixRatio?pulseState.vixRatio.toFixed(3):'--',sub:pulseState.vixRatio?(pulseState.vixRatio>1.0?'⚡ BACKWARDATION — peak panic':pulseState.vixRatio>0.92?'Elevated — watch':'Contango — normal'):'Term structure',color:pulseState.vixRatio?(pulseState.vixRatio>1.0?'#ef4444':pulseState.vixRatio>0.92?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:''},
+    {label:'SKEW',val:pulseState.skew?pulseState.skew.toFixed(0):'--',sub:pulseState.skew?(pulseState.skew<120?'Low tail risk = fear exhausting':pulseState.skew>145?'High tail risk':'Normal'):'Tail risk',color:pulseState.skew?(pulseState.skew<120?'#22c55e':pulseState.skew>145?'#ef4444':'#94a3b8'):'#94a3b8',type:'auto',date:''},
+    {label:'NFCI',val:pulseState.nfci!==null?pulseState.nfci.toFixed(2):'--',sub:pulseState.nfci!==null?(pulseState.nfci>0?'TIGHT — stress':'Loose — normal')+(pulseState.nfciPrev!==undefined?(pulseState.nfci>pulseState.nfciPrev?' ↑':' ↓'):''):'Needs FRED key',color:pulseState.nfci!==null?(pulseState.nfci>0.5?'#ef4444':pulseState.nfci>0?'#f97316':'#22c55e'):'#94a3b8',type:pulseState.nfci!==null?'auto':'manual',date:pulseState.nfciDate||''},
+    {label:'Money Market',val:pulseState.moneyMarket?'$'+pulseState.moneyMarket+'T':'--',sub:pulseState.moneyMarket?'Dry powder (record = bullish fuel)':'Needs FRED key',color:pulseState.moneyMarket?(parseFloat(pulseState.moneyMarket)>6?'#22c55e':'#94a3b8'):'#94a3b8',type:pulseState.moneyMarket?'auto':'manual',date:''},
   ];
   document.getElementById('pulse-cards').innerHTML=cards.map(c=>`
     <div class="snap-card">
@@ -1136,18 +1177,24 @@ function recalcScore(){
     const el=document.getElementById('input-'+f.id);
     if(el&&el.value)pulseState[f.id]=parseFloat(el.value);
   });
-  let total=0, active=0;
+  let rawTotal=0, active=0, maxPossible=0;
   signals.forEach(s=>{
     const sc=s.score();
+    // Calculate max possible score for this signal (evaluate with extreme inputs)
+    const isLeading=s.id==='vixTermStructure'||s.id==='nfci';
+    maxPossible+=isLeading?1.5:s.id==='skew'?0.75:1;
     if(sc>0)active++;
-    total+=sc;
+    rawTotal+=sc;
   });
-  const pct=(total/signals.length)*100;
+  // Normalize to 0-10 scale
+  const total=(rawTotal/maxPossible)*10;
+  const pct=Math.min(100,(total/10)*100);
   const scoreEl=document.getElementById('contrarian-score');
   const barEl=document.getElementById('score-bar');
   const labelEl=document.getElementById('score-label');
   const activeEl=document.getElementById('active-signals');
   scoreEl.textContent=total.toFixed(1);
+  scoreEl.id&&(document.getElementById('score-value')||scoreEl).textContent; // preserve for alerts
   activeEl.textContent=active;
   barEl.style.width=pct+'%';
   if(total>=7){scoreEl.style.color='#22c55e';barEl.style.background='#22c55e';labelEl.style.color='#22c55e';labelEl.textContent='STRONG CONTRARIAN BUY';}
@@ -1614,6 +1661,178 @@ async function fetchAllData(){
     }
   } catch(e) { log.push({src:'AAII',val:'Blocked/timeout',date:'',ok:false}); }
 
+  // 18) Polymarket — ceasefire & recession odds (free, no key)
+  status.textContent='Fetching Polymarket odds...';
+  const polyQueries = [
+    {search:'iran ceasefire', field:'polyIranCeasefire', label:'Iran Ceasefire'},
+    {search:'us recession 2026', field:'polyRecession', label:'US Recession'},
+  ];
+  for(const pq of polyQueries) {
+    try {
+      const pmUrl='https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent(pq.search);
+      const pmR=await fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent(pmUrl),6000);
+      if(pmR.ok) {
+        const pmD=await pmR.json();
+        if(Array.isArray(pmD)&&pmD.length>0) {
+          const mkt=pmD[0];
+          const prob=mkt.outcomePrices?JSON.parse(mkt.outcomePrices)[0]:mkt.bestBid||null;
+          if(prob!==null) {
+            const pct=Math.round(parseFloat(prob)*100);
+            pulseState[pq.field]={pct, title:mkt.question||pq.label, volume:mkt.volume||0, slug:mkt.slug};
+            log.push({src:'Polymarket',val:pq.label+': '+pct+'%',date:'Live',ok:true});
+          }
+        }
+      }
+    } catch(e) { /* Polymarket may rate limit */ }
+  }
+
+  // 19) US Treasury Yield Curve — free, no key
+  status.textContent='Fetching Treasury yields...';
+  try {
+    const today=new Date();
+    const tDate=today.toISOString().slice(0,10);
+    const tUrl=`https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/avg_interest_rates?filter=record_date:gte:${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01,security_desc:eq:Treasury Bonds&sort=-record_date&page[size]=5`;
+    // Simpler: use Yahoo Finance for yield tickers we already have TNX
+    // Use ^FVX (5yr) and ^TYX (30yr) for curve shape
+    const fvxData=await yahooChart('%5EFVX','5d','1d');
+    const tyxData=await yahooChart('%5ETYX','5d','1d');
+    if(fvxData.ok) pulseState.yield2y=fvxData.price; // FVX is actually 5yr, using as proxy
+    if(tyxData.ok) pulseState.yield30y=tyxData.price;
+    if(pulseState.tnx&&pulseState.yield30y) {
+      pulseState.yieldCurveInverted=pulseState.tnx>pulseState.yield30y;
+      const spread=(pulseState.yield30y-pulseState.tnx).toFixed(2);
+      log.push({src:'Yield Curve',val:'10Y:'+pulseState.tnx.toFixed(2)+'% 30Y:'+pulseState.yield30y.toFixed(2)+'% (spread:'+spread+')',date:'',ok:true});
+    }
+  } catch(e) { log.push({src:'Yield Curve',val:'Failed',date:'',ok:false}); }
+
+  // ===== LEADING INDICATORS — THE REAL EDGE =====
+  // These fire 1-5 days BEFORE bottoms, not at them
+
+  // 19b) VIX3M (3-month VIX) — the single most important addition
+  // VIX/VIX3M > 1.0 = backwardation = peak panic. When it PEAKS and starts declining = THE buy signal.
+  status.textContent='Fetching VIX term structure...';
+  const vix3mData=await yahooChart('%5EVIX3M','5d','1d');
+  if(vix3mData.ok) {
+    pulseState.vix3m=vix3mData.price;
+    if(pulseState.vix&&pulseState.vix3m) {
+      pulseState.vixRatio=pulseState.vix/pulseState.vix3m;
+    }
+    log.push({src:'VIX3M',val:vix3mData.price.toFixed(2)+' (ratio:'+(pulseState.vixRatio?.toFixed(3)||'--')+')',date:vix3mData.dateStr,ok:true});
+  } else { log.push({src:'VIX3M',val:'Failed',date:'',ok:false}); }
+
+  // 19c) SKEW Index — tail risk pricing. Low SKEW during a selloff = market NOT pricing further tail risk = fear exhausting
+  const skewData=await yahooChart('%5ESKEW','5d','1d');
+  if(skewData.ok) {
+    pulseState.skew=skewData.price;
+    log.push({src:'SKEW',val:skewData.price.toFixed(1),date:skewData.dateStr,ok:true});
+  } else { log.push({src:'SKEW',val:'Failed',date:'',ok:false}); }
+
+  // 19d) FRED Leading Indicators (requires FRED key — already captured above)
+  if(fredKey) {
+    status.textContent='Fetching FRED leading indicators...';
+    // NFCI — Financial Conditions Index (weekly, most important macro signal)
+    try {
+      const nfciR=await fetchWithTimeout(`https://api.stlouisfed.org/fred/series/observations?series_id=NFCI&api_key=${fredKey}&file_type=json&sort_order=desc&limit=2`,5000);
+      if(nfciR.ok) {
+        const nfciD=await nfciR.json();
+        if(nfciD.observations?.[0]) {
+          pulseState.nfci=parseFloat(nfciD.observations[0].value);
+          pulseState.nfciDate=nfciD.observations[0].date;
+          // Also get previous week for direction
+          if(nfciD.observations[1]) pulseState.nfciPrev=parseFloat(nfciD.observations[1].value);
+        }
+      }
+    } catch(e) {}
+    // ANFCI — Adjusted NFCI
+    try {
+      const anfciR=await fetchWithTimeout(`https://api.stlouisfed.org/fred/series/observations?series_id=ANFCI&api_key=${fredKey}&file_type=json&sort_order=desc&limit=1`,5000);
+      if(anfciR.ok) {
+        const anfciD=await anfciR.json();
+        if(anfciD.observations?.[0]) pulseState.anfci=parseFloat(anfciD.observations[0].value);
+      }
+    } catch(e) {}
+    // Money Market Fund assets (WMMNS) — record high = record dry powder
+    try {
+      const mmR=await fetchWithTimeout(`https://api.stlouisfed.org/fred/series/observations?series_id=WMMNS&api_key=${fredKey}&file_type=json&sort_order=desc&limit=1`,5000);
+      if(mmR.ok) {
+        const mmD=await mmR.json();
+        if(mmD.observations?.[0]) pulseState.moneyMarket=(parseFloat(mmD.observations[0].value)/1000).toFixed(2); // convert to trillions
+      }
+    } catch(e) {}
+    // IG Credit Spreads (BAMLC0A0CM)
+    try {
+      const igR=await fetchWithTimeout(`https://api.stlouisfed.org/fred/series/observations?series_id=BAMLC0A0CM&api_key=${fredKey}&file_type=json&sort_order=desc&limit=1`,5000);
+      if(igR.ok) {
+        const igD=await igR.json();
+        if(igD.observations?.[0]) pulseState.igSpreads=(parseFloat(igD.observations[0].value)*100).toFixed(0); // convert to bps
+      }
+    } catch(e) {}
+    const nfciDir=pulseState.nfciPrev!==undefined&&pulseState.nfci!==null?(pulseState.nfci>pulseState.nfciPrev?'↑ tightening':'↓ loosening'):'';
+    log.push({src:'FRED Leading',val:'NFCI:'+(pulseState.nfci?.toFixed(2)||'--')+' '+nfciDir+' MM:$'+(pulseState.moneyMarket||'--')+'T',date:pulseState.nfciDate||'',ok:pulseState.nfci!==null});
+  }
+
+  // 20) Twelve Data — reliable quotes + built-in technicals (if key)
+  const tdKey=(document.getElementById('key-twelvedata')||{}).value||'';
+  if(tdKey) {
+    status.textContent='Fetching Twelve Data technicals...';
+    try {
+      // RSI + MACD + ADX + Bollinger in parallel
+      const [tdRsiR, tdMacdR, tdAdxR, tdBbR] = await Promise.allSettled([
+        fetchWithTimeout(`https://api.twelvedata.com/rsi?symbol=SPY&interval=1day&time_period=14&apikey=${tdKey}&outputsize=1`,5000),
+        fetchWithTimeout(`https://api.twelvedata.com/macd?symbol=SPY&interval=1day&apikey=${tdKey}&outputsize=1`,5000),
+        fetchWithTimeout(`https://api.twelvedata.com/adx?symbol=SPY&interval=1day&time_period=14&apikey=${tdKey}&outputsize=1`,5000),
+        fetchWithTimeout(`https://api.twelvedata.com/bbands?symbol=SPY&interval=1day&time_period=20&apikey=${tdKey}&outputsize=1`,5000),
+      ]);
+      if(tdRsiR.status==='fulfilled'&&tdRsiR.value.ok) {
+        const d=await tdRsiR.value.json();
+        if(d.values?.[0]) pulseState.tdRsi=parseFloat(d.values[0].rsi);
+      }
+      if(tdMacdR.status==='fulfilled'&&tdMacdR.value.ok) {
+        const d=await tdMacdR.value.json();
+        if(d.values?.[0]) pulseState.tdMacd={macd:parseFloat(d.values[0].macd),signal:parseFloat(d.values[0].macd_signal),hist:parseFloat(d.values[0].macd_hist)};
+      }
+      if(tdAdxR.status==='fulfilled'&&tdAdxR.value.ok) {
+        const d=await tdAdxR.value.json();
+        if(d.values?.[0]) pulseState.tdAdx=parseFloat(d.values[0].adx);
+      }
+      if(tdBbR.status==='fulfilled'&&tdBbR.value.ok) {
+        const d=await tdBbR.value.json();
+        if(d.values?.[0]) { pulseState.tdBbUpper=parseFloat(d.values[0].upper_band); pulseState.tdBbLower=parseFloat(d.values[0].lower_band); }
+      }
+      // Use TD RSI as primary if Alpha Vantage didn't work
+      if(pulseState.tdRsi&&!pulseState.rsi14) pulseState.rsi14=pulseState.tdRsi;
+      log.push({src:'Twelve Data',val:'RSI:'+pulseState.tdRsi?.toFixed(1)+' ADX:'+pulseState.tdAdx?.toFixed(1)+' MACD:'+(pulseState.tdMacd?.hist?.toFixed(2)||'--'),date:'Latest',ok:true});
+    } catch(e) { log.push({src:'Twelve Data',val:'Failed',date:'',ok:false}); }
+  }
+
+  // 21) Marketaux — AI-scored news sentiment (if key)
+  const mktauxKey=(document.getElementById('key-marketaux')||{}).value||'';
+  if(mktauxKey) {
+    status.textContent='Fetching Marketaux AI sentiment...';
+    try {
+      const maR=await fetchWithTimeout(`https://api.marketaux.com/v1/news/all?symbols=SPY,QQQ&filter_entities=true&language=en&api_token=${mktauxKey}&limit=10`,6000);
+      if(maR.ok) {
+        const maD=await maR.json();
+        if(maD.data&&maD.data.length>0) {
+          // Compute average sentiment across articles
+          const sentiments=maD.data.filter(a=>a.entities?.length>0).map(a=>{
+            const ent=a.entities.find(e=>e.symbol==='SPY'||e.symbol==='QQQ');
+            return ent?ent.sentiment_score:null;
+          }).filter(v=>v!==null);
+          if(sentiments.length>0) {
+            const avg=sentiments.reduce((a,b)=>a+b,0)/sentiments.length;
+            pulseState.mktauxScore=avg;
+            pulseState.mktauxSentiment=avg>0.15?'Bullish':avg<-0.15?'Bearish':'Neutral';
+            pulseState.mktauxHeadlines=maD.data.slice(0,5).map(a=>({
+              title:a.title, sentiment:a.entities?.[0]?.sentiment_score, source:a.source
+            }));
+            log.push({src:'Marketaux',val:pulseState.mktauxSentiment+' ('+avg.toFixed(2)+')',date:'Latest',ok:true});
+          }
+        }
+      }
+    } catch(e) { log.push({src:'Marketaux',val:'Failed',date:'',ok:false}); }
+  }
+
   // Re-render log with keyed API results
   const logEl2=document.getElementById('fetch-log');
   if(logEl2) logEl2.innerHTML=log.map(l=>`
@@ -1681,6 +1900,30 @@ function renderTechnicals(){
           <div style="width:${p.finnhubBearish}%;background:#ef4444;border-radius:4px 0 0 4px"></div>
           <div style="width:${p.finnhubBullish}%;background:#22c55e;border-radius:0 4px 4px 0"></div>
         </div>
+      </div>`:''}
+      ${p.tdAdx?`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.tdAdx>=25?'#22c55e':'#f59e0b'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">ADX (Trend Strength)</div>
+        <div style="font-size:28px;font-weight:800;color:${p.tdAdx>=25?'#22c55e':'#f59e0b'};font-family:var(--mono)">${p.tdAdx.toFixed(1)}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${p.tdAdx>=40?'STRONG trend in force':p.tdAdx>=25?'Trending — follow the move':'Weak/no trend — range-bound'}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:4px">via Twelve Data</div>
+      </div>`:''}
+      ${p.tdBbUpper&&p.spyPrice?`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.spyPrice<=p.tdBbLower?'#22c55e':p.spyPrice>=p.tdBbUpper?'#ef4444':'#94a3b8'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Bollinger Bands</div>
+        <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.5);font-family:var(--mono)">$${p.tdBbLower.toFixed(0)} — $${p.tdBbUpper.toFixed(0)}</div>
+        <div style="font-size:10px;color:${p.spyPrice<=p.tdBbLower?'#22c55e':p.spyPrice>=p.tdBbUpper?'#ef4444':'rgba(255,255,255,0.4)'};margin-top:4px;font-weight:700">${p.spyPrice<=p.tdBbLower?'BELOW lower band — oversold bounce zone':p.spyPrice>=p.tdBbUpper?'ABOVE upper band — overbought':'Within bands — neutral'}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:4px">via Twelve Data</div>
+      </div>`:''}
+      ${p.mktauxSentiment?`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.mktauxScore>0.1?'#22c55e':p.mktauxScore<-0.1?'#ef4444':'#f59e0b'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">AI News Sentiment (Marketaux)</div>
+        <div style="font-size:24px;font-weight:800;color:${p.mktauxScore>0.1?'#22c55e':p.mktauxScore<-0.1?'#ef4444':'#f59e0b'}">${p.mktauxSentiment}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Score: ${p.mktauxScore.toFixed(3)} (range -1 to +1)</div>
+        ${p.mktauxHeadlines?`<div style="margin-top:8px;text-align:left">${p.mktauxHeadlines.slice(0,3).map(h=>`<div style="font-size:9px;color:rgba(255,255,255,0.3);padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.02)"><span style="color:${h.sentiment>0?'#22c55e':'#ef4444'};font-weight:700;font-family:var(--mono)">${h.sentiment>0?'+':''}${h.sentiment?.toFixed(2)||'?'}</span> ${h.title?.slice(0,60)||''}${h.title?.length>60?'...':''}</div>`).join('')}</div>`:''}
+      </div>`:''}
+      ${p.yieldCurveInverted!==null?`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;text-align:center;border-left:3px solid ${p.yieldCurveInverted?'#ef4444':'#22c55e'}">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Yield Curve (10Y vs 30Y)</div>
+        <div style="font-size:22px;font-weight:800;color:${p.yieldCurveInverted?'#ef4444':'#22c55e'};font-family:var(--mono)">${((p.yield30y||0)-(p.tnx||0)).toFixed(2)}%</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">${p.yieldCurveInverted?'⚠️ INVERTED — recession signal':'Normal spread — no inversion signal'}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:4px">10Y: ${p.tnx?.toFixed(2)}% · 30Y: ${p.yield30y?.toFixed(2)}%</div>
       </div>`:''}
     </div>`;
 }
@@ -1927,6 +2170,41 @@ function updateShortTermSignals() {
         activeSignals.push({name:'RSI Oversold', detail:'RSI '+p.rsi14.toFixed(1), strength:'strong'});
       } else if(p.rsi14 <= 40) {
         vixSignals.push({icon:'📊',label:'RSI(14) 30–40 — Weak',desc:'SPY daily RSI at '+p.rsi14.toFixed(1)+'. Approaching oversold but not there yet.',color:'#f59e0b',active:false});
+      }
+    }
+
+    // === LEADING INDICATORS (the real edge) ===
+    // VIX Term Structure — THE #1 bottom-timing signal
+    if(p.vixRatio !== null && p.vixRatio !== undefined) {
+      if(p.vixRatio > 1.0) {
+        vixSignals.push({icon:'🔥',label:'VIX BACKWARDATION — Ratio '+p.vixRatio.toFixed(3),desc:'VIX > VIX3M. This has only happened 4 times since 2005 (GFC, 2011, Volmageddon, COVID). When VIX/VIX3M peaks above 1.0 and starts declining, that\'s THE buy signal. Academic research: backwardation → positive subsequent S&P returns.',color:'#ef4444',active:true});
+        activeSignals.push({name:'VIX Backwardation', detail:'Ratio '+p.vixRatio.toFixed(3), strength:'strong'});
+      } else if(p.vixRatio > 0.92) {
+        vixSignals.push({icon:'🟠',label:'VIX Term Structure Flattening — '+p.vixRatio.toFixed(3),desc:'Approaching backwardation (>1.0). Near-term fear rising faster than long-term. Watch for the crossover — historically precedes bottoms by 1-5 days.',color:'#f97316',active:true});
+        activeSignals.push({name:'VIX Flattening', detail:'Ratio '+p.vixRatio.toFixed(3), strength:'medium'});
+      } else {
+        vixSignals.push({icon:'🟢',label:'VIX Contango — Normal ('+p.vixRatio.toFixed(3)+')',desc:'Term structure healthy. No panic signal from vol curve.',color:'#22c55e',active:false});
+      }
+    }
+
+    // SKEW — tail risk pricing
+    if(p.skew !== null) {
+      if(p.skew < 120) {
+        vixSignals.push({icon:'📐',label:'SKEW Low ('+p.skew.toFixed(0)+') — Fear Exhausting',desc:'Low SKEW during a selloff means the market is NO LONGER pricing further tail risk. This is a sign that fear has peaked. Historically bullish within 1-2 weeks.',color:'#22c55e',active:true});
+        activeSignals.push({name:'SKEW Low', detail:p.skew.toFixed(0), strength:'medium'});
+      } else if(p.skew > 145) {
+        vixSignals.push({icon:'⚠️',label:'SKEW High ('+p.skew.toFixed(0)+') — Tail Risk',desc:'Market pricing significant tail risk. Options traders see asymmetric downside. Not a buy signal.',color:'#ef4444',active:true});
+      }
+    }
+
+    // NFCI — Financial Conditions
+    if(p.nfci !== null) {
+      const nfciDir = p.nfciPrev!==undefined ? (p.nfci > p.nfciPrev ? 'tightening ↑' : 'loosening ↓') : '';
+      if(p.nfci > 0) {
+        vixSignals.push({icon:'🏦',label:'NFCI Tight ('+p.nfci.toFixed(2)+') — '+nfciDir,desc:'Financial conditions tighter than average. Credit stress building. Above 0.5 = historically associated with recession. Watch for NFCI to peak and start declining — that\'s the clearing signal.',color:p.nfci>0.5?'#ef4444':'#f97316',active:true});
+        activeSignals.push({name:'NFCI Tight', detail:p.nfci.toFixed(2)+' '+nfciDir, strength:'medium'});
+      } else {
+        vixSignals.push({icon:'🏦',label:'NFCI Loose ('+p.nfci.toFixed(2)+') — '+nfciDir,desc:'Financial conditions looser than average. No systemic stress. Equity selloff is sentiment-driven, not credit-driven — easier to reverse.',color:'#22c55e',active:false});
       }
     }
 
@@ -2740,9 +3018,26 @@ function updateSqueezeTab() {
       </div>
     </div>`;
 
-  // Render ceasefire summary
-  document.getElementById('ceasefire-summary').innerHTML = `
-    <strong style="color:var(--amber)">Mar 15 deadline missed.</strong> Next window: <strong style="color:var(--green)">52% by March 31</strong> — Market still pricing near-term resolution but conviction fading. Each missed deadline shifts probability toward the slide scenario.`;
+  // Render ceasefire summary with Polymarket live data if available
+  const polyPct = pulseState.polyIranCeasefire ? pulseState.polyIranCeasefire.pct : null;
+  const polyTitle = pulseState.polyIranCeasefire ? pulseState.polyIranCeasefire.title : null;
+  const recPct = pulseState.polyRecession ? pulseState.polyRecession.pct : null;
+  document.getElementById('ceasefire-summary').innerHTML = polyPct !== null ? `
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:center">
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ceasefire (Polymarket LIVE)</div>
+        <div style="font-size:28px;font-weight:900;color:${polyPct>=60?'var(--green)':polyPct>=40?'var(--amber)':'var(--red)'};font-family:var(--mono)">${polyPct}%</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px">${polyTitle||''}</div>
+      </div>
+      ${recPct!==null?`<div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Recession (Polymarket)</div>
+        <div style="font-size:28px;font-weight:900;color:${recPct>=50?'var(--red)':recPct>=30?'var(--amber)':'var(--green)'};font-family:var(--mono)">${recPct}%</div>
+      </div>`:''}
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.3)">
+      ${polyPct>=60?'Markets heavily pricing resolution. Ceasefire → oil crash → VIX crush → squeeze.':polyPct>=40?'Moderate ceasefire probability. Market uncertain — hedges staying on.':'Low ceasefire probability. Market pricing prolonged conflict. Slide scenario dominant.'}
+    </div>
+  ` : `<strong style="color:var(--amber)">Mar 15 deadline missed.</strong> Polymarket data will auto-populate on fetch. Each missed deadline shifts probability toward the slide scenario.`;
 
   // Render scenario cards
   function renderTriggers(items, borderCol) {
@@ -2857,16 +3152,16 @@ updateSqueezeTab();
 
 // ===== CONFLICT PLAYBOOK =====
 const conflictSteps=[
-  {step:1,name:"Verbal Pressure",desc:"Cryptic messages, threats, urging target to 'make a deal.' Social media posts escalate rhetoric.",marker:"Trump posts about Iran/target on Truth Social, 'Armada heading to Iran'",market:"Markets drift slightly, uncertainty begins. Mostly ignored.",smartMoney:"No action yet — watching.",timing:"Weeks to months before action",iranStatus:"COMPLETE — Jan 28 'Armada heading' posts, weeks of pressure",iranDate:"Jan–Feb 2026"},
-  {step:2,name:"Strategic Posturing",desc:"Visible military/economic preparation. Alliance coordination. Public positioning without engagement.",marker:"Military repositioning, alliance meetings, executive reviews, public notices",market:"VIX ticks up slightly. Oil begins to drift higher on speculation.",smartMoney:"Begin watching put/call ratios for hedging buildup.",timing:"Days to weeks before strike",iranStatus:"COMPLETE — Military repositioning, coalition coordination with Israel",iranDate:"Feb 2026"},
-  {step:3,name:"The Friday Night Strike",desc:"Major strike/tariff/action, timed for after market close. Maximizes weekend digest time.",marker:"Friday evening or Saturday announcement. Futures closed or illiquid.",market:"No immediate price discovery. Weekend of fear, uncertainty, and speculation.",smartMoney:"Positioned defensively before weekend. Cash raised.",timing:"Friday night / Saturday",iranStatus:"COMPLETE — Feb 28 strikes on Iran, killing Supreme Leader",iranDate:"Feb 28, 2026"},
-  {step:4,name:"Risk Premium Expansion",desc:"Futures open Sunday 6PM ET with violent gap. But markets doubt longevity — partial reversal by Monday.",marker:"Oil spikes, futures gap down, but partial recovery as 'deal' expected",market:"Oil +12%, S&P gaps down then reverses intraday. Whipsaw action.",smartMoney:"Watch the intraday reversal quality. If it holds = still early.",timing:"Sunday–Monday",iranStatus:"COMPLETE — Oil hit $81, S&P reversed to flat on Mar 2",iranDate:"Mar 2, 2026"},
-  {step:5,name:"'Forever' Conflict Rhetoric",desc:"After dip-buyers pile in, Trump blindsides with escalation language. 'Wars can be fought forever.'",marker:"Trump posts about unlimited weapons, forever war. Doubling down.",market:"Second leg down. Dip buyers get trapped. New weekly lows.",smartMoney:"Smart money watches for sentiment polarity shift. Not buying yet.",timing:"Days 3–5 after strike",iranStatus:"COMPLETE — Trump: 'wars fought forever,' 'unlimited weaponry' Mar 2–3",iranDate:"Mar 2–3, 2026"},
-  {step:6,name:"Markets Price Prolonged Conflict",desc:"Oil above $85, equities hit new weekly lows, rush to sidelines accelerates. Positioning changes structurally.",marker:"Brent >$85, equities erase gains, gold/silver sell off (cash hoarding), VIX elevated",market:"Dow -1,100 pts. Oil $90+. Silver -20% in 24hrs. Defensive flows.",smartMoney:"SMART MONEY begins scanning for entry. Sentiment polarity extreme.",timing:"Week 1–2",iranStatus:"COMPLETE — Oil $90+, Dow worst week since Apr, SPY broke 200-DMA",iranDate:"Mar 3–20, 2026"},
-  {step:7,name:"Conditional De-Escalation",desc:"After sufficient risk premia expansion, Trump introduces calibrated de-escalation. NOT a retreat — conditional.",marker:"Language shifts to 'negotiations possible if...' Talks, frameworks mentioned quietly.",market:"VIX plateaus. Oil stops making new highs. Equity selling exhausts.",smartMoney:"THIS IS THE BUY ZONE. Smart money enters while headlines still negative.",timing:"Highly variable — days to months",iranStatus:"COMPLETE — Trump: 'winding down' war 3/21, Kushner/Witkoff prep talks",iranDate:"Mar 20–22, 2026"},
-  {step:8,name:"Market & Political Feedback",desc:"Financial markets become part of negotiation. Oil >$90 conflicts with Trump's policy priorities (low gas, low inflation, peace).",marker:"Brent >$90 sustained, CPI estimates rising, gas prices +10%, consumer sentiment falling",market:"Market stress forces Trump's hand. Bond market is the ultimate tell.",smartMoney:"Conviction builds. Adding to positions on each dip.",timing:"Overlaps with Step 7",iranStatus:"COMPLETE — Oil $98, gas crisis, IEA: 'worst supply disruption in history', forced Trump's hand",iranDate:"Mar 14–22, 2026"},
-  {step:9,name:"The Deal & Narrative Framing",desc:"Resolution framed as strategic victory. 'Maximum pressure produced concessions.' 5-day pause = deal framing window.",marker:"Ceasefire tied to nuclear concessions, or Iranian govt collapse declared 'mission success'",market:"Headline shock — but initially met with skepticism. Smart money already positioned.",smartMoney:"Already long. Holding through volatility.",timing:"After Step 7–8 catalysts",iranStatus:"ACTIVE — Trump: 'productive talks' 3/23, 5-day strike pause, oil -15% in minutes, markets surge",iranDate:"Mar 23, 2026"},
-  {step:10,name:"Violent Repricing & Victory Lap",desc:"Positions unwind abruptly. Markets reprice not on improving fundamentals, but on collapsing worst-case probabilities.",marker:"Oil crashes, VIX implodes, equities gap up violently. Record single-day gains.",market:"SPY gaps +3–5%. Oil drops 15–20%. VIX crashes to teens. New ATH within weeks.",smartMoney:"Taking profits on the rip. Rotating into next opportunity.",timing:"Days after deal announcement",iranStatus:"IMMINENT — If 5-day talks produce a deal, this is the squeeze. Brent already -15% on headlines alone.",iranDate:"TBD — within days"},
+  {step:1,name:"Verbal Pressure",desc:"Cryptic messages, threats, urging target to 'make a deal.' Social media posts escalate rhetoric.",marker:"Trump posts about Iran/target on Truth Social, 'Armada heading to Iran'",market:"Markets drift slightly, uncertainty begins. Mostly ignored.",smartMoney:"No action yet — watching.",timing:"Weeks to months before action",iranStatus:"COMPLETE",iranDate:"Jan–Feb 2026"},
+  {step:2,name:"Strategic Posturing",desc:"Visible military/economic preparation. Alliance coordination. Public positioning without engagement.",marker:"Military repositioning, alliance meetings, executive reviews, public notices",market:"VIX ticks up slightly. Oil begins to drift higher on speculation.",smartMoney:"Begin watching put/call ratios for hedging buildup.",timing:"Days to weeks before strike",iranStatus:"COMPLETE",iranDate:"Feb 2026"},
+  {step:3,name:"The Friday Night Strike",desc:"Major strike/tariff/action, timed for after market close. Maximizes weekend digest time.",marker:"Friday evening or Saturday announcement. Futures closed or illiquid.",market:"No immediate price discovery. Weekend of fear, uncertainty, and speculation.",smartMoney:"Positioned defensively before weekend. Cash raised.",timing:"Friday night / Saturday",iranStatus:"COMPLETE",iranDate:"Feb 28, 2026"},
+  {step:4,name:"Risk Premium Expansion",desc:"Futures open Sunday 6PM ET with violent gap. But markets doubt longevity — partial reversal by Monday.",marker:"Oil spikes, futures gap down, but partial recovery as 'deal' expected",market:"Oil +12%, S&P gaps down then reverses intraday. Whipsaw action.",smartMoney:"Watch the intraday reversal quality. If it holds = still early.",timing:"Sunday–Monday",iranStatus:"COMPLETE",iranDate:"Mar 2, 2026"},
+  {step:5,name:"'Forever' Conflict Rhetoric",desc:"After dip-buyers pile in, Trump blindsides with escalation language. 'Wars can be fought forever.'",marker:"Trump posts about unlimited weapons, forever war. Doubling down.",market:"Second leg down. Dip buyers get trapped. New weekly lows.",smartMoney:"Smart money watches for sentiment polarity shift. Not buying yet.",timing:"Days 3–5 after strike",iranStatus:"COMPLETE",iranDate:"Mar 2–3, 2026"},
+  {step:6,name:"Markets Price Prolonged Conflict",desc:"Oil above $85, equities hit new weekly lows, rush to sidelines accelerates. Positioning changes structurally.",marker:"Brent >$85, equities erase gains, gold/silver sell off (cash hoarding), VIX elevated",market:"Dow -1,100 pts. Oil $90+. Silver -20% in 24hrs. Defensive flows.",smartMoney:"SMART MONEY begins scanning for entry. Sentiment polarity extreme.",timing:"Week 1–2",iranStatus:"COMPLETE",iranDate:"Mar 3–20, 2026"},
+  {step:7,name:"Conditional De-Escalation",desc:"After sufficient risk premia expansion, Trump introduces calibrated de-escalation. NOT a retreat — conditional.",marker:"Language shifts to 'negotiations possible if...' Talks, frameworks mentioned quietly.",market:"VIX plateaus. Oil stops making new highs. Equity selling exhausts.",smartMoney:"THIS IS THE BUY ZONE. Smart money enters while headlines still negative.",timing:"Highly variable — days to months",iranStatus:"COMPLETE",iranDate:"Mar 20–22, 2026"},
+  {step:8,name:"Market & Political Feedback",desc:"Financial markets become part of negotiation. Oil >$90 conflicts with Trump's policy priorities (low gas, low inflation, peace).",marker:"Brent >$90 sustained, CPI estimates rising, gas prices +10%, consumer sentiment falling",market:"Market stress forces Trump's hand. Bond market is the ultimate tell.",smartMoney:"Conviction builds. Adding to positions on each dip.",timing:"Overlaps with Step 7",iranStatus:"COMPLETE",iranDate:"Mar 14–22, 2026"},
+  {step:9,name:"The Deal & Narrative Framing",desc:"Resolution framed as strategic victory. 'Maximum pressure produced concessions.' 5-day pause = deal framing window.",marker:"Ceasefire tied to nuclear concessions, or Iranian govt collapse declared 'mission success'",market:"Headline shock — but initially met with skepticism. Smart money already positioned.",smartMoney:"Already long. Holding through volatility.",timing:"After Step 7–8 catalysts",iranStatus:"",iranDate:""},
+  {step:10,name:"Violent Repricing & Victory Lap",desc:"Positions unwind abruptly. Markets reprice not on improving fundamentals, but on collapsing worst-case probabilities.",marker:"Oil crashes, VIX implodes, equities gap up violently. Record single-day gains.",market:"SPY gaps +3–5%. Oil drops 15–20%. VIX crashes to teens. New ATH within weeks.",smartMoney:"Taking profits on the rip. Rotating into next opportunity.",timing:"Days after deal announcement",iranStatus:"",iranDate:""},
 ];
 
 let currentConflictStep=9; // Default — peace talks announced 3/23
@@ -3110,14 +3405,26 @@ const fetchConflictHeadlines = fetchHeadlines;
 
 function renderConflictSteps(){
   currentConflictStep=detectConflictPhase();
+  const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('conflict-phase').textContent='Step '+currentConflictStep+' of 10';
   document.getElementById('conflict-phase-name').textContent='— '+conflictSteps[currentConflictStep-1].name;
   document.getElementById('conflict-steps').innerHTML=conflictSteps.map(s=>{
     const isCurrent=s.step===currentConflictStep;
     const isPast=s.step<currentConflictStep;
     const isFuture=s.step>currentConflictStep;
+    // Dynamic status: use hardcoded for past steps, auto-generate for current/future
+    let status=s.iranStatus, statusDate=s.iranDate;
+    if(isCurrent) {
+      status='ACTIVE — Detected via '+(headlineSignals.length>0?'headline scan':'price data')+' on '+today;
+      statusDate=today;
+    } else if(isFuture && s.step===currentConflictStep+1) {
+      status='NEXT — Watch for: '+s.marker.split('.')[0];
+      statusDate='Pending';
+    } else if(isFuture) {
+      status='PENDING'; statusDate='';
+    }
     const borderCol=isCurrent?'var(--cyan)':isPast?'var(--green)':'rgba(255,255,255,0.06)';
-    const statusCol=s.iranStatus.startsWith('COMPLETE')?'#22c55e':s.iranStatus.startsWith('ACTIVE')?'#22d3ee':s.iranStatus.startsWith('IMMINENT')?'#f59e0b':s.iranStatus.startsWith('DEVELOPING')?'#f59e0b':'rgba(255,255,255,0.25)';
+    const statusCol=status.startsWith('COMPLETE')?'#22c55e':status.startsWith('ACTIVE')?'#22d3ee':status.startsWith('NEXT')?'#f59e0b':'rgba(255,255,255,0.25)';
     const statusBg=isCurrent?'rgba(34,211,238,0.06)':isPast?'rgba(34,197,94,0.03)':'rgba(255,255,255,0.01)';
     return `<div style="background:${statusBg};border:1px solid ${borderCol};border-left:4px solid ${borderCol};border-radius:0 10px 10px 0;padding:16px;margin-bottom:8px;${isCurrent?'box-shadow:0 0 20px rgba(34,211,238,0.08)':''}${isFuture?'opacity:0.5':''}">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px">
@@ -3134,8 +3441,8 @@ function renderConflictSteps(){
       </div>
       <div style="margin-top:8px;padding:6px 10px;background:rgba(0,0,0,0.2);border-radius:4px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
         <span style="font-size:10px;font-weight:700;color:${statusCol}">IRAN:</span>
-        <span style="font-size:10px;color:rgba(255,255,255,0.4)">${s.iranStatus}</span>
-        <span style="font-size:9px;color:rgba(255,255,255,0.2);margin-left:auto">${s.iranDate}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.4)">${status}</span>
+        ${statusDate?`<span style="font-size:9px;color:rgba(255,255,255,0.2);margin-left:auto">${statusDate}</span>`:''}
       </div>
     </div>`;
   }).join('');
