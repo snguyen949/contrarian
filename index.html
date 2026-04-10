@@ -413,8 +413,9 @@
     .container { padding: 16px 12px; }
     h1 { font-size: 38px !important; }
     .header-tag { font-size: 8px !important; letter-spacing: 2px !important; }
-    .tabs { gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-    .tabs::-webkit-scrollbar { display: none; }
+    .tabs { gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+    .tabs::-webkit-scrollbar { height: 3px; }
+    .tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
     .tab-btn { padding: 8px 10px; font-size: 9px !important; letter-spacing: 1px !important; white-space: nowrap; flex-shrink: 0; }
     .snapshot-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
     .snap-card { padding: 10px 8px !important; }
@@ -523,8 +524,9 @@
     <button class="tab-btn" data-tab="retest">ATH Retest</button>
     <button class="tab-btn" data-tab="squeeze">Squeeze</button>
     <button class="tab-btn" data-tab="accumulation">Accumulation</button>
-    <button class="tab-btn" data-tab="conflict">Conflict Cycle</button>
+    <button class="tab-btn" data-tab="conflict">War Cycle</button>
     <button class="tab-btn" data-tab="tariff">Tariff Cycle</button>
+    <button class="tab-btn" data-tab="history" onclick="setTimeout(renderHistoryTab,10)">History</button>
     <button class="tab-btn" data-tab="tools">Tools</button>
   </div>
 
@@ -536,6 +538,15 @@
       <button id="fetch-btn" onclick="fetchAllData()" style="padding:10px 24px;border:1px solid var(--cyan);border-radius:8px;background:rgba(34,211,238,0.1);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1.5px;transition:all 0.2s">
         ⟳ Fetch Latest Data
       </button>
+      <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" style="padding:10px 16px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:rgba(255,255,255,0.3);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+        ⏱ Auto: Off
+      </button>
+      <select id="auto-refresh-interval" style="padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.4);font-size:10px;font-family:var(--mono);cursor:pointer;outline:none">
+        <option value="60000">1 min</option>
+        <option value="300000" selected>5 min</option>
+        <option value="900000">15 min</option>
+        <option value="1800000">30 min</option>
+      </select>
       <span id="fetch-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Click to fetch live data from free APIs</span>
       <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2);margin-left:auto"></span>
     </div>
@@ -554,32 +565,32 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Alpha Vantage <span style="color:rgba(255,255,255,0.15)">— RSI, SMA, technicals</span></label>
-          <input id="key-alphavantage" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <input id="key-alphavantage" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">FRED <span style="color:rgba(255,255,255,0.15)">— HY spreads, macro data</span></label>
-          <input id="key-fred" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <input id="key-fred" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Finnhub <span style="color:rgba(255,255,255,0.15)">— real-time quotes, sentiment</span></label>
-          <input id="key-finnhub" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <input id="key-finnhub" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://finnhub.io/register" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">NewsAPI <span style="color:rgba(255,255,255,0.15)">— headline sentiment</span></label>
-          <input id="key-newsapi" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <input id="key-newsapi" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://newsapi.org/register" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Twelve Data <span style="color:rgba(255,255,255,0.15)">— reliable quotes + technicals (800/day)</span></label>
-          <input id="key-twelvedata" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <input id="key-twelvedata" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://twelvedata.com/account/api-keys" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Marketaux <span style="color:rgba(255,255,255,0.15)">— AI news sentiment (100/day)</span></label>
-          <input id="key-marketaux" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <input id="key-marketaux" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://www.marketaux.com/account/dashboard" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
       </div>
@@ -1012,6 +1023,15 @@
     <div class="detail-grid" id="crisis-detail"></div>
   </div>
 
+  <!-- ============ HISTORY TAB ============ -->
+  <div id="tab-history" class="tab-panel">
+    <div id="history-content" style="padding:20px 0">
+      <div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:40px">
+        No history yet — data is captured on each successful fetch.
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <div class="footer">
     Educational &amp; analysis purposes only. Not financial advice. <script>document.write(new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}))</script>.
@@ -1074,28 +1094,16 @@ const signals = [
   {id:'cnnFG', name:'CNN Fear & Greed', type:'manual', threshold:'≤ 14', score:()=> pulseState.cnnFG!==null && pulseState.cnnFG<=14 ? 1 : pulseState.cnnFG!==null && pulseState.cnnFG<=25 ? 0.5 : 0, reading:()=>pulseState.cnnFG, color:()=>pulseState.cnnFG<=14?'#ef4444':pulseState.cnnFG<=25?'#f97316':pulseState.cnnFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cnnFG<=14?'EXTREME FEAR — contrarian buy zone':pulseState.cnnFG<=25?'FEAR — approaching buy zone':'NOT fearful enough yet'},
   {id:'vix', name:'VIX', type:'auto', threshold:'≥ 35', score:()=> pulseState.vix!==null && pulseState.vix>=45 ? 1 : pulseState.vix>=35 ? 0.75 : pulseState.vix>=28 ? 0.25 : 0, reading:()=>pulseState.vix, color:()=>pulseState.vix>=45?'#ef4444':pulseState.vix>=35?'#f97316':pulseState.vix>=25?'#f59e0b':'#22c55e', interpret:()=>pulseState.vix>=45?'PANIC — capitulation level VIX':pulseState.vix>=35?'HIGH FEAR — approaching capitulation':pulseState.vix>=25?'Elevated but not extreme':'Low vol — complacent market'},
   {id:'cryptoFG', name:'Crypto Fear & Greed', type:'auto', threshold:'≤ 15', score:()=> pulseState.cryptoFG!==null && pulseState.cryptoFG<=10 ? 1 : pulseState.cryptoFG<=20 ? 0.75 : pulseState.cryptoFG<=30 ? 0.25 : 0, reading:()=>pulseState.cryptoFG, color:()=>pulseState.cryptoFG<=15?'#ef4444':pulseState.cryptoFG<=25?'#f97316':pulseState.cryptoFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cryptoFG<=15?'EXTREME FEAR — historically 80% positive 30d returns':pulseState.cryptoFG<=25?'FEAR — crypto sentiment very negative':'Not extreme enough'},
-  {id:'aaii', name:'AAII Bear-Bull Spread', type:'manual', threshold:'Bear ≥ 50%', score:()=> pulseState.aaiiBear!==null && pulseState.aaiiBear>=55 ? 1 : pulseState.aaiiBear>=45 ? 0.75 : pulseState.aaiiBear>=38 ? 0.25 : 0, reading:()=>pulseState.aaiiBear!==null?pulseState.aaiiBear+'%':null, color:()=>pulseState.aaiiBear>=50?'#ef4444':pulseState.aaiiBear>=40?'#f97316':pulseState.aaiiBear>=35?'#f59e0b':'#22c55e', interpret:()=>pulseState.aaiiBear>=50?'EXTREME bearish — historically strong contrarian buy':pulseState.aaiiBear>=40?'Very bearish — approaching signal':'Mildly bearish — not extreme'},
-  {id:'putcall', name:'Put/Call Ratio', type:'manual', threshold:'≥ 1.2', score:()=> pulseState.putCallRatio!==null && pulseState.putCallRatio>=1.3 ? 1 : pulseState.putCallRatio>=1.1 ? 0.5 : 0, reading:()=>pulseState.putCallRatio, color:()=>pulseState.putCallRatio>=1.2?'#ef4444':pulseState.putCallRatio>=1.0?'#f97316':pulseState.putCallRatio>=0.8?'#f59e0b':'#22c55e', interpret:()=>pulseState.putCallRatio>=1.2?'Heavy put buying — maximum fear hedging':pulseState.putCallRatio>=1.0?'Elevated hedging activity':'Normal or low hedging'},
   {id:'spyVolSpike', name:'SPY Volume vs 20d Avg', type:'auto', threshold:'≥ 2.0x', score:()=>{ if(!pulseState.spyVol||!pulseState.spy20dAvgVol)return 0; const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=3?1:r>=2?0.75:r>=1.5?0.25:0; }, reading:()=>pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(1)+'x':null, color:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'#ef4444':r>=1.8?'#f97316':r>=1.3?'#f59e0b':'#22c55e'; }, interpret:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'CAPITULATION VOLUME — Coulling accumulation signal':r>=1.8?'High volume — watch for narrowing spread':r>=1.3?'Above average — some institutional activity':'Normal volume — no panic selling'; }},
   {id:'spyDrawdown', name:'SPY % from ATH', type:'auto', threshold:'≥ 10%', score:()=>{ const d=pulseState.spyPctFromATH; return d>=20?1:d>=10?0.75:d>=7?0.25:0; }, reading:()=>pulseState.spyPctFromATH!==null?'-'+pulseState.spyPctFromATH.toFixed(1)+'%':null, color:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'#ef4444':d>=10?'#f97316':d>=5?'#f59e0b':'#22c55e'; }, interpret:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'BEAR TERRITORY — deep correction':d>=10?'CORRECTION — historical buy zone':d>=5?'Pullback — not deep enough yet':'Near ATH — no discount'; }},
-  {id:'breadth', name:'% S&P above 200-DMA', type:'manual', threshold:'≤ 40%', score:()=>{ const v=pulseState.pctAbove200dma; return v!==null&&v<=30?1:v<=40?0.75:v<=50?0.25:0; }, reading:()=>pulseState.pctAbove200dma!==null?pulseState.pctAbove200dma+'%':null, color:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'#ef4444':v<=40?'#f97316':v<=50?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'WASHED OUT breadth — most stocks in downtrend':v<=40?'Weak breadth — approaching washout':'Breadth still OK — not a washout'; }},
-  {id:'naaim', name:'NAAIM Exposure Index', type:'manual', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v<=40?0.75:v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
-  {id:'hySpreads', name:'HY Credit Spreads (bps)', type:'manual', threshold:'≥ 500', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v>=500?0.75:v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?pulseState.hySpreads+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic'; }},
   // === LEADING INDICATORS (higher weight — these PREDICT bottoms) ===
   {id:'vixTermStructure', name:'VIX/VIX3M Ratio ★', type:'auto', threshold:'> 1.0 (backwardation)', score:()=>{ const r=pulseState.vixRatio; return r!==null&&r>1.05?1.5:r>1.0?1.25:r>0.95?0.5:0; }, reading:()=>pulseState.vixRatio!==null?pulseState.vixRatio.toFixed(3):null, color:()=>{ const r=pulseState.vixRatio; return r>1.0?'#ef4444':r>0.92?'#f97316':'#22c55e'; }, interpret:()=>{ const r=pulseState.vixRatio; return r>1.0?'⚡ BACKWARDATION — strongest contrarian buy signal. Only 4 times since 2005 (GFC, 2011, Vol, COVID). All preceded massive rallies.':r>0.92?'Flattening — approaching signal. Near-term fear rising faster than long-term.':'Contango — normal. No term structure signal.'; }},
-  {id:'nfci', name:'NFCI Financial Conditions ★', type:'auto', threshold:'> 0 (tightening)', score:()=>{ const n=pulseState.nfci; if(n===null)return 0; const loosening=pulseState.nfciPrev!==undefined&&n<pulseState.nfciPrev; return n>0.5?1.25:n>0?(loosening?1:0.5):0; }, reading:()=>pulseState.nfci!==null?pulseState.nfci.toFixed(2):null, color:()=>{ const n=pulseState.nfci; return n>0.5?'#ef4444':n>0?'#f97316':'#22c55e'; }, interpret:()=>{ const n=pulseState.nfci; const dir=pulseState.nfciPrev!==undefined?(n>pulseState.nfciPrev?'Still tightening ↑':'Peaked & loosening ↓ — BUY SIGNAL'):''; return n>0.5?'SEVERE tightening — credit stress. '+dir:n>0?'Tight conditions — stress building. '+dir:'Loose — no systemic stress. Equity selloff is sentiment-driven.'; }},
   {id:'skew', name:'SKEW Index', type:'auto', threshold:'< 120 (fear exhausting)', score:()=>{ const s=pulseState.skew; return s!==null&&s<115?0.75:s<120?0.5:0; }, reading:()=>pulseState.skew!==null?pulseState.skew.toFixed(0):null, color:()=>{ const s=pulseState.skew; return s<120?'#22c55e':s>145?'#ef4444':'#94a3b8'; }, interpret:()=>{ const s=pulseState.skew; return s<120?'Low SKEW = market NOT pricing further tail risk. Fear exhausting — contrarian bullish.':s>145?'High SKEW — significant tail risk priced. Market expects more downside.':'Normal tail risk pricing.'; }},
 ];
 
-// Manual input fields config
+// Manual input fields config — only metrics that contribute to Buy rating and may need manual override
 const manualFields = [
-  {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'cnn.com/markets/fear-and-greed'},
-  {id:'aaiiBull',label:'AAII Bullish %',placeholder:'e.g. 33.1',src:'aaii.com/sentimentsurvey'},
-  {id:'aaiiBear',label:'AAII Bearish %',placeholder:'e.g. 35.5',src:'aaii.com/sentimentsurvey'},
-  {id:'putCallRatio',label:'CBOE Put/Call Ratio',placeholder:'e.g. 1.05',src:'cboe.com'},
-  {id:'pctAbove200dma',label:'% S&P above 200-DMA',placeholder:'e.g. 58',src:'stockcharts.com ($SPXA200R)'},
-  {id:'naaimExposure',label:'NAAIM Exposure Index',placeholder:'e.g. 72',src:'naaim.org/programs/naaim-exposure-index'},
-  {id:'hySpreads',label:'HY Spreads (bps)',placeholder:'e.g. 350',src:'fred.stlouisfed.org (BAMLH0A0HYM2)'},
+  {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'Auto-fetched — manual override only'},
 ];
 
 function renderManualInputs(){
@@ -1103,7 +1111,7 @@ function renderManualInputs(){
     <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
       <label style="font-size:10px;color:rgba(255,255,255,0.4);display:block;margin-bottom:4px">${f.label}</label>
       <input id="input-${f.id}" type="number" step="any" placeholder="${f.placeholder}" value="${pulseState[f.id]||''}"
-        onchange="pulseState['${f.id}']=parseFloat(this.value)||null"
+        onchange="pulseState['${f.id}']=parseFloat(this.value)||null;recalcScore();propagateData()"
         style="width:100%;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
       <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:3px">${f.src}</div>
     </div>
@@ -1142,12 +1150,9 @@ function renderPulseCards(){
     {label:'Ceasefire Odds',val:pulseState.polyIranCeasefire?pulseState.polyIranCeasefire.pct+'%':'--',sub:pulseState.polyIranCeasefire?'Polymarket':'',color:pulseState.polyIranCeasefire?(pulseState.polyIranCeasefire.pct>=60?'#22c55e':pulseState.polyIranCeasefire.pct>=40?'#f59e0b':'#ef4444'):'#94a3b8',type:'auto',date:'Live'},
     {label:'Recession Odds',val:pulseState.polyRecession?pulseState.polyRecession.pct+'%':'--',sub:pulseState.polyRecession?'Polymarket':'',color:pulseState.polyRecession?(pulseState.polyRecession.pct>=50?'#ef4444':pulseState.polyRecession.pct>=30?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:'Live'},
     {label:'30Y Yield',val:pulseState.yield30y?pulseState.yield30y.toFixed(2)+'%':'--',sub:pulseState.yieldCurveInverted?'⚠️ INVERTED':'Normal',color:pulseState.yieldCurveInverted?'#ef4444':pulseState.yield30y?'#22c55e':'#94a3b8',type:'auto',date:''},
-    {label:'AI Sentiment',val:pulseState.mktauxSentiment||'--',sub:pulseState.mktauxScore?'Score: '+pulseState.mktauxScore.toFixed(2):'Needs Marketaux key',color:pulseState.mktauxScore?(pulseState.mktauxScore>0.1?'#22c55e':pulseState.mktauxScore<-0.1?'#ef4444':'#f59e0b'):'#94a3b8',type:pulseState.mktauxScore?'auto':'manual',date:pulseState.mktauxScore?'Latest':''},
     // === LEADING INDICATORS ===
     {label:'VIX/VIX3M',val:pulseState.vixRatio?pulseState.vixRatio.toFixed(3):'--',sub:pulseState.vixRatio?(pulseState.vixRatio>1.0?'⚡ BACKWARDATION — peak panic':pulseState.vixRatio>0.92?'Elevated — watch':'Contango — normal'):'Term structure',color:pulseState.vixRatio?(pulseState.vixRatio>1.0?'#ef4444':pulseState.vixRatio>0.92?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:''},
     {label:'SKEW',val:pulseState.skew?pulseState.skew.toFixed(0):'--',sub:pulseState.skew?(pulseState.skew<120?'Low tail risk = fear exhausting':pulseState.skew>145?'High tail risk':'Normal'):'Tail risk',color:pulseState.skew?(pulseState.skew<120?'#22c55e':pulseState.skew>145?'#ef4444':'#94a3b8'):'#94a3b8',type:'auto',date:''},
-    {label:'NFCI',val:pulseState.nfci!==null?pulseState.nfci.toFixed(2):'--',sub:pulseState.nfci!==null?(pulseState.nfci>0?'TIGHT — stress':'Loose — normal')+(pulseState.nfciPrev!==undefined?(pulseState.nfci>pulseState.nfciPrev?' ↑':' ↓'):''):'Needs FRED key',color:pulseState.nfci!==null?(pulseState.nfci>0.5?'#ef4444':pulseState.nfci>0?'#f97316':'#22c55e'):'#94a3b8',type:pulseState.nfci!==null?'auto':'manual',date:pulseState.nfciDate||''},
-    {label:'Money Market',val:pulseState.moneyMarket?'$'+pulseState.moneyMarket+'T':'--',sub:pulseState.moneyMarket?'Dry powder (record = bullish fuel)':'Needs FRED key',color:pulseState.moneyMarket?(parseFloat(pulseState.moneyMarket)>6?'#22c55e':'#94a3b8'):'#94a3b8',type:pulseState.moneyMarket?'auto':'manual',date:''},
   ];
   document.getElementById('pulse-cards').innerHTML=cards.map(c=>`
     <div class="snap-card">
@@ -1181,7 +1186,7 @@ function recalcScore(){
   signals.forEach(s=>{
     const sc=s.score();
     // Calculate max possible score for this signal (evaluate with extreme inputs)
-    const isLeading=s.id==='vixTermStructure'||s.id==='nfci';
+    const isLeading=s.id==='vixTermStructure';
     maxPossible+=isLeading?1.5:s.id==='skew'?0.75:1;
     if(sc>0)active++;
     rawTotal+=sc;
@@ -1267,7 +1272,53 @@ function fetchWithTimeout(url,ms=8000){
   return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(tid));
 }
 
+// Retry wrapper — retries failed fetches up to 2 times with exponential backoff
+async function fetchWithRetry(url,ms=8000,retries=2){
+  for(let i=0;i<=retries;i++){
+    try{ return await fetchWithTimeout(url,ms); }
+    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,800*(i+1))); }
+  }
+}
+
+// Auto-refresh state
+let autoRefreshTimer=null;
+let isFetching=false;
+
+function toggleAutoRefresh(){
+  const btn=document.getElementById('auto-refresh-btn');
+  const sel=document.getElementById('auto-refresh-interval');
+  if(autoRefreshTimer){
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer=null;
+    btn.textContent='⏱ Auto: Off';
+    btn.style.borderColor='rgba(255,255,255,0.15)';
+    btn.style.color='rgba(255,255,255,0.3)';
+    btn.style.background='transparent';
+  }else{
+    const ms=parseInt(sel.value)||300000;
+    autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
+    btn.textContent='⏱ Auto: On';
+    btn.style.borderColor='var(--green,#22c55e)';
+    btn.style.color='var(--green,#22c55e)';
+    btn.style.background='rgba(34,197,94,0.08)';
+  }
+}
+
+// Persist API keys to localStorage
+function saveApiKeys(){
+  try{
+    const keys={};
+    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux'].forEach(k=>{
+      const el=document.getElementById('key-'+k);
+      if(el&&el.value.trim()) keys[k]=el.value.trim();
+    });
+    localStorage.setItem('contrarianApiKeys',JSON.stringify(keys));
+  }catch(e){}
+}
+
 async function fetchAllData(){
+  if(isFetching) return;
+  isFetching=true;
   const btn=document.getElementById('fetch-btn');
   const status=document.getElementById('fetch-status');
   btn.style.opacity='0.5';btn.textContent='⟳ Fetching...';
@@ -1277,76 +1328,100 @@ async function fetchAllData(){
 
   // CORS proxies for Yahoo Finance (tried in order)
   const PROXIES=[
-    url=>url, // direct (works on some networks)
+    url=>url, // direct
     url=>'https://corsproxy.io/?'+encodeURIComponent(url),
     url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+    url=>'https://corsproxy.org/?'+encodeURIComponent(url),
+    url=>'https://proxy.cors.sh/'+url,
   ];
-  const PROXY_NAMES=['direct','corsproxy.io','allorigins'];
+  const PROXY_NAMES=['direct','corsproxy.io','allorigins','corsproxy.org','cors.sh'];
   let workingProxy=-1; // cache which proxy works
 
   async function yahooChart(ticker,range='1mo',interval='1d'){
-    const baseUrl=`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
-    // Try cached working proxy first, then all others
-    const order=workingProxy>=0?[workingProxy,...[0,1,2].filter(i=>i!==workingProxy)]:[0,1,2];
+    // Try both Yahoo Finance endpoints + all CORS proxies for maximum resilience
+    const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
+    const n=PROXIES.length;
+    const allIdx=Array.from({length:n},(_,i)=>i);
+    const order=workingProxy>=0?[workingProxy,...allIdx.filter(i=>i!==workingProxy)]:allIdx;
     for(const pi of order){
-      try{
-        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
-        if(!r.ok) continue;
-        const d=await r.json();
-        if(!d.chart||!d.chart.result) continue;
-        const res=d.chart.result[0];
-        const ts=res.timestamp;
-        const q=res.indicators.quote[0];
-        const closes=q.close, volumes=q.volume;
-        let lastIdx=closes.length-1;
-        while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
-        if(lastIdx<0) continue;
-        workingProxy=pi; // cache for subsequent calls
-        const lastDate=new Date(ts[lastIdx]*1000);
-        const validCloses=closes.filter(v=>v!==null);
-        const validVols=volumes?volumes.filter(v=>v!==null):[];
-        return {
-          price:closes[lastIdx],
-          prevClose:lastIdx>0?closes[lastIdx-1]:null,
-          volume:volumes?volumes[lastIdx]:null,
-          avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
-          date:lastDate,
-          dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
-          allCloses:validCloses,
-          allVols:validVols,
-          proxy:PROXY_NAMES[pi],
-          ok:true
-        };
-      }catch(e){ continue; }
+      for(const host of yHosts){
+        const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+        try{
+          const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
+          if(!r.ok) continue;
+          const d=await r.json();
+          if(!d.chart||!d.chart.result) continue;
+          const res=d.chart.result[0];
+          const ts=res.timestamp;
+          const q=res.indicators.quote[0];
+          const closes=q.close, volumes=q.volume;
+          let lastIdx=closes.length-1;
+          while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
+          if(lastIdx<0) continue;
+          workingProxy=pi;
+          const lastDate=new Date(ts[lastIdx]*1000);
+          const validCloses=closes.filter(v=>v!==null);
+          const validVols=volumes?volumes.filter(v=>v!==null):[];
+          return {
+            price:closes[lastIdx],
+            prevClose:lastIdx>0?closes[lastIdx-1]:null,
+            volume:volumes?volumes[lastIdx]:null,
+            avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
+            date:lastDate,
+            dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+            allCloses:validCloses,
+            allVols:validVols,
+            proxy:PROXY_NAMES[pi],
+            ok:true
+          };
+        }catch(e){ continue; }
+      }
     }
     return {ok:false};
   }
 
-  // 1) Crypto Fear & Greed (most reliable)
-  status.textContent='Fetching Crypto Fear & Greed...';
-  try{
-    const r=await fetch('https://api.alternative.me/fng/?limit=1');
-    const d=await r.json();
+  // 1-10) Parallel fetch: Crypto F&G, BTC, 7 Yahoo Finance tickers, and ^SPXA200R breadth
+  status.textContent='Fetching market data (parallel)...';
+  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR]=await Promise.allSettled([
+    fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true').then(r=>r.json()),
+    yahooChart('SPY','1mo','1d'),
+    yahooChart('%5EVIX','5d','1d'),
+    yahooChart('QQQ','5d','1d'),
+    yahooChart('IWM','5d','1d'),
+    yahooChart('CL=F','5d','1d'),
+    yahooChart('%5ETNX','5d','1d'),
+    yahooChart('GC=F','5d','1d'),
+    yahooChart('%5ESPXA200R','5d','1d'), // S&P 500 % of stocks above 200-DMA
+  ]);
+  // Unwrap with same variable names for backward compatibility
+  const spyData=_spyR.status==='fulfilled'?_spyR.value:{ok:false};
+  const vixData=_vixR.status==='fulfilled'?_vixR.value:{ok:false};
+  const qqqData=_qqqR.status==='fulfilled'?_qqqR.value:{ok:false};
+  const iwmData=_iwmR.status==='fulfilled'?_iwmR.value:{ok:false};
+  const oilData=_oilR.status==='fulfilled'?_oilR.value:{ok:false};
+  const tnxData=_tnxR.status==='fulfilled'?_tnxR.value:{ok:false};
+  const goldData=_goldR.status==='fulfilled'?_goldR.value:{ok:false};
+
+  // Process Crypto F&G
+  if(_cfRaw.status==='fulfilled'){
+    const d=_cfRaw.value;
     pulseState.cryptoFG=parseInt(d.data[0].value);
     pulseState.cryptoFGLabel=d.data[0].value_classification;
     pulseState.cryptoFGDate=new Date(d.data[0].timestamp*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'});
     log.push({src:'Crypto F&G',val:pulseState.cryptoFG+' ('+pulseState.cryptoFGLabel+')',date:pulseState.cryptoFGDate,ok:true});
-  }catch(e){ log.push({src:'Crypto F&G',val:'--',date:'--',ok:false}); }
+  }else{ log.push({src:'Crypto F&G',val:'--',date:'--',ok:false}); }
 
-  // 2) BTC from CoinGecko
-  status.textContent='Fetching BTC price...';
-  try{
-    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true');
-    const d=await r.json();
+  // Process BTC
+  if(_btcRaw.status==='fulfilled'){
+    const d=_btcRaw.value;
     pulseState.btcPrice=d.bitcoin.usd;
     pulseState.btcChange24h=d.bitcoin.usd_24h_change;
     pulseState.btcDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})+' (live)';
     log.push({src:'BTC',val:'$'+Math.round(pulseState.btcPrice).toLocaleString(),date:pulseState.btcDate,ok:true});
-  }catch(e){ log.push({src:'BTC',val:'--',date:'--',ok:false}); }
+  }else{ log.push({src:'BTC',val:'--',date:'--',ok:false}); }
 
-  // 3) SPY
-  status.textContent='Fetching SPY...';
-  const spyData=await yahooChart('SPY','1mo','1d');
+  // Process SPY
   if(spyData.ok){
     pulseState.spyPrice=spyData.price;
     pulseState.spyPrevClose=spyData.prevClose;
@@ -1361,9 +1436,7 @@ async function fetchAllData(){
     log.push({src:'SPY',val:'All proxies failed',date:'--',ok:false});
   }
 
-  // 4) VIX
-  status.textContent='Fetching VIX...';
-  const vixData=await yahooChart('%5EVIX','5d','1d');
+  // Process VIX
   if(vixData.ok){
     pulseState.vix=vixData.price;
     pulseState.vixDate=vixData.dateStr;
@@ -1375,9 +1448,7 @@ async function fetchAllData(){
     log.push({src:'VIX',val:'All proxies failed',date:'--',ok:false});
   }
 
-  // 5) QQQ
-  status.textContent='Fetching QQQ...';
-  const qqqData=await yahooChart('QQQ','5d','1d');
+  // Process QQQ
   if(qqqData.ok){
     pulseState.qqqPrice=qqqData.price;
     pulseState.qqqDate=qqqData.dateStr;
@@ -1385,9 +1456,7 @@ async function fetchAllData(){
     log.push({src:'QQQ',val:'$'+qqqData.price.toFixed(2),date:qqqData.dateStr,ok:true});
   }else{ log.push({src:'QQQ',val:'All proxies failed',date:'--',ok:false}); }
 
-  // 6) IWM
-  status.textContent='Fetching IWM...';
-  const iwmData=await yahooChart('IWM','5d','1d');
+  // Process IWM
   if(iwmData.ok){
     pulseState.iwmPrice=iwmData.price;
     pulseState.iwmDate=iwmData.dateStr;
@@ -1395,9 +1464,7 @@ async function fetchAllData(){
     log.push({src:'IWM',val:'$'+iwmData.price.toFixed(2),date:iwmData.dateStr,ok:true});
   }else{ log.push({src:'IWM',val:'All proxies failed',date:'--',ok:false}); }
 
-  // 7) Oil (CL=F)
-  status.textContent='Fetching Oil...';
-  const oilData=await yahooChart('CL=F','5d','1d');
+  // Process Oil
   if(oilData.ok){
     pulseState.oilPrice=oilData.price;
     pulseState.oilDate=oilData.dateStr;
@@ -1405,23 +1472,28 @@ async function fetchAllData(){
     log.push({src:'Oil (WTI)',val:'$'+oilData.price.toFixed(2),date:oilData.dateStr,ok:true});
   }else{ log.push({src:'Oil',val:'All proxies failed',date:'--',ok:false}); }
 
-  // 8) 10Y Yield (^TNX)
-  status.textContent='Fetching 10Y Yield...';
-  const tnxData=await yahooChart('%5ETNX','5d','1d');
+  // Process TNX
   if(tnxData.ok){
     pulseState.tnx=tnxData.price;
     pulseState.tnxDate=tnxData.dateStr;
     log.push({src:'10Y Yield',val:tnxData.price.toFixed(2)+'%',date:tnxData.dateStr,ok:true});
   }else{ log.push({src:'10Y Yield',val:'All proxies failed',date:'--',ok:false}); }
 
-  // 9) Gold (GC=F)
-  status.textContent='Fetching Gold...';
-  const goldData=await yahooChart('GC=F','5d','1d');
+  // Process Gold
   if(goldData.ok){
     pulseState.goldPrice=goldData.price;
     pulseState.goldDate=goldData.dateStr;
     log.push({src:'Gold',val:'$'+goldData.price.toFixed(0),date:goldData.dateStr,ok:true});
   }else{ log.push({src:'Gold',val:'All proxies failed',date:'--',ok:false}); }
+
+  // Process ^SPXA200R — % of S&P 500 stocks above 200-DMA (auto-fills manual indicator)
+  const spxaData=_spxaR.status==='fulfilled'?_spxaR.value:{ok:false};
+  if(spxaData.ok){
+    pulseState.pctAbove200dma=Math.round(spxaData.price*10)/10;
+    const el=document.getElementById('input-pctAbove200dma');
+    if(el) el.value=pulseState.pctAbove200dma;
+    log.push({src:'% >200-DMA',val:pulseState.pctAbove200dma+'%',date:spxaData.dateStr,ok:true});
+  }else{ log.push({src:'% >200-DMA',val:'Yahoo unavailable',date:'--',ok:false}); }
 
   // Done fetching — update UI
   const okCount=log.filter(l=>l.ok).length;
@@ -1591,7 +1663,7 @@ async function fetchAllData(){
         pulseState.cnnFGRating=cnnD.fear_and_greed.rating||'';
         pulseState.cnnFGDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
         // Also set the manual input field
-        const cnnInput=document.getElementById('manual-cnnFG');
+        const cnnInput=document.getElementById('input-cnnFG');
         if(cnnInput) cnnInput.value=pulseState.cnnFG;
         log.push({src:'CNN F&G',val:pulseState.cnnFG+' ('+pulseState.cnnFGRating+')',date:pulseState.cnnFGDate,ok:true});
       } else { log.push({src:'CNN F&G',val:'Parse error',date:'',ok:false}); }
@@ -1606,7 +1678,7 @@ async function fetchAllData(){
           pulseState.cnnFG=Math.round(cnnD2.fear_and_greed.score);
           pulseState.cnnFGRating=cnnD2.fear_and_greed.rating||'';
           pulseState.cnnFGDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
-          const cnnInput=document.getElementById('manual-cnnFG');
+          const cnnInput=document.getElementById('input-cnnFG');
           if(cnnInput) cnnInput.value=pulseState.cnnFG;
           log.push({src:'CNN F&G',val:pulseState.cnnFG+' ('+pulseState.cnnFGRating+')',date:pulseState.cnnFGDate,ok:true});
         }
@@ -1614,115 +1686,134 @@ async function fetchAllData(){
     } catch(e2) { log.push({src:'CNN F&G',val:'Both proxies failed',date:'',ok:false}); }
   }
 
-  // 16) StockTwits Sentiment — free, no key
+  // 16) StockTwits Sentiment — parallel for SPY + QQQ
   status.textContent='Fetching StockTwits sentiment...';
-  for(const sym of ['SPY','QQQ']) {
-    try {
-      const stR=await fetchWithTimeout('https://api.stocktwits.com/api/2/streams/symbol/'+sym+'.json?limit=30',5000);
-      if(stR.ok) {
-        const stD=await stR.json();
-        if(stD?.messages) {
-          const msgs=stD.messages.filter(m=>m.entities?.sentiment?.basic);
-          const bull=msgs.filter(m=>m.entities.sentiment.basic==='Bullish').length;
-          const bear=msgs.filter(m=>m.entities.sentiment.basic==='Bearish').length;
-          const total=bull+bear;
-          if(total>0) {
-            const bearPct=Math.round(bear/total*100);
-            const bullPct=Math.round(bull/total*100);
-            if(sym==='SPY') pulseState.stwSpy={bull:bullPct,bear:bearPct,total};
-            if(sym==='QQQ') pulseState.stwQqq={bull:bullPct,bear:bearPct,total};
-          }
-        }
-        log.push({src:'StockTwits '+sym,val:sym==='SPY'&&pulseState.stwSpy?'Bear:'+pulseState.stwSpy.bear+'%':'OK',date:'Live',ok:true});
+  const [_stSpyR,_stQqqR]=await Promise.allSettled([
+    fetchWithTimeout('https://api.stocktwits.com/api/2/streams/symbol/SPY.json?limit=30',5000).then(r=>r.ok?r.json():null),
+    fetchWithTimeout('https://api.stocktwits.com/api/2/streams/symbol/QQQ.json?limit=30',5000).then(r=>r.ok?r.json():null),
+  ]);
+  for(const [res,sym] of [[_stSpyR,'SPY'],[_stQqqR,'QQQ']]){
+    if(res.status==='fulfilled'&&res.value?.messages){
+      const msgs=res.value.messages.filter(m=>m.entities?.sentiment?.basic);
+      const bull=msgs.filter(m=>m.entities.sentiment.basic==='Bullish').length;
+      const bear=msgs.filter(m=>m.entities.sentiment.basic==='Bearish').length;
+      const total=bull+bear;
+      if(total>0){
+        const bearPct=Math.round(bear/total*100);
+        const bullPct=Math.round(bull/total*100);
+        if(sym==='SPY') pulseState.stwSpy={bull:bullPct,bear:bearPct,total};
+        if(sym==='QQQ') pulseState.stwQqq={bull:bullPct,bear:bearPct,total};
       }
-    } catch(e) { /* StockTwits may rate-limit */ }
+      log.push({src:'StockTwits '+sym,val:sym==='SPY'&&pulseState.stwSpy?'Bear:'+pulseState.stwSpy.bear+'%':'OK',date:'Live',ok:true});
+    }
   }
 
-  // 17) AAII Sentiment — try scraping via proxy
+  // 17) AAII Sentiment — try scraping via proxy (try multiple proxies)
   status.textContent='Fetching AAII sentiment...';
-  try {
-    const aaiiR=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.aaii.com/sentimentsurvey'),6000);
-    if(aaiiR.ok) {
+  let aaiiDone=false;
+  for(const aaiiProxy of [
+    'https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.aaii.com/sentimentsurvey'),
+    'https://corsproxy.io/?'+encodeURIComponent('https://www.aaii.com/sentimentsurvey'),
+  ]){
+    if(aaiiDone) break;
+    try{
+      const aaiiR=await fetchWithTimeout(aaiiProxy,6000);
+      if(!aaiiR.ok) continue;
       const aaiiHtml=await aaiiR.text();
-      // Parse AAII page for sentiment numbers
       const bullMatch=aaiiHtml.match(/Bullish[^%]*?([\d.]+)%/i);
       const bearMatch=aaiiHtml.match(/Bearish[^%]*?([\d.]+)%/i);
-      if(bullMatch&&bearMatch) {
+      if(bullMatch&&bearMatch){
         pulseState.aaiiBull=parseFloat(bullMatch[1]);
         pulseState.aaiiBear=parseFloat(bearMatch[1]);
         pulseState.aaiiAutoDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
-        // Set manual fields
-        const bullInput=document.getElementById('manual-aaiiBull');
-        const bearInput=document.getElementById('manual-aaiiBear');
+        const bullInput=document.getElementById('input-aaiiBull');
+        const bearInput=document.getElementById('input-aaiiBear');
         if(bullInput) bullInput.value=pulseState.aaiiBull;
         if(bearInput) bearInput.value=pulseState.aaiiBear;
         log.push({src:'AAII',val:'Bull:'+pulseState.aaiiBull+'% Bear:'+pulseState.aaiiBear+'%',date:pulseState.aaiiAutoDate,ok:true});
-      } else { log.push({src:'AAII',val:'Parse failed',date:'',ok:false}); }
-    }
-  } catch(e) { log.push({src:'AAII',val:'Blocked/timeout',date:'',ok:false}); }
-
-  // 18) Polymarket — ceasefire & recession odds (free, no key)
-  status.textContent='Fetching Polymarket odds...';
-  const polyQueries = [
-    {search:'iran ceasefire', field:'polyIranCeasefire', label:'Iran Ceasefire'},
-    {search:'us recession 2026', field:'polyRecession', label:'US Recession'},
-  ];
-  for(const pq of polyQueries) {
-    try {
-      const pmUrl='https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent(pq.search);
-      const pmR=await fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent(pmUrl),6000);
-      if(pmR.ok) {
-        const pmD=await pmR.json();
-        if(Array.isArray(pmD)&&pmD.length>0) {
-          const mkt=pmD[0];
-          const prob=mkt.outcomePrices?JSON.parse(mkt.outcomePrices)[0]:mkt.bestBid||null;
-          if(prob!==null) {
-            const pct=Math.round(parseFloat(prob)*100);
-            pulseState[pq.field]={pct, title:mkt.question||pq.label, volume:mkt.volume||0, slug:mkt.slug};
-            log.push({src:'Polymarket',val:pq.label+': '+pct+'%',date:'Live',ok:true});
-          }
-        }
+        aaiiDone=true;
       }
-    } catch(e) { /* Polymarket may rate limit */ }
+    }catch(e){}
   }
+  if(!aaiiDone) log.push({src:'AAII',val:'Blocked/timeout',date:'',ok:false});
 
-  // 19) US Treasury Yield Curve — free, no key
-  status.textContent='Fetching Treasury yields...';
-  try {
-    const today=new Date();
-    const tDate=today.toISOString().slice(0,10);
-    const tUrl=`https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/avg_interest_rates?filter=record_date:gte:${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-01,security_desc:eq:Treasury Bonds&sort=-record_date&page[size]=5`;
-    // Simpler: use Yahoo Finance for yield tickers we already have TNX
-    // Use ^FVX (5yr) and ^TYX (30yr) for curve shape
-    const fvxData=await yahooChart('%5EFVX','5d','1d');
-    const tyxData=await yahooChart('%5ETYX','5d','1d');
-    if(fvxData.ok) pulseState.yield2y=fvxData.price; // FVX is actually 5yr, using as proxy
-    if(tyxData.ok) pulseState.yield30y=tyxData.price;
-    if(pulseState.tnx&&pulseState.yield30y) {
-      pulseState.yieldCurveInverted=pulseState.tnx>pulseState.yield30y;
-      const spread=(pulseState.yield30y-pulseState.tnx).toFixed(2);
-      log.push({src:'Yield Curve',val:'10Y:'+pulseState.tnx.toFixed(2)+'% 30Y:'+pulseState.yield30y.toFixed(2)+'% (spread:'+spread+')',date:'',ok:true});
+  // 17b) NAAIM Exposure Index — scrape naaim.org via proxy
+  status.textContent='Fetching NAAIM exposure...';
+  try{
+    const naaimR=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.naaim.org/programs/naaim-exposure-index/'),7000);
+    if(naaimR.ok){
+      const naaimHtml=await naaimR.text();
+      // NAAIM publishes current week's number on the page
+      const naaimMatch=naaimHtml.match(/This\s+Week[^0-9]*?([\d.]+)/i)||naaimHtml.match(/Current[^0-9]*?([\d.]+)/i)||naaimHtml.match(/Exposure[^0-9]*?<[^>]+>[\s]*([\d.]+)/i);
+      if(naaimMatch){
+        const val=parseFloat(naaimMatch[1]);
+        if(val>=0&&val<=200){
+          pulseState.naaimExposure=val;
+          const el=document.getElementById('input-naaimExposure');
+          if(el) el.value=val;
+          log.push({src:'NAAIM',val:val.toFixed(1),date:'Weekly',ok:true});
+        }else{ log.push({src:'NAAIM',val:'Parse failed',date:'',ok:false}); }
+      }else{ log.push({src:'NAAIM',val:'Parse failed',date:'',ok:false}); }
     }
-  } catch(e) { log.push({src:'Yield Curve',val:'Failed',date:'',ok:false}); }
+  }catch(e){ log.push({src:'NAAIM',val:'Blocked/timeout',date:'',ok:false}); }
+
+  // 18) Polymarket — ceasefire & recession odds — parallel
+  status.textContent='Fetching Polymarket odds...';
+  const polyQueries=[
+    {search:'iran ceasefire',field:'polyIranCeasefire',label:'Iran Ceasefire'},
+    {search:'us recession 2026',field:'polyRecession',label:'US Recession'},
+  ];
+  const polyResults=await Promise.allSettled(polyQueries.map(pq=>{
+    const pmUrl='https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent(pq.search);
+    return fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent(pmUrl),6000).then(r=>r.ok?r.json():null);
+  }));
+  polyResults.forEach((res,i)=>{
+    const pq=polyQueries[i];
+    if(res.status==='fulfilled'&&Array.isArray(res.value)&&res.value.length>0){
+      const mkt=res.value[0];
+      const prob=mkt.outcomePrices?JSON.parse(mkt.outcomePrices)[0]:mkt.bestBid||null;
+      if(prob!==null){
+        const pct=Math.round(parseFloat(prob)*100);
+        pulseState[pq.field]={pct,title:mkt.question||pq.label,volume:mkt.volume||0,slug:mkt.slug};
+        log.push({src:'Polymarket',val:pq.label+': '+pct+'%',date:'Live',ok:true});
+      }
+    }
+  });
+
+  // 19/19b/19c) Parallel: Treasury yields (FVX, TYX), VIX term structure, SKEW
+  status.textContent='Fetching leading indicators...';
+  const [_fvxR,_tyxR,_vix3mR,_skewR]=await Promise.allSettled([
+    yahooChart('%5EFVX','5d','1d'),
+    yahooChart('%5ETYX','5d','1d'),
+    yahooChart('%5EVIX3M','5d','1d'),
+    yahooChart('%5ESKEW','5d','1d'),
+  ]);
+  const fvxData=_fvxR.status==='fulfilled'?_fvxR.value:{ok:false};
+  const tyxData=_tyxR.status==='fulfilled'?_tyxR.value:{ok:false};
+  const vix3mData=_vix3mR.status==='fulfilled'?_vix3mR.value:{ok:false};
+  const skewData=_skewR.status==='fulfilled'?_skewR.value:{ok:false};
 
   // ===== LEADING INDICATORS — THE REAL EDGE =====
   // These fire 1-5 days BEFORE bottoms, not at them
 
-  // 19b) VIX3M (3-month VIX) — the single most important addition
-  // VIX/VIX3M > 1.0 = backwardation = peak panic. When it PEAKS and starts declining = THE buy signal.
-  status.textContent='Fetching VIX term structure...';
-  const vix3mData=await yahooChart('%5EVIX3M','5d','1d');
-  if(vix3mData.ok) {
+  // Treasury Yield Curve
+  if(fvxData.ok) pulseState.yield2y=fvxData.price;
+  if(tyxData.ok) pulseState.yield30y=tyxData.price;
+  if(pulseState.tnx&&pulseState.yield30y){
+    pulseState.yieldCurveInverted=pulseState.tnx>pulseState.yield30y;
+    const spread=(pulseState.yield30y-pulseState.tnx).toFixed(2);
+    log.push({src:'Yield Curve',val:'10Y:'+pulseState.tnx.toFixed(2)+'% 30Y:'+pulseState.yield30y.toFixed(2)+'% (spread:'+spread+')',date:'',ok:true});
+  } else { log.push({src:'Yield Curve',val:'Partial data',date:'--',ok:false}); }
+
+  // VIX3M term structure
+  if(vix3mData.ok){
     pulseState.vix3m=vix3mData.price;
-    if(pulseState.vix&&pulseState.vix3m) {
-      pulseState.vixRatio=pulseState.vix/pulseState.vix3m;
-    }
+    if(pulseState.vix&&pulseState.vix3m) pulseState.vixRatio=pulseState.vix/pulseState.vix3m;
     log.push({src:'VIX3M',val:vix3mData.price.toFixed(2)+' (ratio:'+(pulseState.vixRatio?.toFixed(3)||'--')+')',date:vix3mData.dateStr,ok:true});
   } else { log.push({src:'VIX3M',val:'Failed',date:'',ok:false}); }
 
-  // 19c) SKEW Index — tail risk pricing. Low SKEW during a selloff = market NOT pricing further tail risk = fear exhausting
-  const skewData=await yahooChart('%5ESKEW','5d','1d');
-  if(skewData.ok) {
+  // SKEW Index
+  if(skewData.ok){
     pulseState.skew=skewData.price;
     log.push({src:'SKEW',val:skewData.price.toFixed(1),date:skewData.dateStr,ok:true});
   } else { log.push({src:'SKEW',val:'Failed',date:'',ok:false}); }
@@ -1848,12 +1939,200 @@ async function fetchAllData(){
   const okFinal=log.filter(l=>l.ok).length;
   status.innerHTML=`<span style="color:${okFinal>=7?'#22c55e':'#f59e0b'}">${okFinal}/${log.length} sources fetched</span>${workingProxy>=0&&PROXY_NAMES[workingProxy]!=='direct'?' · <span style="color:rgba(255,255,255,0.3)">Yahoo via '+PROXY_NAMES[workingProxy]+'</span>':''}`;
 
+  // Save fetched data to localStorage for stale-while-revalidate on reload
+  try{ localStorage.setItem('contrarianCache',JSON.stringify({data:{...pulseState},ts:Date.now()})); }catch(e){}
+  // Persist any API keys entered this session
+  saveApiKeys();
+
   // Propagate data across all tabs
   propagateData();
   recalcScore();
+  // Save daily snapshot to 30-day history
+  captureSnapshot();
 
   // Fetch headlines for conflict phase detection (async, non-blocking)
   fetchConflictHeadlines().catch(()=>{});
+  isFetching=false;
+}
+
+// ===== 30-DAY HISTORY TRACKING =====
+function captureSnapshot(){
+  try{
+    const scoreEl=document.getElementById('contrarian-score');
+    const score=scoreEl?parseFloat(scoreEl.textContent)||0:0;
+    // Pull current war/tariff step from globals (set by renderConflictSteps/renderTariffSteps)
+    let conflictStep=null,tariffStep=null;
+    try{conflictStep=currentConflictStep;}catch(_){}
+    try{tariffStep=currentTariffStep;}catch(_){}
+    const snap={
+      ts:Date.now(),
+      score,
+      spy:pulseState.spyPrice||null,
+      spyPctFromATH:pulseState.spyPctFromATH||null,
+      vix:pulseState.vix||null,
+      vixRatio:pulseState.vixRatio||null,
+      skew:pulseState.skew||null,
+      cryptoFG:pulseState.cryptoFG||null,
+      cnnFG:pulseState.cnnFG||null,
+      btc:pulseState.btcPrice||null,
+      qqq:pulseState.qqqPrice||null,
+      iwm:pulseState.iwmPrice||null,
+      oil:pulseState.oilPrice||null,
+      gold:pulseState.goldPrice||null,
+      tnx:pulseState.tnx||null,
+      spyVolRatio:(pulseState.spyVol&&pulseState.spy20dAvgVol)?(pulseState.spyVol/pulseState.spy20dAvgVol):null,
+      conflictStep,
+      tariffStep,
+    };
+    const hist=JSON.parse(localStorage.getItem('contrarianHistory')||'[]');
+    const today=new Date(snap.ts).toDateString();
+    const idx=hist.findIndex(s=>new Date(s.ts).toDateString()===today);
+    if(idx>=0) hist[idx]=snap; else hist.push(snap);
+    hist.sort((a,b)=>a.ts-b.ts);
+    const cutoff=Date.now()-30*24*60*60*1000;
+    const filtered=hist.filter(s=>s.ts>=cutoff).slice(-30);
+    localStorage.setItem('contrarianHistory',JSON.stringify(filtered));
+  }catch(e){}
+}
+
+function clearHistory(){
+  if(!confirm('Clear all 30-day history? This cannot be undone.'))return;
+  try{localStorage.removeItem('contrarianHistory');}catch(e){}
+  renderHistoryTab();
+}
+
+function renderHistoryTab(){
+  const el=document.getElementById('history-content');
+  if(!el) return;
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem('contrarianHistory')||'[]');}catch(e){}
+  if(!hist.length){
+    el.innerHTML=`<div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:40px">
+      No history yet — data is captured on each successful fetch.<br>
+      <span style="font-size:10px;color:rgba(255,255,255,0.25)">Come back tomorrow to start seeing trends.</span>
+    </div>`;
+    return;
+  }
+  hist.sort((a,b)=>a.ts-b.ts);
+
+  // === SCORE TREND LINE CHART ===
+  const W=680,H=150,PX=40,PY=20;
+  const scores=hist.map(s=>s.score||0);
+  const maxScore=10,minScore=0;
+  const xStep=hist.length>1?(W-2*PX)/(hist.length-1):0;
+  const yFor=v=>H-PY-((v-minScore)/(maxScore-minScore))*(H-2*PY);
+  const xFor=i=>PX+i*xStep;
+  const pts=hist.map((s,i)=>`${xFor(i)},${yFor(s.score||0)}`).join(' ');
+  const scoreDots=hist.map((s,i)=>{
+    const c=s.score>=7?'#22c55e':s.score>=5?'#f59e0b':s.score>=3?'#f97316':'#94a3b8';
+    return `<circle cx="${xFor(i)}" cy="${yFor(s.score||0)}" r="3" fill="${c}"/>`;
+  }).join('');
+  const buyZoneY=yFor(7);
+  const fmtD=ts=>{const d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate();};
+  const labelEvery=Math.max(1,Math.ceil(hist.length/8));
+  const xLabels=hist.map((s,i)=>i%labelEvery===0?`<text x="${xFor(i)}" y="${H-4}" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">${fmtD(s.ts)}</text>`:'').join('');
+  const scoreChart=`
+    <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px">
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Contrarian Score — Last ${hist.length} Day${hist.length===1?'':'s'}</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:200px">
+        <rect x="${PX}" y="${yFor(10)}" width="${W-2*PX}" height="${yFor(7)-yFor(10)}" fill="rgba(34,197,94,0.08)"/>
+        <line x1="${PX}" y1="${buyZoneY}" x2="${W-PX}" y2="${buyZoneY}" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+        <text x="${W-PX-4}" y="${buyZoneY-4}" fill="#22c55e" font-size="9" text-anchor="end" font-family="monospace">BUY ≥ 7</text>
+        <text x="${PX-6}" y="${yFor(0)+3}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">0</text>
+        <text x="${PX-6}" y="${yFor(5)+3}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">5</text>
+        <text x="${PX-6}" y="${yFor(10)+3}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">10</text>
+        ${hist.length>1?`<polyline points="${pts}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`:''}
+        ${scoreDots}
+        ${xLabels}
+      </svg>
+    </div>`;
+
+  // === MINI SPARKLINES ===
+  function sparkCard(label,key,fmt,color,invert){
+    const vals=hist.map(s=>s[key]).filter(v=>v!==null&&v!==undefined&&!isNaN(v));
+    if(!vals.length) return `
+      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">${label}</div>
+        <div style="font-size:18px;color:rgba(255,255,255,0.2);font-family:monospace;margin-top:2px">--</div>
+      </div>`;
+    const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+    const w=140,h=30;
+    const sp=vals.map((v,i)=>`${(i/(vals.length-1||1))*w},${h-((v-mn)/rng)*h}`).join(' ');
+    const cur=vals[vals.length-1];
+    const first=vals[0];
+    const chg=first!==0?((cur-first)/Math.abs(first))*100:0;
+    const chgColor=(invert?chg<0:chg>0)?'#22c55e':(invert?chg>0:chg<0)?'#ef4444':'#94a3b8';
+    return `
+      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">${label}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div style="font-size:18px;color:${color};font-family:monospace;font-weight:700">${fmt(cur)}</div>
+          <div style="font-size:9px;color:${chgColor};font-family:monospace">${chg>0?'+':''}${chg.toFixed(1)}%</div>
+        </div>
+        <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="margin-top:4px;opacity:0.8">
+          <polyline points="${sp}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="font-size:8px;color:rgba(255,255,255,0.25);font-family:monospace;margin-top:2px">${fmt(mn)} – ${fmt(mx)}</div>
+      </div>`;
+  }
+  const sparks=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px">
+      ${sparkCard('Score','score',v=>v.toFixed(1),'#22d3ee',false)}
+      ${sparkCard('SPY','spy',v=>'$'+v.toFixed(2),'#22d3ee',false)}
+      ${sparkCard('VIX','vix',v=>v.toFixed(1),'#f97316',true)}
+      ${sparkCard('VIX/VIX3M','vixRatio',v=>v.toFixed(3),'#f59e0b',true)}
+      ${sparkCard('Crypto F&G','cryptoFG',v=>v.toFixed(0),'#a855f7',false)}
+      ${sparkCard('CNN F&G','cnnFG',v=>v.toFixed(0),'#3b82f6',false)}
+      ${sparkCard('SKEW','skew',v=>v.toFixed(0),'#94a3b8',true)}
+      ${sparkCard('SPY % ATH','spyPctFromATH',v=>'-'+v.toFixed(1)+'%','#ef4444',true)}
+    </div>`;
+
+  // === DATA TABLE (newest first) ===
+  const rows=[...hist].reverse().map(s=>{
+    const scoreCol=s.score>=7?'#22c55e':s.score>=5?'#f59e0b':s.score>=3?'#f97316':'#94a3b8';
+    const d=new Date(s.ts);
+    const dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.6)">${dateStr}</td>
+      <td style="padding:8px;font-family:monospace;font-size:13px;font-weight:700;color:${scoreCol}">${s.score!=null?s.score.toFixed(1):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.spy!=null?'$'+s.spy.toFixed(2):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.vix!=null?s.vix.toFixed(1):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.vixRatio!=null?s.vixRatio.toFixed(3):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.cryptoFG!=null?s.cryptoFG:'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.cnnFG!=null?s.cnnFG:'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.skew!=null?s.skew.toFixed(0):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.5)">${s.conflictStep!=null?'C'+s.conflictStep:'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.5)">${s.tariffStep!=null?'T'+s.tariffStep:'--'}</td>
+    </tr>`;
+  }).join('');
+  const table=`
+    <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px">Daily Snapshots</div>
+        <button onclick="clearHistory()" style="font-size:9px;padding:4px 10px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#ef4444;border-radius:4px;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1px">Clear History</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:720px">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Date</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Score</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">SPY</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">VIX</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">VIX/3M</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Crypto F&amp;G</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">CNN F&amp;G</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">SKEW</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">War</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Tariff</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  el.innerHTML=scoreChart+sparks+table;
 }
 
 // ===== TECHNICALS RENDERER =====
@@ -2057,6 +2336,31 @@ function propagateData(){
     if(nowLabel) nowLabel.textContent = '$' + Math.round(pulseState.spyPrice) + ' NOW';
   }
 }
+
+// Restore saved API keys from localStorage
+(function loadSavedKeys(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('contrarianApiKeys')||'{}');
+    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux'].forEach(k=>{
+      const el=document.getElementById('key-'+k);
+      if(el&&saved[k]) el.value=saved[k];
+    });
+  }catch(e){}
+})();
+
+// Restore last cached fetch data (stale-while-revalidate — fresh fetch fires automatically below)
+(function loadCachedData(){
+  try{
+    const cache=JSON.parse(localStorage.getItem('contrarianCache')||'null');
+    if(cache&&Date.now()-cache.ts<30*60*1000){ // 30-min window — auto-fetch refreshes immediately anyway
+      Object.assign(pulseState,cache.data);
+      const age=Math.round((Date.now()-cache.ts)/1000);
+      const ageStr=age<60?age+'s':Math.round(age/60)+'m';
+      const s=document.getElementById('fetch-status');
+      if(s) s.innerHTML=`<span style="color:rgba(255,255,255,0.25)">Cached data (${ageStr} old) — fetching fresh data...</span>`;
+    }
+  }catch(e){}
+})();
 
 // Initial render
 renderManualInputs();
@@ -3612,6 +3916,25 @@ renderBacktest();
 // Wire alerts into propagateData
 const _origPropagate=propagateData;
 propagateData=function(){_origPropagate();checkAlerts();};
+
+// ===== AUTO-FETCH ON PAGE LOAD =====
+// Propagate any cached pulseState to all tabs (war/tariff cycles, scores, charts)
+propagateData();
+recalcScore();
+// Then immediately fetch fresh live data — no button click needed
+fetchAllData();
+// Also start auto-refresh (5 min default) so the page stays live
+(function startAutoRefresh(){
+  const ms=300000; // 5 minutes
+  autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
+  const btn=document.getElementById('auto-refresh-btn');
+  if(btn){
+    btn.textContent='⏱ Auto: On';
+    btn.style.borderColor='var(--green,#22c55e)';
+    btn.style.color='var(--green,#22c55e)';
+    btn.style.background='rgba(34,197,94,0.08)';
+  }
+})();
 </script>
 </body>
 </html>
