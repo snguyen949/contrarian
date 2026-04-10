@@ -413,8 +413,9 @@
     .container { padding: 16px 12px; }
     h1 { font-size: 38px !important; }
     .header-tag { font-size: 8px !important; letter-spacing: 2px !important; }
-    .tabs { gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-    .tabs::-webkit-scrollbar { display: none; }
+    .tabs { gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+    .tabs::-webkit-scrollbar { height: 3px; }
+    .tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
     .tab-btn { padding: 8px 10px; font-size: 9px !important; letter-spacing: 1px !important; white-space: nowrap; flex-shrink: 0; }
     .snapshot-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
     .snap-card { padding: 10px 8px !important; }
@@ -523,7 +524,7 @@
     <button class="tab-btn" data-tab="retest">ATH Retest</button>
     <button class="tab-btn" data-tab="squeeze">Squeeze</button>
     <button class="tab-btn" data-tab="accumulation">Accumulation</button>
-    <button class="tab-btn" data-tab="conflict">Conflict Cycle</button>
+    <button class="tab-btn" data-tab="conflict">War Cycle</button>
     <button class="tab-btn" data-tab="tariff">Tariff Cycle</button>
     <button class="tab-btn" data-tab="history" onclick="setTimeout(renderHistoryTab,10)">History</button>
     <button class="tab-btn" data-tab="tools">Tools</button>
