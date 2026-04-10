@@ -1284,6 +1284,258 @@ async function fetchWithRetry(url,ms=8000,retries=2){
 let autoRefreshTimer=null;
 let isFetching=false;
 
+// ===== SHARED CORS PROXY POOL (used by live fetch + historical fetch) =====
+const PROXIES=[
+  url=>url,
+  url=>'https://corsproxy.io/?'+encodeURIComponent(url),
+  url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+  url=>'https://corsproxy.org/?'+encodeURIComponent(url),
+  url=>'https://proxy.cors.sh/'+url,
+];
+const PROXY_NAMES=['direct','corsproxy.io','allorigins','corsproxy.org','cors.sh'];
+let workingProxy=-1;
+
+// Fetches full daily OHLCV time series from Yahoo Finance
+async function fetchYahooHistory(ticker, range){
+  const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
+  const n=PROXIES.length;
+  const allIdx=Array.from({length:n},(_,i)=>i);
+  const order=workingProxy>=0?[workingProxy,...allIdx.filter(i=>i!==workingProxy)]:allIdx;
+  for(const pi of order){
+    for(const host of yHosts){
+      const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
+      try{
+        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),12000);
+        if(!r.ok) continue;
+        const d=await r.json();
+        if(!d.chart||!d.chart.result) continue;
+        const res=d.chart.result[0];
+        const ts=res.timestamp;
+        const q=res.indicators.quote[0];
+        const closes=q.close, volumes=q.volume;
+        const dates=[],prices=[],vols=[];
+        for(let i=0;i<ts.length;i++){
+          if(closes[i]!==null&&closes[i]!==undefined){
+            dates.push(ts[i]);
+            prices.push(closes[i]);
+            vols.push(volumes?volumes[i]:null);
+          }
+        }
+        if(!dates.length) continue;
+        workingProxy=pi;
+        return {ok:true, dates, prices, vols};
+      }catch(e){ continue; }
+    }
+  }
+  return {ok:false, dates:[], prices:[], vols:[]};
+}
+
+// Compute contrarian score for a historical data point (mirrors live signal set)
+function computeHistoricalScore(m){
+  // m = {vix, cryptoFG, vixRatio, skew, spyPctFromATH, spyVolRatio, cnnFG}
+  let total=0, maxPossible=0;
+  maxPossible+=1; if(m.cnnFG!==null) total+=m.cnnFG<=14?1:m.cnnFG<=25?0.5:0;
+  maxPossible+=1; if(m.vix!==null) total+=m.vix>=45?1:m.vix>=35?0.75:m.vix>=28?0.25:0;
+  maxPossible+=1; if(m.cryptoFG!==null) total+=m.cryptoFG<=10?1:m.cryptoFG<=20?0.75:m.cryptoFG<=30?0.25:0;
+  maxPossible+=1; if(m.spyVolRatio!==null) total+=m.spyVolRatio>=3?1:m.spyVolRatio>=2?0.75:m.spyVolRatio>=1.5?0.25:0;
+  maxPossible+=1; if(m.spyPctFromATH!==null) total+=m.spyPctFromATH>=20?1:m.spyPctFromATH>=10?0.75:m.spyPctFromATH>=7?0.25:0;
+  maxPossible+=1.5; if(m.vixRatio!==null) total+=m.vixRatio>1.05?1.5:m.vixRatio>1.0?1.25:m.vixRatio>0.95?0.5:0;
+  maxPossible+=0.75; if(m.skew!==null) total+=m.skew<115?0.75:m.skew<120?0.5:0;
+  return maxPossible>0?(total/maxPossible)*10:0;
+}
+
+// Fetches and aligns historical market data, then renders the History tab
+async function fetchAndRenderHistory(range){
+  const el=document.getElementById('history-content');
+  const rangeLabel={ytd:'YTD',['6mo']:'6 Months',['1y']:'1 Year'}[range]||range.toUpperCase();
+  el.innerHTML=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.5)">
+    <div style="font-size:28px;animation:spin 1.5s linear infinite">⟳</div>
+    <div style="margin-top:12px;font-size:12px">Loading ${rangeLabel} historical data…</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>`;
+
+  const [spyR,vixR,vix3mR,skewR,fngR]=await Promise.allSettled([
+    fetchYahooHistory('SPY',range),
+    fetchYahooHistory('%5EVIX',range),
+    fetchYahooHistory('%5EVIX3M',range),
+    fetchYahooHistory('%5ESKEW',range),
+    fetch('https://api.alternative.me/fng/?limit=365').then(r=>r.json()),
+  ]);
+
+  const spyH=spyR.status==='fulfilled'?spyR.value:{ok:false,dates:[],prices:[],vols:[]};
+  const vixH=vixR.status==='fulfilled'?vixR.value:{ok:false,dates:[],prices:[],vols:[]};
+  const vix3mH=vix3mR.status==='fulfilled'?vix3mR.value:{ok:false,dates:[],prices:[],vols:[]};
+  const skewH=skewR.status==='fulfilled'?skewR.value:{ok:false,dates:[],prices:[],vols:[]};
+  const fngRaw=fngR.status==='fulfilled'?fngR.value:null;
+
+  const dateKey=ts=>new Date(ts*1000).toISOString().split('T')[0];
+  const vixByDate={},vix3mByDate={},skewByDate={},fngByDate={};
+  vixH.dates.forEach((ts,i)=>{ vixByDate[dateKey(ts)]=vixH.prices[i]; });
+  vix3mH.dates.forEach((ts,i)=>{ vix3mByDate[dateKey(ts)]=vix3mH.prices[i]; });
+  skewH.dates.forEach((ts,i)=>{ skewByDate[dateKey(ts)]=skewH.prices[i]; });
+  if(fngRaw&&fngRaw.data) fngRaw.data.forEach(d=>{
+    fngByDate[new Date(parseInt(d.timestamp)*1000).toISOString().split('T')[0]]=parseInt(d.value);
+  });
+
+  const SPY_ATH=698; // SPY all-time high reference
+  const timeSeries=[];
+  for(let i=0;i<spyH.dates.length;i++){
+    const dk=dateKey(spyH.dates[i]);
+    const spy=spyH.prices[i];
+    const vol=spyH.vols[i];
+    // 20-day average volume
+    const slice20=spyH.vols.slice(Math.max(0,i-20),i).filter(v=>v);
+    const avg20=slice20.length?slice20.reduce((a,b)=>a+b,0)/slice20.length:null;
+    const spyVolRatio=avg20&&vol?vol/avg20:null;
+    const spyPctFromATH=spy?(SPY_ATH-spy)/SPY_ATH*100:null;
+    const vix=vixByDate[dk]||null;
+    const vix3m=vix3mByDate[dk]||null;
+    const vixRatio=vix&&vix3m?vix/vix3m:null;
+    const skew=skewByDate[dk]||null;
+    const cryptoFG=fngByDate[dk]!==undefined?fngByDate[dk]:null;
+    const score=computeHistoricalScore({vix,cryptoFG,vixRatio,skew,spyPctFromATH,spyVolRatio,cnnFG:null});
+    timeSeries.push({ts:spyH.dates[i],date:dk,score,spy,vix,vixRatio,skew,cryptoFG,spyPctFromATH,spyVolRatio});
+  }
+
+  if(!timeSeries.length){
+    el.innerHTML=`<div style="color:#ef4444;text-align:center;padding:40px;font-size:12px">
+      Failed to load historical data — CORS proxy may be down. Try again in a moment.
+    </div>`;
+    return;
+  }
+
+  renderHistoricalCharts(timeSeries, range);
+}
+
+function renderHistoricalCharts(series, range){
+  const el=document.getElementById('history-content');
+  const W=700,PX=42,PY=18;
+  const n=series.length;
+  const xFor=i=>PX+(i/(n-1||1))*(W-2*PX);
+  const fmtD=ts=>{const d=new Date(ts*1000);return (d.getMonth()+1)+'/'+(d.getDate());};
+
+  function svgLine(vals, H, colorFn, minV, maxV){
+    const rng=maxV-minV||1;
+    const yFor=v=>H-PY-((v-minV)/rng)*(H-2*PY);
+    const pts=vals.map((v,i)=>v!==null?`${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`:null);
+    // Split into segments at nulls
+    let path='',seg=[];
+    const flush=()=>{ if(seg.length>1) path+=`<polyline points="${seg.join(' ')}" fill="none" stroke="${typeof colorFn==='function'?colorFn():colorFn}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;seg=[]; };
+    pts.forEach((p,i)=>{ if(p){ seg.push(p); } else flush(); });
+    flush();
+    // Colored dots
+    const dots=vals.map((v,i)=>v!==null?`<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(v).toFixed(1)}" r="2.5" fill="${typeof colorFn==='function'?colorFn(v):colorFn}" class="hist-dot" data-idx="${i}" style="cursor:pointer"/>`:'').join('');
+    return {path,dots,yFor};
+  }
+
+  // Label every Nth date
+  const labelEvery=Math.max(1,Math.ceil(n/10));
+  const xLabels=series.map((s,i)=>i%labelEvery===0||i===n-1?`<text x="${xFor(i).toFixed(1)}" y="98%" dominant-baseline="auto" fill="rgba(255,255,255,0.35)" font-size="9" text-anchor="middle" font-family="monospace">${fmtD(s.ts)}</text>`:'').join('');
+
+  // === SCORE CHART ===
+  const SH=160;
+  const scores=series.map(s=>s.score);
+  const scoreYFor=v=>SH-PY-((v-0)/10)*(SH-2*PY);
+  const scorePts=scores.map((v,i)=>`${xFor(i).toFixed(1)},${scoreYFor(v).toFixed(1)}`).join(' ');
+  const scoreDots=series.map((s,i)=>{
+    const c=s.score>=7?'#22c55e':s.score>=5?'#f59e0b':s.score>=3?'#f97316':'#94a3b8';
+    return `<circle cx="${xFor(i).toFixed(1)}" cy="${scoreYFor(s.score).toFixed(1)}" r="3.5" fill="${c}" class="hist-dot" data-idx="${i}" style="cursor:pointer" opacity="0.85"/>`;
+  }).join('');
+  const scoreChart=`<svg id="score-svg" viewBox="0 0 ${W} ${SH}" style="width:100%;height:auto;display:block">
+    <rect x="${PX}" y="${scoreYFor(10)}" width="${W-2*PX}" height="${scoreYFor(7)-scoreYFor(10)}" fill="rgba(34,197,94,0.07)"/>
+    <rect x="${PX}" y="${scoreYFor(7)}" width="${W-2*PX}" height="${scoreYFor(5)-scoreYFor(7)}" fill="rgba(245,158,11,0.05)"/>
+    <line x1="${PX}" y1="${scoreYFor(7)}" x2="${W-PX}" y2="${scoreYFor(7)}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+    <line x1="${PX}" y1="${scoreYFor(5)}" x2="${W-PX}" y2="${scoreYFor(5)}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3" opacity="0.3"/>
+    ${[0,2,4,6,8,10].map(v=>`<text x="${PX-6}" y="${scoreYFor(v)+4}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">${v}</text>`).join('')}
+    <text x="${W-PX-2}" y="${scoreYFor(7)-4}" fill="#22c55e" font-size="9" text-anchor="end" font-family="monospace">BUY ≥7</text>
+    <text x="${W-PX-2}" y="${scoreYFor(5)-4}" fill="#f59e0b" font-size="9" text-anchor="end" font-family="monospace">WATCH ≥5</text>
+    <polyline points="${scorePts}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+    ${scoreDots}
+    ${xLabels}
+  </svg>`;
+
+  // === MINI CHARTS === (SPY, VIX, VIX/VIX3M, Crypto F&G)
+  function miniChart(label,vals,colorHex,H=80,fmt=v=>v.toFixed(1)){
+    const clean=vals.filter(v=>v!==null);
+    if(!clean.length) return '';
+    const mn=Math.min(...clean),mx=Math.max(...clean);
+    const {path,dots}=svgLine(vals,H,colorHex,mn,mx);
+    const cur=clean[clean.length-1];
+    const first=clean[0];
+    const chgPct=first?(cur-first)/Math.abs(first)*100:0;
+    const chgCol=chgPct>0?'#22c55e':'#ef4444';
+    return `<div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.05)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1px">${label}</span>
+        <span style="font-size:9px;color:${chgCol};font-family:monospace">${chgPct>0?'+':''}${chgPct.toFixed(1)}%</span>
+      </div>
+      <div style="font-size:20px;font-weight:700;font-family:monospace;color:${colorHex}">${fmt(cur)}</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:50px;margin-top:6px">${path}${dots}</svg>
+    </div>`;
+  }
+
+  const miniCharts=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px">
+    ${miniChart('SPY Price',series.map(s=>s.spy),'#22d3ee',80,v=>'$'+v.toFixed(2))}
+    ${miniChart('VIX',series.map(s=>s.vix),'#f97316',80)}
+    ${miniChart('VIX / VIX3M',series.map(s=>s.vixRatio),'#a855f7',80,v=>v.toFixed(3))}
+    ${miniChart('Crypto F&amp;G',series.map(s=>s.cryptoFG),'#3b82f6',80,v=>v.toFixed(0))}
+  </div>`;
+
+  // === DETAIL PANEL (click a dot to see) ===
+  const lastS=series[series.length-1];
+  const detailHtml=s=>{
+    const scoreCol=s.score>=7?'#22c55e':s.score>=5?'#f59e0b':s.score>=3?'#f97316':'#94a3b8';
+    const scoreLabel=s.score>=7?'STRONG BUY':s.score>=5?'APPROACHING':s.score>=3?'EARLY SIGNALS':'NO SIGNAL';
+    const d=new Date(s.ts*1000);
+    const dateStr=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    const row=(label,val,col='rgba(255,255,255,0.8)')=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <span style="font-size:11px;color:rgba(255,255,255,0.45)">${label}</span>
+      <span style="font-size:12px;font-weight:700;font-family:monospace;color:${col}">${val}</span>
+    </div>`;
+    return `<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">${dateStr}</div>
+      <div style="font-size:32px;font-weight:900;font-family:monospace;color:${scoreCol};margin-bottom:2px">${s.score.toFixed(1)}<span style="font-size:14px"> / 10</span></div>
+      <div style="font-size:11px;font-weight:700;color:${scoreCol};letter-spacing:1px;margin-bottom:14px">${scoreLabel}</div>
+      ${row('SPY Price',s.spy?'$'+s.spy.toFixed(2):'--','#22d3ee')}
+      ${row('SPY % from ATH',s.spyPctFromATH?'-'+s.spyPctFromATH.toFixed(1)+'%':'--',s.spyPctFromATH>=10?'#ef4444':s.spyPctFromATH>=5?'#f97316':'#22c55e')}
+      ${row('VIX',s.vix?s.vix.toFixed(1):'--',s.vix>=35?'#ef4444':s.vix>=25?'#f97316':'#22c55e')}
+      ${row('VIX/VIX3M',s.vixRatio?s.vixRatio.toFixed(3):'--',s.vixRatio>1.0?'#ef4444':s.vixRatio>0.92?'#f97316':'#22c55e')}
+      ${row('Crypto F&amp;G',s.cryptoFG!==null?s.cryptoFG:'--',s.cryptoFG<=20?'#ef4444':s.cryptoFG<=35?'#f97316':'#22c55e')}
+      ${row('SKEW',s.skew?s.skew.toFixed(0):'--',s.skew<120?'#22c55e':s.skew>145?'#ef4444':'#94a3b8')}
+      ${row('Vol Ratio',s.spyVolRatio?s.spyVolRatio.toFixed(2)+'x avg':'--',s.spyVolRatio>=2?'#ef4444':s.spyVolRatio>=1.5?'#f97316':'#22c55e')}`;
+  };
+
+  const rangeLabel={ytd:'YTD',['6mo']:'6 Months',['1y']:'1 Year'}[range]||range;
+  el.innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+      ${['ytd','6mo','1y'].map(r=>`<button onclick="fetchAndRenderHistory('${r}')" style="padding:7px 16px;border-radius:6px;border:1px solid ${r===range?'var(--cyan)':'rgba(255,255,255,0.1)'};background:${r===range?'rgba(34,211,238,0.12)':'transparent'};color:${r===range?'var(--cyan)':'rgba(255,255,255,0.4)'};font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1px">${r==='ytd'?'YTD':r==='6mo'?'6M':'1Y'}</button>`).join('')}
+      <span style="font-size:10px;color:rgba(255,255,255,0.25);margin-left:4px">${series.length} trading days · click any dot for detail</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start">
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Contrarian Buy Score — ${rangeLabel}</div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.06);margin-bottom:14px">
+          ${scoreChart}
+        </div>
+        ${miniCharts}
+      </div>
+      <div id="hist-detail" style="background:rgba(0,0,0,0.2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,0.06);position:sticky;top:16px">
+        ${detailHtml(lastS)}
+      </div>
+    </div>`;
+
+  // Wire up click events on dots
+  setTimeout(()=>{
+    document.querySelectorAll('#history-content .hist-dot').forEach(dot=>{
+      dot.addEventListener('click',e=>{
+        const idx=parseInt(e.target.dataset.idx);
+        if(!isNaN(idx)&&series[idx]){
+          document.getElementById('hist-detail').innerHTML=detailHtml(series[idx]);
+        }
+      });
+    });
+  },50);
+}
+
 function toggleAutoRefresh(){
   const btn=document.getElementById('auto-refresh-btn');
   const sel=document.getElementById('auto-refresh-interval');
@@ -1325,17 +1577,7 @@ async function fetchAllData(){
   status.textContent='Connecting to free APIs...';
   const log=[];
   const SPY_ATH=698;
-
-  // CORS proxies for Yahoo Finance (tried in order)
-  const PROXIES=[
-    url=>url, // direct
-    url=>'https://corsproxy.io/?'+encodeURIComponent(url),
-    url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
-    url=>'https://corsproxy.org/?'+encodeURIComponent(url),
-    url=>'https://proxy.cors.sh/'+url,
-  ];
-  const PROXY_NAMES=['direct','corsproxy.io','allorigins','corsproxy.org','cors.sh'];
-  let workingProxy=-1; // cache which proxy works
+  // PROXIES, PROXY_NAMES, workingProxy are at outer scope (shared with fetchYahooHistory)
 
   async function yahooChart(ticker,range='1mo',interval='1d'){
     // Try both Yahoo Finance endpoints + all CORS proxies for maximum resilience
@@ -2002,17 +2244,16 @@ function clearHistory(){
 }
 
 function renderHistoryTab(){
+  // Load historical market data by default (YTD)
+  fetchAndRenderHistory('ytd');
+}
+
+// Old snapshot-only renderer kept for reference but superseded by fetchAndRenderHistory
+function _renderLocalSnapshotHistory(){
   const el=document.getElementById('history-content');
   if(!el) return;
   let hist=[];
   try{hist=JSON.parse(localStorage.getItem('contrarianHistory')||'[]');}catch(e){}
-  if(!hist.length){
-    el.innerHTML=`<div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:40px">
-      No history yet — data is captured on each successful fetch.<br>
-      <span style="font-size:10px;color:rgba(255,255,255,0.25)">Come back tomorrow to start seeing trends.</span>
-    </div>`;
-    return;
-  }
   hist.sort((a,b)=>a.ts-b.ts);
 
   // === SCORE TREND LINE CHART ===
@@ -2134,6 +2375,7 @@ function renderHistoryTab(){
 
   el.innerHTML=scoreChart+sparks+table;
 }
+// end _renderLocalSnapshotHistory
 
 // ===== TECHNICALS RENDERER =====
 function renderTechnicals(){
