@@ -525,6 +525,7 @@
     <button class="tab-btn" data-tab="accumulation">Accumulation</button>
     <button class="tab-btn" data-tab="conflict">Conflict Cycle</button>
     <button class="tab-btn" data-tab="tariff">Tariff Cycle</button>
+    <button class="tab-btn" data-tab="history" onclick="setTimeout(renderHistoryTab,10)">History</button>
     <button class="tab-btn" data-tab="tools">Tools</button>
   </div>
 
@@ -1021,6 +1022,15 @@
     <div class="detail-grid" id="crisis-detail"></div>
   </div>
 
+  <!-- ============ HISTORY TAB ============ -->
+  <div id="tab-history" class="tab-panel">
+    <div id="history-content" style="padding:20px 0">
+      <div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:40px">
+        No history yet — data is captured on each successful fetch.
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <div class="footer">
     Educational &amp; analysis purposes only. Not financial advice. <script>document.write(new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}))</script>.
@@ -1083,28 +1093,16 @@ const signals = [
   {id:'cnnFG', name:'CNN Fear & Greed', type:'manual', threshold:'≤ 14', score:()=> pulseState.cnnFG!==null && pulseState.cnnFG<=14 ? 1 : pulseState.cnnFG!==null && pulseState.cnnFG<=25 ? 0.5 : 0, reading:()=>pulseState.cnnFG, color:()=>pulseState.cnnFG<=14?'#ef4444':pulseState.cnnFG<=25?'#f97316':pulseState.cnnFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cnnFG<=14?'EXTREME FEAR — contrarian buy zone':pulseState.cnnFG<=25?'FEAR — approaching buy zone':'NOT fearful enough yet'},
   {id:'vix', name:'VIX', type:'auto', threshold:'≥ 35', score:()=> pulseState.vix!==null && pulseState.vix>=45 ? 1 : pulseState.vix>=35 ? 0.75 : pulseState.vix>=28 ? 0.25 : 0, reading:()=>pulseState.vix, color:()=>pulseState.vix>=45?'#ef4444':pulseState.vix>=35?'#f97316':pulseState.vix>=25?'#f59e0b':'#22c55e', interpret:()=>pulseState.vix>=45?'PANIC — capitulation level VIX':pulseState.vix>=35?'HIGH FEAR — approaching capitulation':pulseState.vix>=25?'Elevated but not extreme':'Low vol — complacent market'},
   {id:'cryptoFG', name:'Crypto Fear & Greed', type:'auto', threshold:'≤ 15', score:()=> pulseState.cryptoFG!==null && pulseState.cryptoFG<=10 ? 1 : pulseState.cryptoFG<=20 ? 0.75 : pulseState.cryptoFG<=30 ? 0.25 : 0, reading:()=>pulseState.cryptoFG, color:()=>pulseState.cryptoFG<=15?'#ef4444':pulseState.cryptoFG<=25?'#f97316':pulseState.cryptoFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cryptoFG<=15?'EXTREME FEAR — historically 80% positive 30d returns':pulseState.cryptoFG<=25?'FEAR — crypto sentiment very negative':'Not extreme enough'},
-  {id:'aaii', name:'AAII Bear-Bull Spread', type:'manual', threshold:'Bear ≥ 50%', score:()=> pulseState.aaiiBear!==null && pulseState.aaiiBear>=55 ? 1 : pulseState.aaiiBear>=45 ? 0.75 : pulseState.aaiiBear>=38 ? 0.25 : 0, reading:()=>pulseState.aaiiBear!==null?pulseState.aaiiBear+'%':null, color:()=>pulseState.aaiiBear>=50?'#ef4444':pulseState.aaiiBear>=40?'#f97316':pulseState.aaiiBear>=35?'#f59e0b':'#22c55e', interpret:()=>pulseState.aaiiBear>=50?'EXTREME bearish — historically strong contrarian buy':pulseState.aaiiBear>=40?'Very bearish — approaching signal':'Mildly bearish — not extreme'},
-  {id:'putcall', name:'Put/Call Ratio', type:'manual', threshold:'≥ 1.2', score:()=> pulseState.putCallRatio!==null && pulseState.putCallRatio>=1.3 ? 1 : pulseState.putCallRatio>=1.1 ? 0.5 : 0, reading:()=>pulseState.putCallRatio, color:()=>pulseState.putCallRatio>=1.2?'#ef4444':pulseState.putCallRatio>=1.0?'#f97316':pulseState.putCallRatio>=0.8?'#f59e0b':'#22c55e', interpret:()=>pulseState.putCallRatio>=1.2?'Heavy put buying — maximum fear hedging':pulseState.putCallRatio>=1.0?'Elevated hedging activity':'Normal or low hedging'},
   {id:'spyVolSpike', name:'SPY Volume vs 20d Avg', type:'auto', threshold:'≥ 2.0x', score:()=>{ if(!pulseState.spyVol||!pulseState.spy20dAvgVol)return 0; const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=3?1:r>=2?0.75:r>=1.5?0.25:0; }, reading:()=>pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(1)+'x':null, color:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'#ef4444':r>=1.8?'#f97316':r>=1.3?'#f59e0b':'#22c55e'; }, interpret:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'CAPITULATION VOLUME — Coulling accumulation signal':r>=1.8?'High volume — watch for narrowing spread':r>=1.3?'Above average — some institutional activity':'Normal volume — no panic selling'; }},
   {id:'spyDrawdown', name:'SPY % from ATH', type:'auto', threshold:'≥ 10%', score:()=>{ const d=pulseState.spyPctFromATH; return d>=20?1:d>=10?0.75:d>=7?0.25:0; }, reading:()=>pulseState.spyPctFromATH!==null?'-'+pulseState.spyPctFromATH.toFixed(1)+'%':null, color:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'#ef4444':d>=10?'#f97316':d>=5?'#f59e0b':'#22c55e'; }, interpret:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'BEAR TERRITORY — deep correction':d>=10?'CORRECTION — historical buy zone':d>=5?'Pullback — not deep enough yet':'Near ATH — no discount'; }},
-  {id:'breadth', name:'% S&P above 200-DMA', type:'manual', threshold:'≤ 40%', score:()=>{ const v=pulseState.pctAbove200dma; return v!==null&&v<=30?1:v<=40?0.75:v<=50?0.25:0; }, reading:()=>pulseState.pctAbove200dma!==null?pulseState.pctAbove200dma+'%':null, color:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'#ef4444':v<=40?'#f97316':v<=50?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'WASHED OUT breadth — most stocks in downtrend':v<=40?'Weak breadth — approaching washout':'Breadth still OK — not a washout'; }},
-  {id:'naaim', name:'NAAIM Exposure Index', type:'manual', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v<=40?0.75:v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
-  {id:'hySpreads', name:'HY Credit Spreads (bps)', type:'manual', threshold:'≥ 500', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v>=500?0.75:v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?pulseState.hySpreads+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic'; }},
   // === LEADING INDICATORS (higher weight — these PREDICT bottoms) ===
   {id:'vixTermStructure', name:'VIX/VIX3M Ratio ★', type:'auto', threshold:'> 1.0 (backwardation)', score:()=>{ const r=pulseState.vixRatio; return r!==null&&r>1.05?1.5:r>1.0?1.25:r>0.95?0.5:0; }, reading:()=>pulseState.vixRatio!==null?pulseState.vixRatio.toFixed(3):null, color:()=>{ const r=pulseState.vixRatio; return r>1.0?'#ef4444':r>0.92?'#f97316':'#22c55e'; }, interpret:()=>{ const r=pulseState.vixRatio; return r>1.0?'⚡ BACKWARDATION — strongest contrarian buy signal. Only 4 times since 2005 (GFC, 2011, Vol, COVID). All preceded massive rallies.':r>0.92?'Flattening — approaching signal. Near-term fear rising faster than long-term.':'Contango — normal. No term structure signal.'; }},
-  {id:'nfci', name:'NFCI Financial Conditions ★', type:'auto', threshold:'> 0 (tightening)', score:()=>{ const n=pulseState.nfci; if(n===null)return 0; const loosening=pulseState.nfciPrev!==undefined&&n<pulseState.nfciPrev; return n>0.5?1.25:n>0?(loosening?1:0.5):0; }, reading:()=>pulseState.nfci!==null?pulseState.nfci.toFixed(2):null, color:()=>{ const n=pulseState.nfci; return n>0.5?'#ef4444':n>0?'#f97316':'#22c55e'; }, interpret:()=>{ const n=pulseState.nfci; const dir=pulseState.nfciPrev!==undefined?(n>pulseState.nfciPrev?'Still tightening ↑':'Peaked & loosening ↓ — BUY SIGNAL'):''; return n>0.5?'SEVERE tightening — credit stress. '+dir:n>0?'Tight conditions — stress building. '+dir:'Loose — no systemic stress. Equity selloff is sentiment-driven.'; }},
   {id:'skew', name:'SKEW Index', type:'auto', threshold:'< 120 (fear exhausting)', score:()=>{ const s=pulseState.skew; return s!==null&&s<115?0.75:s<120?0.5:0; }, reading:()=>pulseState.skew!==null?pulseState.skew.toFixed(0):null, color:()=>{ const s=pulseState.skew; return s<120?'#22c55e':s>145?'#ef4444':'#94a3b8'; }, interpret:()=>{ const s=pulseState.skew; return s<120?'Low SKEW = market NOT pricing further tail risk. Fear exhausting — contrarian bullish.':s>145?'High SKEW — significant tail risk priced. Market expects more downside.':'Normal tail risk pricing.'; }},
 ];
 
-// Manual input fields config
+// Manual input fields config — only metrics that contribute to Buy rating and may need manual override
 const manualFields = [
-  {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'cnn.com/markets/fear-and-greed'},
-  {id:'aaiiBull',label:'AAII Bullish %',placeholder:'e.g. 33.1',src:'aaii.com/sentimentsurvey'},
-  {id:'aaiiBear',label:'AAII Bearish %',placeholder:'e.g. 35.5',src:'aaii.com/sentimentsurvey'},
-  {id:'putCallRatio',label:'CBOE Put/Call Ratio',placeholder:'e.g. 1.05',src:'cboe.com'},
-  {id:'pctAbove200dma',label:'% S&P above 200-DMA',placeholder:'e.g. 58',src:'stockcharts.com ($SPXA200R)'},
-  {id:'naaimExposure',label:'NAAIM Exposure Index',placeholder:'e.g. 72',src:'naaim.org/programs/naaim-exposure-index'},
-  {id:'hySpreads',label:'HY Spreads (bps)',placeholder:'e.g. 350',src:'fred.stlouisfed.org (BAMLH0A0HYM2)'},
+  {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'Auto-fetched — manual override only'},
 ];
 
 function renderManualInputs(){
@@ -1151,12 +1149,9 @@ function renderPulseCards(){
     {label:'Ceasefire Odds',val:pulseState.polyIranCeasefire?pulseState.polyIranCeasefire.pct+'%':'--',sub:pulseState.polyIranCeasefire?'Polymarket':'',color:pulseState.polyIranCeasefire?(pulseState.polyIranCeasefire.pct>=60?'#22c55e':pulseState.polyIranCeasefire.pct>=40?'#f59e0b':'#ef4444'):'#94a3b8',type:'auto',date:'Live'},
     {label:'Recession Odds',val:pulseState.polyRecession?pulseState.polyRecession.pct+'%':'--',sub:pulseState.polyRecession?'Polymarket':'',color:pulseState.polyRecession?(pulseState.polyRecession.pct>=50?'#ef4444':pulseState.polyRecession.pct>=30?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:'Live'},
     {label:'30Y Yield',val:pulseState.yield30y?pulseState.yield30y.toFixed(2)+'%':'--',sub:pulseState.yieldCurveInverted?'⚠️ INVERTED':'Normal',color:pulseState.yieldCurveInverted?'#ef4444':pulseState.yield30y?'#22c55e':'#94a3b8',type:'auto',date:''},
-    {label:'AI Sentiment',val:pulseState.mktauxSentiment||'--',sub:pulseState.mktauxScore?'Score: '+pulseState.mktauxScore.toFixed(2):'Needs Marketaux key',color:pulseState.mktauxScore?(pulseState.mktauxScore>0.1?'#22c55e':pulseState.mktauxScore<-0.1?'#ef4444':'#f59e0b'):'#94a3b8',type:pulseState.mktauxScore?'auto':'manual',date:pulseState.mktauxScore?'Latest':''},
     // === LEADING INDICATORS ===
     {label:'VIX/VIX3M',val:pulseState.vixRatio?pulseState.vixRatio.toFixed(3):'--',sub:pulseState.vixRatio?(pulseState.vixRatio>1.0?'⚡ BACKWARDATION — peak panic':pulseState.vixRatio>0.92?'Elevated — watch':'Contango — normal'):'Term structure',color:pulseState.vixRatio?(pulseState.vixRatio>1.0?'#ef4444':pulseState.vixRatio>0.92?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:''},
     {label:'SKEW',val:pulseState.skew?pulseState.skew.toFixed(0):'--',sub:pulseState.skew?(pulseState.skew<120?'Low tail risk = fear exhausting':pulseState.skew>145?'High tail risk':'Normal'):'Tail risk',color:pulseState.skew?(pulseState.skew<120?'#22c55e':pulseState.skew>145?'#ef4444':'#94a3b8'):'#94a3b8',type:'auto',date:''},
-    {label:'NFCI',val:pulseState.nfci!==null?pulseState.nfci.toFixed(2):'--',sub:pulseState.nfci!==null?(pulseState.nfci>0?'TIGHT — stress':'Loose — normal')+(pulseState.nfciPrev!==undefined?(pulseState.nfci>pulseState.nfciPrev?' ↑':' ↓'):''):'Needs FRED key',color:pulseState.nfci!==null?(pulseState.nfci>0.5?'#ef4444':pulseState.nfci>0?'#f97316':'#22c55e'):'#94a3b8',type:pulseState.nfci!==null?'auto':'manual',date:pulseState.nfciDate||''},
-    {label:'Money Market',val:pulseState.moneyMarket?'$'+pulseState.moneyMarket+'T':'--',sub:pulseState.moneyMarket?'Dry powder (record = bullish fuel)':'Needs FRED key',color:pulseState.moneyMarket?(parseFloat(pulseState.moneyMarket)>6?'#22c55e':'#94a3b8'):'#94a3b8',type:pulseState.moneyMarket?'auto':'manual',date:''},
   ];
   document.getElementById('pulse-cards').innerHTML=cards.map(c=>`
     <div class="snap-card">
@@ -1190,7 +1185,7 @@ function recalcScore(){
   signals.forEach(s=>{
     const sc=s.score();
     // Calculate max possible score for this signal (evaluate with extreme inputs)
-    const isLeading=s.id==='vixTermStructure'||s.id==='nfci';
+    const isLeading=s.id==='vixTermStructure';
     maxPossible+=isLeading?1.5:s.id==='skew'?0.75:1;
     if(sc>0)active++;
     rawTotal+=sc;
@@ -1951,10 +1946,192 @@ async function fetchAllData(){
   // Propagate data across all tabs
   propagateData();
   recalcScore();
+  // Save daily snapshot to 30-day history
+  captureSnapshot();
 
   // Fetch headlines for conflict phase detection (async, non-blocking)
   fetchConflictHeadlines().catch(()=>{});
   isFetching=false;
+}
+
+// ===== 30-DAY HISTORY TRACKING =====
+function captureSnapshot(){
+  try{
+    const scoreEl=document.getElementById('contrarian-score');
+    const score=scoreEl?parseFloat(scoreEl.textContent)||0:0;
+    // Pull current war/tariff step from globals (set by renderConflictSteps/renderTariffSteps)
+    let conflictStep=null,tariffStep=null;
+    try{conflictStep=currentConflictStep;}catch(_){}
+    try{tariffStep=currentTariffStep;}catch(_){}
+    const snap={
+      ts:Date.now(),
+      score,
+      spy:pulseState.spyPrice||null,
+      spyPctFromATH:pulseState.spyPctFromATH||null,
+      vix:pulseState.vix||null,
+      vixRatio:pulseState.vixRatio||null,
+      skew:pulseState.skew||null,
+      cryptoFG:pulseState.cryptoFG||null,
+      cnnFG:pulseState.cnnFG||null,
+      btc:pulseState.btcPrice||null,
+      qqq:pulseState.qqqPrice||null,
+      iwm:pulseState.iwmPrice||null,
+      oil:pulseState.oilPrice||null,
+      gold:pulseState.goldPrice||null,
+      tnx:pulseState.tnx||null,
+      spyVolRatio:(pulseState.spyVol&&pulseState.spy20dAvgVol)?(pulseState.spyVol/pulseState.spy20dAvgVol):null,
+      conflictStep,
+      tariffStep,
+    };
+    const hist=JSON.parse(localStorage.getItem('contrarianHistory')||'[]');
+    const today=new Date(snap.ts).toDateString();
+    const idx=hist.findIndex(s=>new Date(s.ts).toDateString()===today);
+    if(idx>=0) hist[idx]=snap; else hist.push(snap);
+    hist.sort((a,b)=>a.ts-b.ts);
+    const cutoff=Date.now()-30*24*60*60*1000;
+    const filtered=hist.filter(s=>s.ts>=cutoff).slice(-30);
+    localStorage.setItem('contrarianHistory',JSON.stringify(filtered));
+  }catch(e){}
+}
+
+function clearHistory(){
+  if(!confirm('Clear all 30-day history? This cannot be undone.'))return;
+  try{localStorage.removeItem('contrarianHistory');}catch(e){}
+  renderHistoryTab();
+}
+
+function renderHistoryTab(){
+  const el=document.getElementById('history-content');
+  if(!el) return;
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem('contrarianHistory')||'[]');}catch(e){}
+  if(!hist.length){
+    el.innerHTML=`<div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:40px">
+      No history yet — data is captured on each successful fetch.<br>
+      <span style="font-size:10px;color:rgba(255,255,255,0.25)">Come back tomorrow to start seeing trends.</span>
+    </div>`;
+    return;
+  }
+  hist.sort((a,b)=>a.ts-b.ts);
+
+  // === SCORE TREND LINE CHART ===
+  const W=680,H=150,PX=40,PY=20;
+  const scores=hist.map(s=>s.score||0);
+  const maxScore=10,minScore=0;
+  const xStep=hist.length>1?(W-2*PX)/(hist.length-1):0;
+  const yFor=v=>H-PY-((v-minScore)/(maxScore-minScore))*(H-2*PY);
+  const xFor=i=>PX+i*xStep;
+  const pts=hist.map((s,i)=>`${xFor(i)},${yFor(s.score||0)}`).join(' ');
+  const scoreDots=hist.map((s,i)=>{
+    const c=s.score>=7?'#22c55e':s.score>=5?'#f59e0b':s.score>=3?'#f97316':'#94a3b8';
+    return `<circle cx="${xFor(i)}" cy="${yFor(s.score||0)}" r="3" fill="${c}"/>`;
+  }).join('');
+  const buyZoneY=yFor(7);
+  const fmtD=ts=>{const d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate();};
+  const labelEvery=Math.max(1,Math.ceil(hist.length/8));
+  const xLabels=hist.map((s,i)=>i%labelEvery===0?`<text x="${xFor(i)}" y="${H-4}" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">${fmtD(s.ts)}</text>`:'').join('');
+  const scoreChart=`
+    <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px">
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Contrarian Score — Last ${hist.length} Day${hist.length===1?'':'s'}</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:200px">
+        <rect x="${PX}" y="${yFor(10)}" width="${W-2*PX}" height="${yFor(7)-yFor(10)}" fill="rgba(34,197,94,0.08)"/>
+        <line x1="${PX}" y1="${buyZoneY}" x2="${W-PX}" y2="${buyZoneY}" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+        <text x="${W-PX-4}" y="${buyZoneY-4}" fill="#22c55e" font-size="9" text-anchor="end" font-family="monospace">BUY ≥ 7</text>
+        <text x="${PX-6}" y="${yFor(0)+3}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">0</text>
+        <text x="${PX-6}" y="${yFor(5)+3}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">5</text>
+        <text x="${PX-6}" y="${yFor(10)+3}" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="end" font-family="monospace">10</text>
+        ${hist.length>1?`<polyline points="${pts}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`:''}
+        ${scoreDots}
+        ${xLabels}
+      </svg>
+    </div>`;
+
+  // === MINI SPARKLINES ===
+  function sparkCard(label,key,fmt,color,invert){
+    const vals=hist.map(s=>s[key]).filter(v=>v!==null&&v!==undefined&&!isNaN(v));
+    if(!vals.length) return `
+      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">${label}</div>
+        <div style="font-size:18px;color:rgba(255,255,255,0.2);font-family:monospace;margin-top:2px">--</div>
+      </div>`;
+    const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+    const w=140,h=30;
+    const sp=vals.map((v,i)=>`${(i/(vals.length-1||1))*w},${h-((v-mn)/rng)*h}`).join(' ');
+    const cur=vals[vals.length-1];
+    const first=vals[0];
+    const chg=first!==0?((cur-first)/Math.abs(first))*100:0;
+    const chgColor=(invert?chg<0:chg>0)?'#22c55e':(invert?chg>0:chg<0)?'#ef4444':'#94a3b8';
+    return `
+      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">${label}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div style="font-size:18px;color:${color};font-family:monospace;font-weight:700">${fmt(cur)}</div>
+          <div style="font-size:9px;color:${chgColor};font-family:monospace">${chg>0?'+':''}${chg.toFixed(1)}%</div>
+        </div>
+        <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="margin-top:4px;opacity:0.8">
+          <polyline points="${sp}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="font-size:8px;color:rgba(255,255,255,0.25);font-family:monospace;margin-top:2px">${fmt(mn)} – ${fmt(mx)}</div>
+      </div>`;
+  }
+  const sparks=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px">
+      ${sparkCard('Score','score',v=>v.toFixed(1),'#22d3ee',false)}
+      ${sparkCard('SPY','spy',v=>'$'+v.toFixed(2),'#22d3ee',false)}
+      ${sparkCard('VIX','vix',v=>v.toFixed(1),'#f97316',true)}
+      ${sparkCard('VIX/VIX3M','vixRatio',v=>v.toFixed(3),'#f59e0b',true)}
+      ${sparkCard('Crypto F&G','cryptoFG',v=>v.toFixed(0),'#a855f7',false)}
+      ${sparkCard('CNN F&G','cnnFG',v=>v.toFixed(0),'#3b82f6',false)}
+      ${sparkCard('SKEW','skew',v=>v.toFixed(0),'#94a3b8',true)}
+      ${sparkCard('SPY % ATH','spyPctFromATH',v=>'-'+v.toFixed(1)+'%','#ef4444',true)}
+    </div>`;
+
+  // === DATA TABLE (newest first) ===
+  const rows=[...hist].reverse().map(s=>{
+    const scoreCol=s.score>=7?'#22c55e':s.score>=5?'#f59e0b':s.score>=3?'#f97316':'#94a3b8';
+    const d=new Date(s.ts);
+    const dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.6)">${dateStr}</td>
+      <td style="padding:8px;font-family:monospace;font-size:13px;font-weight:700;color:${scoreCol}">${s.score!=null?s.score.toFixed(1):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.spy!=null?'$'+s.spy.toFixed(2):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.vix!=null?s.vix.toFixed(1):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.vixRatio!=null?s.vixRatio.toFixed(3):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.cryptoFG!=null?s.cryptoFG:'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.cnnFG!=null?s.cnnFG:'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.7)">${s.skew!=null?s.skew.toFixed(0):'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.5)">${s.conflictStep!=null?'C'+s.conflictStep:'--'}</td>
+      <td style="padding:8px;font-family:monospace;font-size:11px;color:rgba(255,255,255,0.5)">${s.tariffStep!=null?'T'+s.tariffStep:'--'}</td>
+    </tr>`;
+  }).join('');
+  const table=`
+    <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px">Daily Snapshots</div>
+        <button onclick="clearHistory()" style="font-size:9px;padding:4px 10px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#ef4444;border-radius:4px;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1px">Clear History</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:720px">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Date</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Score</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">SPY</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">VIX</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">VIX/3M</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Crypto F&amp;G</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">CNN F&amp;G</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">SKEW</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">War</th>
+              <th style="padding:8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Tariff</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  el.innerHTML=scoreChart+sparks+table;
 }
 
 // ===== TECHNICALS RENDERER =====
