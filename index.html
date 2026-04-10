@@ -1112,7 +1112,7 @@ function renderManualInputs(){
     <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
       <label style="font-size:10px;color:rgba(255,255,255,0.4);display:block;margin-bottom:4px">${f.label}</label>
       <input id="input-${f.id}" type="number" step="any" placeholder="${f.placeholder}" value="${pulseState[f.id]||''}"
-        onchange="pulseState['${f.id}']=parseFloat(this.value)||null"
+        onchange="pulseState['${f.id}']=parseFloat(this.value)||null;recalcScore();propagateData()"
         style="width:100%;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
       <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:3px">${f.src}</div>
     </div>
@@ -2170,14 +2170,16 @@ function propagateData(){
   }catch(e){}
 })();
 
-// Restore last cached fetch data for stale-while-revalidate
+// Restore last cached fetch data (stale-while-revalidate — fresh fetch fires automatically below)
 (function loadCachedData(){
   try{
     const cache=JSON.parse(localStorage.getItem('contrarianCache')||'null');
-    if(cache&&Date.now()-cache.ts<15*60*1000){
+    if(cache&&Date.now()-cache.ts<30*60*1000){ // 30-min window — auto-fetch refreshes immediately anyway
       Object.assign(pulseState,cache.data);
+      const age=Math.round((Date.now()-cache.ts)/1000);
+      const ageStr=age<60?age+'s':Math.round(age/60)+'m';
       const s=document.getElementById('fetch-status');
-      if(s) s.innerHTML='<span style="color:rgba(255,255,255,0.25)">Cached data restored — click refresh to update</span>';
+      if(s) s.innerHTML=`<span style="color:rgba(255,255,255,0.25)">Cached data (${ageStr} old) — fetching fresh data...</span>`;
     }
   }catch(e){}
 })();
@@ -3736,6 +3738,25 @@ renderBacktest();
 // Wire alerts into propagateData
 const _origPropagate=propagateData;
 propagateData=function(){_origPropagate();checkAlerts();};
+
+// ===== AUTO-FETCH ON PAGE LOAD =====
+// Propagate any cached pulseState to all tabs (war/tariff cycles, scores, charts)
+propagateData();
+recalcScore();
+// Then immediately fetch fresh live data — no button click needed
+fetchAllData();
+// Also start auto-refresh (5 min default) so the page stays live
+(function startAutoRefresh(){
+  const ms=300000; // 5 minutes
+  autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
+  const btn=document.getElementById('auto-refresh-btn');
+  if(btn){
+    btn.textContent='⏱ Auto: On';
+    btn.style.borderColor='var(--green,#22c55e)';
+    btn.style.color='var(--green,#22c55e)';
+    btn.style.background='rgba(34,197,94,0.08)';
+  }
+})();
 </script>
 </body>
 </html>
