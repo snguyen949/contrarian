@@ -929,12 +929,13 @@
         <span id="conflict-phase-name" style="font-size:12px;color:rgba(255,255,255,0.5)"></span>
         <button onclick="fetchHeadlines()" style="margin-left:auto;padding:5px 12px;border:1px solid rgba(168,85,247,0.3);border-radius:6px;background:rgba(168,85,247,0.1);color:#a855f7;font-size:9px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:0.5px">🔍 SCAN HEADLINES</button>
       </div>
+      <div id="conflict-vote-summary" style="font-size:9px;color:rgba(255,255,255,0.25);padding:4px 2px;min-height:16px">Awaiting headline scan…</div>
     </div>
 
     <!-- Live headline signals -->
     <div class="panel" style="border-color:rgba(168,85,247,0.15)">
-      <div class="panel-title" style="color:#a855f7">Live Headlines — Conflict Phase Detection <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(Google News + Reddit + Finnhub + NewsAPI)</span></div>
-      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;line-height:1.5">Headlines are keyword-matched to both Kobeissi conflict AND tariff steps. Fetches from Google News RSS (free), Reddit (free), Finnhub (if key), NewsAPI (if key). Click <strong style="color:#a855f7">Scan Headlines</strong> or <strong style="color:var(--cyan)">Refresh All Data</strong>.</p>
+      <div class="panel-title" style="color:#a855f7">Live Headlines — Conflict Phase Detection <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(Google News + Reuters + Reddit + Finnhub + NewsAPI)</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;line-height:1.5">Each headline votes independently for a conflict step. The step with the most weighted votes wins. Fallback: Polymarket ceasefire odds → price data. Sources: Google News RSS (5 parallel queries), Reuters RSS, Reddit, Finnhub (if key), NewsAPI (if key). Updates automatically every 5 min.</p>
       <div id="conflict-headlines" style="max-height:300px;overflow-y:auto">
         <div style="font-size:10px;color:rgba(255,255,255,0.15)">Click "Scan Headlines" to fetch latest news and auto-detect conflict phase.</div>
       </div>
@@ -3747,39 +3748,81 @@ function matchKeywords(text, keywordMap) {
   return null;
 }
 
+// Per-headline vote storage (populated by detectConflictPhase)
+let _conflictVotes={}, _conflictConfidence=0, _conflictSource='';
+let _tariffVotes={}, _tariffConfidence=0;
+
 function detectConflictPhase(){
   const p=pulseState;
-  // Priority 1: headline signals
-  if(headlineSignals.length > 0) {
-    const allText = headlineSignals.map(h=>h.toLowerCase()).join(' ');
-    const headlineStep = matchKeywords(allText, conflictKeywords);
-    if(headlineStep) return headlineStep;
+  _conflictVotes={}; _conflictConfidence=0; _conflictSource='';
+
+  // === 1. PER-HEADLINE VOTING ===
+  if(headlineSignals.length>0){
+    headlineSignals.forEach(headline=>{
+      const step=matchKeywords(headline.toLowerCase(),conflictKeywords);
+      if(step) _conflictVotes[step]=(_conflictVotes[step]||0)+1;
+    });
+    if(Object.keys(_conflictVotes).length>0){
+      // Weight higher (de-escalation) steps slightly more to prevent noise downgrade
+      const scored=Object.entries(_conflictVotes).map(([step,count])=>({
+        step:parseInt(step), score:count*(parseInt(step)>=9?1.5:parseInt(step)>=7?1.2:1)
+      })).sort((a,b)=>b.score-a.score);
+      const winner=scored[0];
+      const totalVotes=Object.values(_conflictVotes).reduce((a,b)=>a+b,0);
+      _conflictConfidence=Math.round((winner.score/scored.reduce((a,s)=>a+s.score,0))*100);
+      _conflictSource=headlineSignals.length+' headlines';
+      return winner.step;
+    }
   }
-  // Priority 2: price-based fallback
-  if(p.spyPrice&&p.spyPrice>=695&&p.vix&&p.vix<18) return 10;
-  if(p.spyPrice&&p.spyPrice>=685&&p.vix&&p.vix<22) return 9;
-  if(p.oilPrice&&p.oilPrice>=90&&p.tnx&&p.tnx>=4.5) return 8;
-  if(p.vix&&p.vix>=25&&p.vix<35&&p.spyPctFromATH&&p.spyPctFromATH>=5&&p.spyPctFromATH<=12) return 7;
-  if(p.oilPrice&&p.oilPrice>=80&&p.vix&&p.vix>=22) return 6;
-  if(p.vix&&p.vix>=20&&p.vix<25&&p.spyPctFromATH&&p.spyPctFromATH>=2) return 5;
-  if(p.vix&&p.vix>=18&&p.spyPctFromATH&&p.spyPctFromATH>=1) return 4;
-  return 3;
+
+  // === 2. POLYMARKET CEASEFIRE ODDS FALLBACK ===
+  if(p.polyIranCeasefire&&p.polyIranCeasefire.pct!==undefined){
+    const pct=p.polyIranCeasefire.pct;
+    _conflictSource='Polymarket ceasefire odds ('+pct+'%)';
+    if(pct>=85){_conflictConfidence=85;return 10;}
+    if(pct>=55){_conflictConfidence=Math.round(pct);return 9;}
+    if(pct>=35){_conflictConfidence=Math.round(pct);return 7;}
+    if(pct>=20){_conflictConfidence=Math.round(pct);return 6;}
+    _conflictConfidence=Math.round(100-pct); return 5;
+  }
+
+  // === 3. PRICE-BASED FALLBACK ===
+  _conflictSource='Price data (no headlines)';
+  if(p.spyPrice>=695&&p.vix<18){_conflictConfidence=70;return 10;}
+  if(p.spyPrice>=685&&p.vix<22){_conflictConfidence=65;return 9;}
+  if(p.oilPrice>=90&&p.tnx>=4.5){_conflictConfidence=60;return 8;}
+  if(p.vix>=25&&p.vix<35&&p.spyPctFromATH>=5&&p.spyPctFromATH<=12){_conflictConfidence=55;return 7;}
+  if(p.oilPrice>=80&&p.vix>=22){_conflictConfidence=50;return 6;}
+  if(p.vix>=20&&p.vix<25&&p.spyPctFromATH>=2){_conflictConfidence=50;return 5;}
+  if(p.vix>=18&&p.spyPctFromATH>=1){_conflictConfidence=45;return 4;}
+  // Keep current step if no signals override
+  _conflictConfidence=40; return currentConflictStep;
 }
 
 function detectTariffPhase(){
   const p=pulseState;
-  // Check headlines for tariff signals
-  if(headlineSignals.length > 0) {
-    const allText = headlineSignals.map(h=>h.toLowerCase()).join(' ');
-    const hasTariff = allText.includes('tariff') || allText.includes('trade war') || allText.includes('trade deal');
-    if(hasTariff) {
-      const step = matchKeywords(allText, tariffKeywords);
-      if(step) return step;
+  _tariffVotes={};_tariffConfidence=0;
+  if(headlineSignals.length>0){
+    const hasTariffContext=headlineSignals.some(h=>{
+      const t=h.toLowerCase();
+      return t.includes('tariff')||t.includes('trade war')||t.includes('trade deal')||t.includes('section 301');
+    });
+    if(hasTariffContext){
+      headlineSignals.forEach(headline=>{
+        const step=matchKeywords(headline.toLowerCase(),tariffKeywords);
+        if(step) _tariffVotes[step]=(_tariffVotes[step]||0)+1;
+      });
+      if(Object.keys(_tariffVotes).length>0){
+        const scored=Object.entries(_tariffVotes).map(([step,count])=>({
+          step:parseInt(step),score:count*(parseInt(step)>=12?1.5:parseInt(step)>=8?1.2:1)
+        })).sort((a,b)=>b.score-a.score);
+        _tariffConfidence=Math.round((scored[0].score/scored.reduce((a,s)=>a+s.score,0))*100);
+        return scored[0].step;
+      }
     }
   }
-  // If conflict is dominant (VIX ≥22), tariff cycle is dormant
   if(p.vix&&p.vix>=22) return 0;
-  return 0;
+  return currentTariffStep||0;
 }
 
 // ===== MULTI-SOURCE HEADLINE FETCHER =====
@@ -3790,30 +3833,53 @@ async function fetchHeadlines(){
   let allHeadlines = [];
   const errors = [];
 
-  // Source 1: Google News RSS (most reliable free source)
-  const gnQueries = ['iran+ceasefire+islamabad','iran+trump+deal+nuclear','iran+talks+vance','tariff+trade+deal+china','section+301+tariff+2026'];
-  for(const q of gnQueries) {
-    try {
-      const gnUrl = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
-      const resp = await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(gnUrl), 6000);
-      if(resp.ok) {
-        const xml = await resp.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xml, 'text/xml');
-        const items = doc.querySelectorAll('item');
-        items.forEach(item => {
-          const title = item.querySelector('title')?.textContent || '';
-          const link = item.querySelector('link')?.textContent || '';
-          const pubDate = item.querySelector('pubDate')?.textContent || '';
-          const source = item.querySelector('source')?.textContent || '';
-          if(title) allHeadlines.push({
-            title, url:link, created:new Date(pubDate).getTime()/1000||Date.now()/1000,
-            domain:source||'Google News', score:0, src:'gnews'
-          });
-        });
-      }
-    } catch(e) { errors.push('Google News: '+q); }
+  // Helper: parse RSS XML → headline array
+  function parseRSS(xml, srcLabel){
+    try{
+      const doc=new DOMParser().parseFromString(xml,'text/xml');
+      return [...doc.querySelectorAll('item')].map(item=>({
+        title:(item.querySelector('title')?.textContent||'').replace(/<!\[CDATA\[|\]\]>/g,'').trim(),
+        url:item.querySelector('link')?.textContent||'',
+        created:new Date(item.querySelector('pubDate')?.textContent||Date.now()).getTime()/1000,
+        domain:item.querySelector('source')?.textContent||srcLabel,
+        score:0,src:'gnews'
+      })).filter(h=>h.title.length>10);
+    }catch(e){return [];}
   }
+
+  // Source 1: Google News RSS — all queries IN PARALLEL
+  const gnQueries=[
+    {q:'iran+ceasefire+islamabad',label:'GNews/Iran-ceasefire'},
+    {q:'iran+trump+nuclear+deal',label:'GNews/Iran-nuclear'},
+    {q:'iran+talks+vance+witkoff',label:'GNews/Iran-talks'},
+    {q:'tariff+china+trade+deal+2026',label:'GNews/Tariff-China'},
+    {q:'section+301+tariff+eu+india',label:'GNews/Tariff-301'},
+  ];
+  const gnResults=await Promise.allSettled(gnQueries.map(({q})=>
+    fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(
+      `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`),7000)
+    .then(r=>r.ok?r.text():Promise.reject())
+  ));
+  gnResults.forEach((r,i)=>{
+    if(r.status==='fulfilled') allHeadlines.push(...parseRSS(r.value,gnQueries[i].label));
+    else errors.push(gnQueries[i].label);
+  });
+
+  // Source 2: Reuters RSS (via corsproxy)
+  const reutersFeeds=[
+    {url:'https://feeds.reuters.com/reuters/topNews',label:'Reuters/Top'},
+    {url:'https://feeds.reuters.com/reuters/businessNews',label:'Reuters/Business'},
+  ];
+  const reutersResults=await Promise.allSettled(reutersFeeds.map(({url})=>
+    fetchWithTimeout('https://corsproxy.io/?'+encodeURIComponent(url),6000).then(r=>r.ok?r.text():Promise.reject())
+  ));
+  reutersResults.forEach((r,i)=>{
+    if(r.status==='fulfilled'){
+      const items=parseRSS(r.value,reutersFeeds[i].label);
+      items.forEach(h=>{h.src='reuters';});
+      allHeadlines.push(...items);
+    } else errors.push(reutersFeeds[i].label);
+  });
 
   // Source 2: Reddit r/worldnews + r/stocks (free JSON)
   const redditUrls = [
@@ -3954,6 +4020,21 @@ function renderConflictSteps(){
   const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('conflict-phase').textContent='Step '+currentConflictStep+' of 10';
   document.getElementById('conflict-phase-name').textContent='— '+conflictSteps[currentConflictStep-1].name;
+
+  // Show vote distribution + confidence under the phase header
+  const voteEl=document.getElementById('conflict-vote-summary');
+  if(voteEl){
+    const voteEntries=Object.entries(_conflictVotes).sort((a,b)=>b[1]-a[1]);
+    const voteBar=voteEntries.map(([step,count])=>{
+      const col=parseInt(step)>=9?'#22c55e':parseInt(step)>=7?'#22d3ee':parseInt(step)>=5?'#f97316':'#94a3b8';
+      const pct=Math.round(count/headlineSignals.length*100);
+      return `<span style="font-size:9px;font-family:monospace;color:${col}">C${step}:${count}(${pct}%)</span>`;
+    }).join(' · ');
+    const confCol=_conflictConfidence>=70?'#22c55e':_conflictConfidence>=50?'#f59e0b':'#94a3b8';
+    voteEl.innerHTML=voteEntries.length>0
+      ?`<span style="color:rgba(255,255,255,0.3)">Signal: </span>${voteBar} <span style="color:${confCol};font-weight:700;margin-left:6px">${_conflictConfidence}% confidence</span> <span style="color:rgba(255,255,255,0.2)">via ${_conflictSource}</span>`
+      :`<span style="color:rgba(255,255,255,0.25)">Awaiting headline scan… using ${_conflictSource||'default'}</span>`;
+  }
   document.getElementById('conflict-steps').innerHTML=conflictSteps.map(s=>{
     const isCurrent=s.step===currentConflictStep;
     const isPast=s.step<currentConflictStep;
