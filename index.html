@@ -3706,11 +3706,11 @@ const conflictSteps=[
   {step:6,name:"Markets Price Prolonged Conflict",desc:"Oil above $85, equities hit new weekly lows, rush to sidelines accelerates. Positioning changes structurally.",marker:"Brent >$85, equities erase gains, gold/silver sell off (cash hoarding), VIX elevated",market:"Dow -1,100 pts. Oil $90+. Silver -20% in 24hrs. Defensive flows.",smartMoney:"SMART MONEY begins scanning for entry. Sentiment polarity extreme.",timing:"Week 1–2",iranStatus:"COMPLETE",iranDate:"Mar 3–20, 2026"},
   {step:7,name:"Conditional De-Escalation",desc:"After sufficient risk premia expansion, Trump introduces calibrated de-escalation. NOT a retreat — conditional.",marker:"Language shifts to 'negotiations possible if...' Talks, frameworks mentioned quietly.",market:"VIX plateaus. Oil stops making new highs. Equity selling exhausts.",smartMoney:"THIS IS THE BUY ZONE. Smart money enters while headlines still negative.",timing:"Highly variable — days to months",iranStatus:"COMPLETE",iranDate:"Mar 20–22, 2026"},
   {step:8,name:"Market & Political Feedback",desc:"Financial markets become part of negotiation. Oil >$90 conflicts with Trump's policy priorities (low gas, low inflation, peace).",marker:"Brent >$90 sustained, CPI estimates rising, gas prices +10%, consumer sentiment falling",market:"Market stress forces Trump's hand. Bond market is the ultimate tell.",smartMoney:"Conviction builds. Adding to positions on each dip.",timing:"Overlaps with Step 7",iranStatus:"COMPLETE",iranDate:"Mar 14–22, 2026"},
-  {step:9,name:"The Deal & Narrative Framing",desc:"Resolution framed as strategic victory. 'Maximum pressure produced concessions.' 5-day pause = deal framing window.",marker:"Ceasefire tied to nuclear concessions, or Iranian govt collapse declared 'mission success'",market:"Headline shock — but initially met with skepticism. Smart money already positioned.",smartMoney:"Already long. Holding through volatility.",timing:"After Step 7–8 catalysts",iranStatus:"",iranDate:""},
+  {step:9,name:"The Deal & Narrative Framing",desc:"2-week ceasefire agreed Apr 8 via Pakistan. Vance + Kushner + Witkoff in Islamabad Apr 11. Iran's 10-point plan called 'workable basis' by Trump. Nuclear enrichment rights remain the core sticking point. Ceasefire has cracks (Lebanon issue). Smart money already positioned — holding.",marker:"Ceasefire Apr 8. US-Iran direct talks in Islamabad. Iran's 10-point plan on table. Fragile but active negotiations.",market:"Ceasefire agreed but fragile. Markets skeptical — watching nuclear sticking point. Smart money already in.",smartMoney:"Already long. Holding through volatility. Step 10 triggers on final deal or nuclear concession.",timing:"Apr 8–ongoing",iranStatus:"ACTIVE",iranDate:"Apr 8–12, 2026"},
   {step:10,name:"Violent Repricing & Victory Lap",desc:"Positions unwind abruptly. Markets reprice not on improving fundamentals, but on collapsing worst-case probabilities.",marker:"Oil crashes, VIX implodes, equities gap up violently. Record single-day gains.",market:"SPY gaps +3–5%. Oil drops 15–20%. VIX crashes to teens. New ATH within weeks.",smartMoney:"Taking profits on the rip. Rotating into next opportunity.",timing:"Days after deal announcement",iranStatus:"",iranDate:""},
 ];
 
-let currentConflictStep=9; // Default — peace talks announced 3/23
+let currentConflictStep=9; // Active — 2-week ceasefire Apr 8, Islamabad talks Apr 11
 let headlineSignals = []; // Populated by news scan
 let allFetchedHeadlines = []; // Raw headline objects for display
 
@@ -3719,8 +3719,8 @@ let allFetchedHeadlines = []; // Raw headline objects for display
 
 // Keywords that map to conflict cycle phases (checked highest → lowest)
 const conflictKeywords = {
-  10: {must:['deal signed','peace deal','agreement reached','war ended','war over','ceasefire signed'],boost:['new ath','record high','oil crash','vix crash','surge','rally']},
-  9:  {must:['peace talks','talks','negotiations','productive','winding down','pause strike','postpone','5-day','five day','ceasefire talk','diplomacy','de-escalat'],boost:['ceasefire','kushner','witkoff','hopeful','progress','deal']},
+  10: {must:['final deal','peace deal signed','agreement reached','war ended','war over','nuclear deal signed','full ceasefire signed','deal announced'],boost:['new ath','record high','oil crash','vix crash','surge','rally','victory']},
+  9:  {must:['peace talks','islamabad','pakistan talks','vance iran','witkoff iran','kushner iran','10-point','ten point','workable','ceasefire agreed','ceasefire holds','two-week ceasefire','2-week ceasefire','negotiations','winding down','diplomacy','de-escalat','ceasefire talk'],boost:['ceasefire','kushner','witkoff','vance','hopeful','progress','deal','optimistic','nuclear talks','framework']},
   8:  {must:['oil crisis','energy crisis','gas price','inflation spike','recession fear','worst since','market feedback','economic impact'],boost:['forcing','pressure','unsustainable','stagflat']},
   7:  {must:['de-escalat','conditional','possible negotiat','open to talks','framework','wind down'],boost:['plateau','stabiliz','exhaust','moderate']},
   6:  {must:['prolonged','no end','escalat','strait closed','new low','worst week','oil surge'],boost:['panic','sell-off','selloff','crash','plunge']},
@@ -3729,8 +3729,8 @@ const conflictKeywords = {
 
 // Keywords for tariff cycle phases
 const tariffKeywords = {
-  12: {must:['tariff deal','trade deal','tariff removed','tariff dropped','tariff paused','trade agreement'],boost:['new ath','rally','surge','record']},
-  8:  {must:['tariff discussion','tariff talk','trade talk','productive trade','negotiat tariff'],boost:['progress','framework','hopeful','optimis']},
+  12: {must:['tariff deal','trade deal','tariff removed','tariff dropped','tariff paused','trade agreement','tariff truce extended','tariff truce'],boost:['new ath','rally','surge','record','trump xi','summit']},
+  8:  {must:['tariff discussion','tariff talk','trade talk','productive trade','negotiat tariff','section 301','trade investigation','trade probe','trump xi meeting'],boost:['progress','framework','hopeful','optimis','renegotiat']},
   5:  {must:['tariff impact','tariff selloff','futures gap','market drop tariff','tariff fear'],boost:['gap down','plunge','crash','panic']},
   2:  {must:['new tariff','tariff announce','tariff hike','tariff increase','tariff threat','liberation day'],boost:['25%','50%','100%','reciprocal','retaliat']},
   1:  {must:['tariff signal','tariff hint','looking at tariff','trade war','tariff warning'],boost:['truth social','cryptic','big announcement']},
@@ -3791,7 +3791,7 @@ async function fetchHeadlines(){
   const errors = [];
 
   // Source 1: Google News RSS (most reliable free source)
-  const gnQueries = ['iran+war','iran+trump+deal','iran+ceasefire','oil+price+iran','tariff+trade+war'];
+  const gnQueries = ['iran+ceasefire+islamabad','iran+trump+deal+nuclear','iran+talks+vance','tariff+trade+deal+china','section+301+tariff+2026'];
   for(const q of gnQueries) {
     try {
       const gnUrl = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
@@ -4008,11 +4008,11 @@ const tariffSteps=[
   {step:9,name:"Futures Gap Up",desc:"Sunday 6PM: Futures open sharply higher on deal optimism. But gains fade into Monday open.",marker:"ES futures +1–2% at Sunday open, then fade by Mon 9:30AM",market:"Gap up that partially fills. Still volatile. Testing conviction.",timing:"Sunday 6PM (week 2)",buy:"Hold — don't chase"},
   {step:10,name:"Administration Reassurance",desc:"Monday: Treasury Secretary/officials appear on TV to reassure markets. 'Progress toward a deal.'",marker:"Bessent, Lutnick on CNBC/Fox Business. Optimistic tone.",market:"Stabilization. VIX starts declining. Bond yields normalize.",timing:"Mon (week 2)",buy:"Confidence building"},
   {step:11,name:"Slow Drip of Progress",desc:"2–4 weeks of various admin officials teasing progress. Market grinds higher on hope.",marker:"'Framework in place,' 'details being finalized,' advisor quotes",market:"Grinding higher. Shorts covering slowly. FOMO building.",timing:"Weeks 2–4",buy:"Hold long positions"},
-  {step:12,name:"Deal Announced → New ATH",desc:"Trade deal announced. Markets hit new record highs. Violent repricing as defensive positions unwind.",marker:"Official deal announcement. Trump victory lap. Photo ops.",market:"SPY gaps +2–4%. VIX crushed. New ATH within days.",timing:"Day tariff was supposed to go live",buy:"Take profits on the rip"},
-  {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Volatility is the feature, not the bug.",marker:"New country/sector targeted. 'We're looking at [X] very strongly.'",market:"Markets initially ignore, then the cycle restarts.",timing:"Weeks to months later",buy:"Reload cash. Wait for Step 5–7."},
+  {step:12,name:"Deal Announced → New ATH",desc:"US-China 10% tariff truce extended through Nov 10, 2026. Trump-Xi summit rescheduled for mid-May. Markets repriced on deal. New Section 301 investigations launched (Bangladesh, Cambodia, EU, India — 9 other countries) — next cycle already beginning for new targets.",marker:"US-China tariff truce locked. Trump-Xi summit mid-May. Section 301 probes on EU, India, others starting April 2026.",market:"SPY recovered from tariff lows. VIX compressed. New ATH attempts. Watch Section 301 targets for next cycle.",timing:"Now — Nov 2026 truce, new probes for next targets",buy:"Hold longs. Watch for Step 1 signals on EU/India."},
+  {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Section 301 probes on EU, India, Bangladesh, Cambodia + 9 others — public hearing Apr 28. Watch for new tariff announcements after hearing.",marker:"New country/sector targeted. USTR Section 301 public hearing April 28. 'Looking at EU very strongly.'",market:"Markets initially ignore, then the cycle restarts. Watch Friday sessions in late April–May.",timing:"April–May 2026 for new targets",buy:"Reload cash. Wait for Step 5–7 on new targets."},
 ];
 
-let currentTariffStep=0; // 0 = dormant — auto-detected by headline engine above
+let currentTariffStep=12; // US-China truce through Nov 2026; new Section 301 probes starting
 
 function renderTariffSteps(){
   currentTariffStep=detectTariffPhase();
