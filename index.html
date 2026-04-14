@@ -605,6 +605,11 @@
           <input id="key-marketaux" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://www.marketaux.com/account/dashboard" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
+        <div style="background:rgba(168,85,247,0.06);border-radius:6px;padding:10px;border:1px solid rgba(168,85,247,0.15)">
+          <label style="font-size:9px;color:rgba(168,85,247,0.8);display:block;margin-bottom:4px">Groq AI <span style="color:rgba(255,255,255,0.15)">— AI headline classification (free, fast)</span></label>
+          <input id="key-groq" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(168,85,247,0.2);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
+          <a href="https://console.groq.com/keys" target="_blank" style="font-size:8px;color:rgba(168,85,247,0.6);text-decoration:none">→ Get free key at console.groq.com</a>
+        </div>
       </div>
     </details>
 
@@ -1238,7 +1243,9 @@ function recalcScore(){
 
   // Weighted score: A×0.20 + B×0.35 + C×0.25 + D×0.20, scaled to 0-10
   const rawScore=clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20;
-  const total=rawScore*10;
+  // Contrarian headline boost: +0.5 or +1.0 when Groq detects >40%/>60% contrarian headlines
+  const boost=pulseState.contrarianBoost||0;
+  const total=Math.min(10, rawScore*10 + boost);
   // BUY gate: A + B + (C or D) must all be > 0.5
   const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
   const activeClusters=['A','B','C','D'].filter(c=>clusterMax[c]>0.5).length;
@@ -1257,7 +1264,8 @@ function recalcScore(){
   // Update cluster status row with colored badges (dimmed if inactive)
   if(clusterStatusEl){
     const badges=['A','B','C','D'].map(c=>`<span class="cluster-badge cluster-${c}" style="opacity:${clusterMax[c]>0.5?1:0.25}">${c}</span>`).join('');
-    clusterStatusEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;${badges}`;
+    const boostNote=boost>0?` &nbsp;<span style="color:#a855f7;font-size:9px">+${boost.toFixed(1)} AI boost (${pulseState.contrarianPct}% contrarian)</span>`:'';
+    clusterStatusEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;${badges}${boostNote}`;
   }
 
   // Regime-adjusted thresholds
@@ -1740,7 +1748,7 @@ function toggleAutoRefresh(){
 function saveApiKeys(){
   try{
     const keys={};
-    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux'].forEach(k=>{
+    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux','groq'].forEach(k=>{
       const el=document.getElementById('key-'+k);
       if(el&&el.value.trim()) keys[k]=el.value.trim();
     });
@@ -2768,7 +2776,7 @@ function propagateData(){
 (function loadSavedKeys(){
   try{
     const saved=JSON.parse(localStorage.getItem('contrarianApiKeys')||'{}');
-    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux'].forEach(k=>{
+    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux','groq'].forEach(k=>{
       const el=document.getElementById('key-'+k);
       if(el&&saved[k]) el.value=saved[k];
     });
@@ -3963,6 +3971,51 @@ function detectTariffPhase(){
 }
 
 // ===== MULTI-SOURCE HEADLINE FETCHER =====
+// ===== GROQ AI HEADLINE CLASSIFICATION =====
+let groqClassifications = []; // [{conflictStep,tariffStep,sentiment,contrarian,reasoning}, ...]
+
+async function classifyHeadlinesWithGroq(headlines, groqKey){
+  const top15 = headlines.slice(0, 15);
+  const numbered = top15.map((h, i) => `${i+1}. ${h.title}`).join('\n');
+  const systemPrompt = `You are a financial market analyst for a contrarian buy-signal dashboard. Classify each headline concisely. Return ONLY a JSON array with no extra text.`;
+  const userPrompt = `Classify each headline for a contrarian market timing dashboard.
+For each headline, return JSON with these exact fields:
+{
+  "conflictStep": (integer 1-10 mapping to Kobeissi conflict escalation cycle, or null),
+  "tariffStep": (integer 1-13 mapping to Kobeissi tariff/trade-war cycle, or null),
+  "sentiment": (float -1.0 to +1.0, financial market impact: -1=very bearish, +1=very bullish),
+  "contrarian": (boolean: true if this scares retail but is actually a buy signal for smart money),
+  "reasoning": (string: one sentence explaining your classification)
+}
+
+Return a JSON array — one object per headline in the same order. Headlines:
+${numbered}`;
+
+  const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+    body: JSON.stringify({
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0,
+      max_tokens: 2000,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]
+    })
+  });
+  if(!groqResp.ok) throw new Error('Groq HTTP ' + groqResp.status);
+  const data = await groqResp.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  // Extract JSON array — model may wrap in ```json``` fences
+  const jsonMatch = content.match(/\[[\s\S]*\]/);
+  if(!jsonMatch) throw new Error('No JSON array in Groq response');
+  const parsed = JSON.parse(jsonMatch[0]);
+  // Validate length — pad with nulls if model returned fewer entries
+  while(parsed.length < top15.length) parsed.push({conflictStep:null,tariffStep:null,sentiment:0,contrarian:false,reasoning:''});
+  return parsed.slice(0, top15.length);
+}
+
 async function fetchHeadlines(){
   const headlinesEl = document.getElementById('conflict-headlines');
   if(headlinesEl) headlinesEl.innerHTML='<div style="color:rgba(255,255,255,0.2);font-size:10px">Scanning multiple sources...</div>';
@@ -4084,6 +4137,41 @@ async function fetchHeadlines(){
   headlineSignals = allHeadlines.map(h=>h.title);
   allFetchedHeadlines = allHeadlines;
 
+  // ===== GROQ AI CLASSIFICATION =====
+  groqClassifications = [];
+  const groqKey = (document.getElementById('key-groq')||{}).value?.trim()||'';
+  let groqUsed = false;
+  if(groqKey && allHeadlines.length > 0){
+    try {
+      groqClassifications = await classifyHeadlinesWithGroq(allHeadlines, groqKey);
+      groqUsed = true;
+
+      // Override conflict/tariff step with AI votes (majority of non-null values)
+      const cVotes = groqClassifications.map(r=>r?.conflictStep).filter(v=>v!=null&&v>=1&&v<=10);
+      const tVotes = groqClassifications.map(r=>r?.tariffStep).filter(v=>v!=null&&v>=1&&v<=13);
+      if(cVotes.length > 0){
+        const cMode = cVotes.sort((a,b)=>cVotes.filter(v=>v===b).length-cVotes.filter(v=>v===a).length)[0];
+        currentConflictStep = Math.round(cMode);
+      }
+      if(tVotes.length > 0){
+        const tMode = tVotes.sort((a,b)=>tVotes.filter(v=>v===b).length-tVotes.filter(v=>v===a).length)[0];
+        currentTariffStep = Math.round(tMode);
+      }
+
+      // Contrarian headline boost: >60% contrarian → +1 to buy score
+      const contrarianCount = groqClassifications.filter(r=>r?.contrarian).length;
+      const pct = contrarianCount / groqClassifications.length;
+      pulseState.contrarianBoost = pct > 0.6 ? 1 : pct > 0.4 ? 0.5 : 0;
+      pulseState.contrarianPct = Math.round(pct * 100);
+    } catch(e) {
+      groqClassifications = [];
+      console.warn('[Groq]', e.message);
+    }
+  } else {
+    pulseState.contrarianBoost = 0;
+    pulseState.contrarianPct = null;
+  }
+
   // Classify and render in Conflict tab
   if(headlinesEl) {
     if(allHeadlines.length > 0) {
@@ -4095,13 +4183,24 @@ async function fetchHeadlines(){
         <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.04)">
           ${allHeadlines.length} headlines from ${Object.keys(srcBadges).length} sources (${srcSummary})${errors.length>0?' · <span style="color:rgba(239,68,68,0.4)">failed: '+errors.join(', ')+'</span>':''}
         </div>` +
-        allHeadlines.map(h => {
-          const cStep = matchKeywords(h.title.toLowerCase(), conflictKeywords);
-          const tStep = matchKeywords(h.title.toLowerCase(), tariffKeywords);
+        allHeadlines.map((h, idx) => {
+          const ai = groqClassifications[idx] || null;
+          // Step badge: prefer AI classification, fall back to keyword match
+          const cStep = ai?.conflictStep || matchKeywords(h.title.toLowerCase(), conflictKeywords);
+          const tStep = ai?.tariffStep   || matchKeywords(h.title.toLowerCase(), tariffKeywords);
           const step = cStep || tStep;
           const isConflict = !!cStep;
-          const isTariff = !!tStep && !cStep;
-          const stepBadge = step ? `<span style="padding:1px 6px;border-radius:3px;font-size:7px;font-weight:700;background:${step>=9?'rgba(34,197,94,0.15)':step>=7?'rgba(34,211,238,0.15)':'rgba(249,115,22,0.15)'};color:${step>=9?'#22c55e':step>=7?'#22d3ee':'#f97316'}">${isConflict?'C':'T'}-STEP ${step}</span>` : '';
+          const stepBadge = step ? `<span style="padding:1px 6px;border-radius:3px;font-size:7px;font-weight:700;background:${step>=9?'rgba(34,197,94,0.15)':step>=7?'rgba(34,211,238,0.15)':'rgba(249,115,22,0.15)'};color:${step>=9?'#22c55e':step>=7?'#22d3ee':'#f97316'}">${isConflict?'C':'T'}-STEP ${step}${ai?'✦':''}</span>` : '';
+          // AI badges
+          let aiBadges = '';
+          if(ai){
+            const sent = ai.sentiment;
+            const sentCol = sent < -0.3 ? '#ef4444' : sent > 0.3 ? '#22c55e' : '#94a3b8';
+            const sentStr = sent > 0 ? '+'+sent.toFixed(2) : sent.toFixed(2);
+            const tooltip = ai.reasoning ? ai.reasoning.replace(/"/g, '&quot;') : '';
+            aiBadges += `<span title="${tooltip}" style="cursor:help;padding:1px 5px;border-radius:3px;font-size:7px;font-weight:700;background:rgba(168,85,247,0.12);color:${sentCol};margin-left:3px">AI ${sentStr}</span>`;
+            if(ai.contrarian) aiBadges += `<span title="Smart money buy signal — retail fear = opportunity" style="cursor:help;padding:1px 5px;border-radius:3px;font-size:7px;font-weight:700;background:rgba(34,197,94,0.12);color:#22c55e;margin-left:3px">CONTRARIAN ✓</span>`;
+          }
           const srcIcon = h.src==='gnews'?'📰':h.src==='reddit'?'🔗':h.src==='finnhub'?'📊':h.src==='newsapi'?'📡':'📄';
           const age = Math.round((Date.now()/1000 - h.created) / 3600);
           const ageStr = age < 1 ? 'now' : age < 24 ? age+'h' : Math.round(age/24)+'d';
@@ -4110,7 +4209,7 @@ async function fetchHeadlines(){
             <div style="font-size:9px;flex-shrink:0;padding-top:1px">${srcIcon}</div>
             <div style="flex:1">
               <a href="${h.url}" target="_blank" rel="noopener" style="font-size:10px;color:rgba(255,255,255,0.55);text-decoration:none;line-height:1.35;display:block">${h.title}</a>
-              <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:1px">${h.domain} ${stepBadge}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:2px;display:flex;flex-wrap:wrap;gap:2px;align-items:center">${h.domain} ${stepBadge}${aiBadges}</div>
             </div>
           </div>`;
         }).join('');
