@@ -2644,10 +2644,10 @@ function propagateData(){
   }catch(e){}
 })();
 
-// Initial render
-renderManualInputs();
-renderPulseCards();
-recalcScore();
+// Initial render — wrapped in try/catch so a crash here cannot prevent tab setup
+try { renderManualInputs(); } catch(e) { console.error('[init] renderManualInputs:', e); }
+try { renderPulseCards(); } catch(e) { console.error('[init] renderPulseCards:', e); }
+try { recalcScore(); } catch(e) { console.error('[init] recalcScore:', e); }
 
 // ===== SHORT-TERM SIGNALS =====
 const volSpikeData = [
@@ -2878,7 +2878,7 @@ function updateShortTermSignals() {
   }
 }
 // Initial render
-updateShortTermSignals();
+try { updateShortTermSignals(); } catch(e) { console.error('[init] updateShortTermSignals:', e); }
 
 // ===== DATA =====
 const crisisData = [
