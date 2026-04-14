@@ -622,6 +622,7 @@
           <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">/ 10</div>
           <div id="score-label" style="font-size:11px;font-weight:700;color:var(--amber);margin-top:4px">WAITING FOR DATA</div>
           <div id="cluster-status" style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">-- / 4 clusters active</div>
+          <div id="regime-badge" style="display:none;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:0.3px"></div>
         </div>
         <div style="width:200px">
           <div style="height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden">
@@ -1259,12 +1260,31 @@ function recalcScore(){
     clusterStatusEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;${badges}`;
   }
 
-  if(total>=7&&buyGate){
-    scoreEl.style.color='#22c55e';barEl.style.background='#22c55e';labelEl.style.color='#22c55e';labelEl.textContent='STRONG CONTRARIAN BUY';
-  } else if(total>=5){
+  // Regime-adjusted thresholds
+  const regimeKey=classifyRegime();
+  const reg=REGIMES[regimeKey];
+  const buyThr=reg.threshold;
+  const approachThr=+(buyThr*0.70).toFixed(1);
+  const earlyThr=+(buyThr*0.43).toFixed(1);
+
+  // Update regime badge (below cluster-status)
+  const regimeBadgeEl=document.getElementById('regime-badge');
+  if(regimeBadgeEl){
+    if(reg.label){
+      regimeBadgeEl.style.display='block';
+      regimeBadgeEl.innerHTML=`<span style="color:${reg.color}">${reg.icon} ${reg.label}</span> <span style="color:rgba(255,255,255,0.35);font-weight:400">— buy at ${buyThr}/10</span>`;
+    } else {
+      regimeBadgeEl.style.display='none';
+    }
+  }
+
+  if(total>=buyThr&&buyGate){
+    scoreEl.style.color='#22c55e';barEl.style.background='#22c55e';labelEl.style.color='#22c55e';
+    labelEl.textContent=reg.label?`STRONG BUY — ${reg.label}`:'STRONG CONTRARIAN BUY';
+  } else if(total>=approachThr){
     scoreEl.style.color='#f59e0b';barEl.style.background='#f59e0b';labelEl.style.color='#f59e0b';
     labelEl.textContent=buyGate?'APPROACHING BUY ZONE':'APPROACHING — BUY GATE NOT MET';
-  } else if(total>=3){
+  } else if(total>=earlyThr){
     scoreEl.style.color='#f97316';barEl.style.background='#f97316';labelEl.style.color='#f97316';labelEl.textContent='EARLY SIGNALS — WAIT';
   } else {
     scoreEl.style.color='#94a3b8';barEl.style.background='#94a3b8';labelEl.style.color='#94a3b8';labelEl.textContent='NO BUY SIGNAL';
@@ -1382,6 +1402,47 @@ function renderRollingOverBanner(dirs){
   } else {
     el.style.display='none';
   }
+}
+
+// ===== REGIME CLASSIFIER =====
+// Regimes (checked in priority order): CREDIT_CRISIS → MECHANICAL_FLUSH → GEOPOLITICAL → FUNDAMENTAL_BEAR
+const REGIMES = {
+  CREDIT_CRISIS:    { threshold:8, color:'#ef4444', icon:'🔴', label:'CREDIT CRISIS',      desc:'System stress — needs Fed intervention. Buy threshold raised to 8.' },
+  MECHANICAL_FLUSH: { threshold:4, color:'#22d3ee', icon:'⚡', label:'MECHANICAL FLUSH',   desc:'No fundamental damage — V-shape recovery likely. Buy threshold lowered to 4.' },
+  GEOPOLITICAL:     { threshold:5, color:'#f59e0b', icon:'⚑', label:'GEOPOLITICAL SHOCK', desc:'Fast recovery expected. Buy threshold lowered to 5.' },
+  FUNDAMENTAL_BEAR: { threshold:7, color:'#f97316', icon:'🐻', label:'FUNDAMENTAL BEAR',   desc:'Slow recovery — wait for Fed pivot.' },
+  UNKNOWN:          { threshold:7, color:null,      icon:'',   label:null,                 desc:null },
+};
+
+function classifyRegime(){
+  const nfci      = pulseState.nfci;
+  const hy        = pulseState.hySpreads;
+  const ig        = parseFloat(pulseState.igSpreads)||0;
+  const vixDay    = pulseState.vixChange;            // % change VIX vs prev close
+  const oilDay    = pulseState.oilChange;            // % change oil vs prev close
+  const volRatio  = (pulseState.spyVol&&pulseState.spy20dAvgVol)
+                    ? pulseState.spyVol/pulseState.spy20dAvgVol : null;
+  const drawdown  = pulseState.spyPctFromATH;
+  const unempl    = pulseState.unemployment;
+  const creditOk  = hy===null||hy<400;
+
+  // CREDIT_CRISIS — systemic stress, most dangerous, check first
+  if(nfci!==null&&nfci>0.5 && hy!==null&&hy>500 && ig>150)
+    return 'CREDIT_CRISIS';
+
+  // MECHANICAL_FLUSH — VIX spiked >50% intraday, vol huge, credit fine
+  if(vixDay!==null&&vixDay>50 && volRatio!==null&&volRatio>2.5 && creditOk)
+    return 'MECHANICAL_FLUSH';
+
+  // GEOPOLITICAL — oil shocked >15%, credit still fine (war/supply shock)
+  if(oilDay!==null&&oilDay>15 && creditOk && (nfci===null||nfci<0.3))
+    return 'GEOPOLITICAL';
+
+  // FUNDAMENTAL_BEAR — deep drawdown + macro deterioration
+  if(drawdown!==null&&drawdown>15 && unempl!==null&&unempl>4.5)
+    return 'FUNDAMENTAL_BEAR';
+
+  return 'UNKNOWN';
 }
 
 // Global timeout helper for fetch calls
