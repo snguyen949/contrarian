@@ -420,6 +420,33 @@
   .dir-arrow { font-size:13px; font-weight:900; margin-right:2px; }
   .rolling-banner { display:none; align-items:center; gap:10px; padding:12px 18px; background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,211,238,0.06)); border:1px solid rgba(34,197,94,0.35); border-radius:10px; margin-bottom:16px; font-size:12px; font-weight:800; color:#22c55e; letter-spacing:0.5px; animation:banner-glow 2s ease-in-out infinite; }
 
+  /* ===== ACTION CARD ===== */
+  .action-card { border-radius:14px; padding:24px; margin-top:20px; border:1px solid transparent; transition:background 0.6s ease, border-color 0.6s ease; }
+  .action-card.score-low  { background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(249,115,22,0.05)); border-color:rgba(239,68,68,0.2); }
+  .action-card.score-mid  { background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(249,115,22,0.05)); border-color:rgba(245,158,11,0.25); }
+  .action-card.score-high { background:linear-gradient(135deg,rgba(34,197,94,0.10),rgba(34,211,238,0.05)); border-color:rgba(34,197,94,0.30); }
+  [data-theme="light"] .action-card.score-low  { background:rgba(239,68,68,0.05); border-color:rgba(239,68,68,0.25); }
+  [data-theme="light"] .action-card.score-mid  { background:rgba(245,158,11,0.06); border-color:rgba(245,158,11,0.3); }
+  [data-theme="light"] .action-card.score-high { background:rgba(34,197,94,0.07); border-color:rgba(34,197,94,0.35); }
+  .ac-move { font-size:36px; font-weight:900; letter-spacing:2px; font-family:var(--sans); line-height:1; }
+  .ac-section-title { font-size:8px; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,0.3); margin-bottom:6px; font-weight:700; }
+  [data-theme="light"] .ac-section-title { color:rgba(0,0,0,0.35); }
+  .ac-cluster-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .ac-cluster-pip { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; }
+  .ac-pip-on  { background:rgba(34,197,94,0.15); color:#22c55e; }
+  .ac-pip-off { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.3); }
+  [data-theme="light"] .ac-pip-off { background:rgba(0,0,0,0.06); color:rgba(0,0,0,0.3); }
+  .ac-bullet { font-size:11px; color:rgba(255,255,255,0.55); line-height:1.6; padding:2px 0; display:flex; gap:8px; }
+  [data-theme="light"] .ac-bullet { color:rgba(0,0,0,0.6); }
+  .ac-bullet-dot { color:rgba(255,255,255,0.2); flex-shrink:0; }
+  [data-theme="light"] .ac-bullet-dot { color:rgba(0,0,0,0.25); }
+  .ac-trade-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:8px; }
+  .ac-trade-cell { background:rgba(0,0,0,0.2); border-radius:8px; padding:10px 12px; }
+  [data-theme="light"] .ac-trade-cell { background:rgba(0,0,0,0.04); }
+  .ac-trade-lbl { font-size:8px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.25); margin-bottom:3px; }
+  [data-theme="light"] .ac-trade-lbl { color:rgba(0,0,0,0.3); }
+  .ac-trade-val { font-size:16px; font-weight:800; font-family:var(--mono); }
+
   /* ===== HERO BANNER ===== */
   #hero-banner {
     position: sticky; top: 0; z-index: 100;
@@ -782,6 +809,9 @@
         <div id="momentum-signals"></div>
       </div>
     </div>
+
+    <!-- Action Card -->
+    <div id="action-card" class="action-card score-low"></div>
   </div>
 
   <!-- ============ SENTIMENT TAB ============ -->
@@ -1433,6 +1463,7 @@ function recalcScore(){
 
   renderPulseCards();
   updateHeroBanner();
+  updateActionCard();
 }
 
 // ===== DIRECTION-AWARE SIGNAL DETECTION =====
@@ -1477,6 +1508,198 @@ function renderRollingOverBanner(dirs){
   } else {
     el.style.display='none';
   }
+}
+
+// ===== ACTION CARD =====
+function updateActionCard(){
+  const el=document.getElementById('action-card');
+  if(!el) return;
+
+  // Recompute cluster state (cheap — just calls each signal.score())
+  const clusterMax={A:0,B:0,C:0,D:0};
+  signals.forEach(s=>{
+    const sc=Math.min(1,s.score());
+    if(s.cluster&&clusterMax[s.cluster]!==undefined&&sc>clusterMax[s.cluster]) clusterMax[s.cluster]=sc;
+  });
+  const rawScore=clusterMax.A*0.20+clusterMax.B*0.35+clusterMax.C*0.25+clusterMax.D*0.20;
+  const boost=pulseState.contrarianBoost||0;
+  const total=Math.min(10,rawScore*10+boost);
+  const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
+  const regKey=classifyRegime();
+  const reg=REGIMES[regKey];
+  const buyThr=reg.threshold;
+  const approachThr=+(buyThr*0.70).toFixed(1);
+
+  // YOUR MOVE
+  let move,moveColor;
+  if(total>=buyThr&&buyGate){ move='BUY NOW'; moveColor='#22c55e'; }
+  else if(total>=approachThr||buyGate){ move='SCALE IN'; moveColor='#f59e0b'; }
+  else { move='WAIT'; moveColor='#94a3b8'; }
+
+  // Card gradient class
+  el.className='action-card '+(total>=7?'score-high':total>=4?'score-mid':'score-low');
+
+  // CLUSTER BREAKDOWN
+  const clusterNames={A:'Fear',B:'Vol',C:'Flow',D:'Credit'};
+  const pipHTML=Object.entries(clusterNames).map(([k,name])=>{
+    const on=clusterMax[k]>0.5;
+    return `<span class="ac-cluster-pip ${on?'ac-pip-on':'ac-pip-off'}">${on?'✓':'✗'} ${name} <span style="font-size:9px;opacity:0.7">${(clusterMax[k]*100).toFixed(0)}%</span></span>`;
+  }).join('');
+
+  // MISSING SIGNALS — per cluster, find gap and describe what's needed
+  const missing=[];
+  const SIGNAL_GAPS=[
+    {id:'vixTermStructure', cluster:'B', fn:()=>{
+      const r=pulseState.vixRatio;
+      if(r===null||r===undefined) return 'VIX/VIX3M — fetch data';
+      if(r>=1.0) return null;
+      return `VIX/VIX3M cross 1.0 (now ${r.toFixed(3)}, gap ${((1.0-r)/r*100).toFixed(1)}%)`;
+    }},
+    {id:'cnnFG', cluster:'A', fn:()=>{
+      const v=pulseState.cnnFG;
+      if(v===null||v===undefined) return null;
+      if(v<=14) return null;
+      return `CNN F&G drop below ${v<=25?'14':'25'} (now ${v})`;
+    }},
+    {id:'vix', cluster:'B', fn:()=>{
+      const v=pulseState.vix;
+      if(!v||v>=35) return null;
+      return `VIX spike above 35 (now ${v.toFixed(1)})`;
+    }},
+    {id:'aaii', cluster:'A', fn:()=>{
+      const v=pulseState.aaiiBear;
+      if(v===null||v===undefined||v>=45) return null;
+      return `AAII bears rise above 45% (now ${v?.toFixed?v.toFixed(0):v}%)`;
+    }},
+    {id:'nfci', cluster:'D', fn:()=>{
+      const v=pulseState.nfci;
+      if(v===null||v===undefined||v>=0.1) return null;
+      return `NFCI rise above 0 (now ${v.toFixed(2)} — credit still loose)`;
+    }},
+    {id:'hySpreads', cluster:'D', fn:()=>{
+      const v=pulseState.hySpreads;
+      if(!v||v>=400) return null;
+      return `HY spreads widen above 400 bps (now ${Math.round(v)} bps)`;
+    }},
+    {id:'putcall', cluster:'C', fn:()=>{
+      const v=pulseState.putCallRatio;
+      if(!v) return 'Put/Call ratio — enter manually (cboe.com)';
+      if(v>=0.95) return null;
+      return `Put/Call rise above 0.95 (now ${v.toFixed(2)})`;
+    }},
+    {id:'naaim', cluster:'C', fn:()=>{
+      const v=pulseState.naaimExposure;
+      if(v===null||v===undefined||v<=60) return null;
+      return `NAAIM exposure drop below 60 (now ${v})`;
+    }},
+    {id:'spyDrawdown', cluster:'D', fn:()=>{
+      const v=pulseState.spyPctFromATH;
+      if(v===null||v===undefined||v>=10) return null;
+      return `SPY pull back ≥10% from ATH (now ${v.toFixed(1)}%)`;
+    }},
+  ];
+
+  // Only show gaps for clusters that aren't yet firing
+  SIGNAL_GAPS.forEach(sg=>{
+    if(clusterMax[sg.cluster]>0.5) return; // cluster already firing
+    const gap=sg.fn();
+    if(gap) missing.push(gap);
+  });
+
+  // NEXT TRIGGER — signal with highest marginal score impact if it fires
+  let nextTrigger='';
+  const candidates=[];
+  signals.forEach(s=>{
+    const sc=Math.min(1,s.score());
+    if(sc>=0.75) return; // already firing well
+    const clusterWeight={A:0.20,B:0.35,C:0.25,D:0.20}[s.cluster]||0;
+    const marginalGain=(1.0-sc)*clusterWeight*10;
+    candidates.push({name:s.name,cluster:s.cluster,sc,marginalGain,thresh:s.threshold});
+  });
+  candidates.sort((a,b)=>b.marginalGain-a.marginalGain);
+  if(candidates[0]){
+    const c=candidates[0];
+    const clusterWeight={A:0.20,B:0.35,C:0.25,D:0.20}[c.cluster]||0;
+    nextTrigger=`${c.name} fires (${c.thresh}) → +${(clusterWeight*10).toFixed(1)} pts max to score`;
+  }
+
+  // IF BUYING NOW — entry/stop/target
+  let tradeHTML='<div style="font-size:10px;color:rgba(255,255,255,0.3)">Fetch SPY price to see trade levels.</div>';
+  if(pulseState.spyPrice){
+    const entry=pulseState.spyPrice;
+    const stopPct=0.06;
+    const stop=entry*(1-stopPct);
+    const ath=698; // SPY ATH used across the app
+    const target1=Math.max(ath,entry*1.10);
+    const target2=entry*1.18;
+    const rr1=((target1-entry)/(entry-stop)).toFixed(1);
+    const rr2=((target2-entry)/(entry-stop)).toFixed(1);
+    tradeHTML=`<div class="ac-trade-grid">
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Entry (market)</div>
+        <div class="ac-trade-val" style="color:var(--cyan)">$${entry.toFixed(2)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">current SPY</div>
+      </div>
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Stop Loss</div>
+        <div class="ac-trade-val" style="color:#ef4444">$${stop.toFixed(2)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">-${(stopPct*100).toFixed(0)}% max risk</div>
+      </div>
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Target 1 — ATH retest</div>
+        <div class="ac-trade-val" style="color:#22c55e">$${target1.toFixed(0)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">+${((target1/entry-1)*100).toFixed(1)}% · R/R ${rr1}:1</div>
+      </div>
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Target 2 — full recovery</div>
+        <div class="ac-trade-val" style="color:#22c55e">$${target2.toFixed(0)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">+${((target2/entry-1)*100).toFixed(1)}% · R/R ${rr2}:1</div>
+      </div>
+    </div>`;
+  }
+
+  const missingHTML=missing.length
+    ? missing.slice(0,4).map(m=>`<div class="ac-bullet"><span class="ac-bullet-dot">▸</span>${m}</div>`).join('')
+    : `<div class="ac-bullet"><span class="ac-bullet-dot">✓</span><span style="color:#22c55e">All key thresholds met — buy gate ${buyGate?'<strong>open</strong>':'needs more cluster confirmation'}</span></div>`;
+
+  el.innerHTML=`
+    <!-- YOUR MOVE -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35)">Your Move:</span>
+      <span class="ac-move" style="color:${moveColor}">${move}</span>
+      ${reg.label?`<span style="font-size:10px;padding:3px 10px;border-radius:20px;background:${reg.color}22;color:${reg.color};font-weight:700;border:1px solid ${reg.color}44">${reg.icon} ${reg.label} — buy at ${buyThr}/10</span>`:''}
+    </div>
+
+    <!-- SCORE + CLUSTERS -->
+    <div style="margin-bottom:18px">
+      <div class="ac-section-title">Score &amp; Cluster Status</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:22px;font-weight:800;font-family:var(--mono);color:${moveColor}">${total.toFixed(1)}<span style="font-size:13px;color:rgba(255,255,255,0.3)">/10</span></span>
+        <div class="ac-cluster-row">${pipHTML}</div>
+        ${boost>0?`<span style="font-size:9px;color:#a855f7;font-weight:700">+${boost.toFixed(1)} AI</span>`:''}
+      </div>
+    </div>
+
+    <!-- MISSING SIGNALS -->
+    <div style="margin-bottom:18px">
+      <div class="ac-section-title">Missing Signals</div>
+      ${missingHTML}
+    </div>
+
+    <!-- NEXT TRIGGER -->
+    <div style="margin-bottom:18px">
+      <div class="ac-section-title">Highest-Impact Next Trigger</div>
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${moveColor}">
+        ${nextTrigger||'All major signals firing — monitor for regime change'}
+      </div>
+    </div>
+
+    <!-- IF BUYING NOW -->
+    <div>
+      <div class="ac-section-title">If Buying Now — SPY Trade Levels</div>
+      ${tradeHTML}
+      <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:8px;line-height:1.5">Not financial advice. Stop based on 6% max risk. Targets based on prior ATH retest and 18% historical crisis recovery.</div>
+    </div>`;
 }
 
 // ===== HERO BANNER =====
@@ -2918,6 +3141,7 @@ function propagateData(){
   }
 
   updateHeroBanner();
+  updateActionCard();
 }
 
 // Restore saved API keys from localStorage
