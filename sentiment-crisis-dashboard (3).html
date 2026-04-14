@@ -2141,10 +2141,10 @@ const crisisData = [
   { id:"iran", name:"Iran War", date:"Mar 2026", fearGreed:20, vixPeak:27.7, spyBottom:656, drawdown:6.0, aaiiBearish:45, catalyst:"US-Israel strikes on Iran, oil shock, Strait of Hormuz closure", resolution:"No resolution — Strait of Hormuz closed, oil $98+", timeToATH:"TBD", contrariansRight:null, oilContext:"Oil surging $98+ (Brent $112), Strait of Hormuz closed", fedResponse:"Trapped — stagflation risk, rates on hold", laborMarket:"Cracking — payrolls -92K, UE 4.4%", formerATH:590, retestLevel:null }
 ];
 
-const fearColor = v => v<=10?'#ef4444':v<=25?'#f97316':v<=40?'#f59e0b':'#22c55e';
-const vixColor = v => v>=60?'#ef4444':v>=35?'#f97316':v>=25?'#f59e0b':'#22c55e';
-const ddColor = v => v>=25?'#ef4444':v>=15?'#f97316':v>=8?'#f59e0b':'#22c55e';
-const aaiiColor = v => v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e';
+function fearColor(v){ return v<=10?'#ef4444':v<=25?'#f97316':v<=40?'#f59e0b':'#22c55e'; }
+function vixColor(v){ return v>=60?'#ef4444':v>=35?'#f97316':v>=25?'#f59e0b':'#22c55e'; }
+function ddColor(v){ return v>=25?'#ef4444':v>=15?'#f97316':v>=8?'#f59e0b':'#22c55e'; }
+function aaiiColor(v){ return v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e'; }
 
 // ===== TABS =====
 document.querySelectorAll('.tab-btn').forEach(btn => {
