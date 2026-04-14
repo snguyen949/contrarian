@@ -420,6 +420,15 @@
   .dir-arrow { font-size:13px; font-weight:900; margin-right:2px; }
   .rolling-banner { display:none; align-items:center; gap:10px; padding:12px 18px; background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,211,238,0.06)); border:1px solid rgba(34,197,94,0.35); border-radius:10px; margin-bottom:16px; font-size:12px; font-weight:800; color:#22c55e; letter-spacing:0.5px; animation:banner-glow 2s ease-in-out infinite; }
 
+  /* ===== WHAT CHANGED ===== */
+  .wc-row { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:11px; }
+  .wc-row:last-child { border-bottom:none; }
+  .wc-label { color:rgba(255,255,255,0.35); font-family:var(--mono); font-size:10px; white-space:nowrap; flex-shrink:0; }
+  .wc-change { font-family:var(--mono); font-weight:700; text-align:right; }
+  .wc-big { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(239,68,68,0.18); color:#ef4444; border:1px solid rgba(239,68,68,0.3); vertical-align:middle; animation:banner-glow 1.5s ease-in-out infinite; }
+  [data-theme="light"] .wc-row { border-color:rgba(0,0,0,0.07); }
+  [data-theme="light"] .wc-label { color:rgba(0,0,0,0.4); }
+
   /* ===== ACTION CARD ===== */
   .action-card { border-radius:14px; padding:24px; margin-top:20px; border:1px solid transparent; transition:background 0.6s ease, border-color 0.6s ease; }
   .action-card.score-low  { background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(249,115,22,0.05)); border-color:rgba(239,68,68,0.2); }
@@ -658,6 +667,17 @@
 
     <!-- Fetch log (appears after fetch) -->
     <div id="fetch-log" style="margin-bottom:16px"></div>
+
+    <!-- What Changed (hidden until second fetch) -->
+    <div id="what-changed-panel" style="display:none;margin-bottom:16px">
+      <div class="panel" style="border-color:rgba(34,211,238,0.18);background:linear-gradient(135deg,rgba(34,211,238,0.03),rgba(168,85,247,0.02))">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="panel-title" style="margin:0">What Changed</div>
+          <div id="wc-timestamps" style="font-size:9px;color:rgba(255,255,255,0.22);font-family:var(--mono)"></div>
+        </div>
+        <div id="wc-rows"></div>
+      </div>
+    </div>
 
     <!-- API Keys (collapsed) -->
     <details open style="margin-bottom:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;cursor:pointer">
@@ -2134,6 +2154,8 @@ async function fetchAllData(){
   status.textContent='Connecting to free APIs...';
   const log=[];
   const SPY_ATH=698;
+  // Capture pre-fetch state so we can diff after
+  const _preSnap=prevFetchSnapshot;
   // PROXIES, PROXY_NAMES, workingProxy are at outer scope (shared with fetchYahooHistory)
 
   async function yahooChart(ticker,range='1mo',interval='1d'){
@@ -2754,9 +2776,141 @@ async function fetchAllData(){
   // Save daily snapshot to 30-day history
   captureSnapshot();
 
+  // What Changed — compare previous fetch vs current state
+  const _postSnap=snapshotForDiff();
+  if(_preSnap!==null) renderWhatChanged(_preSnap, _postSnap);
+  prevFetchSnapshot=_postSnap;
+
   // Fetch headlines for conflict phase detection (async, non-blocking)
   fetchConflictHeadlines().catch(()=>{});
   isFetching=false;
+}
+
+// ===== WHAT CHANGED =====
+let prevFetchSnapshot = null;
+
+function snapshotForDiff(){
+  return {
+    ts:             Date.now(),
+    spyPrice:       pulseState.spyPrice       ?? null,
+    qqqPrice:       pulseState.qqqPrice       ?? null,
+    vix:            pulseState.vix            ?? null,
+    vixRatio:       pulseState.vixRatio       ?? null,
+    cnnFG:          pulseState.cnnFG          ?? null,
+    cryptoFG:       pulseState.cryptoFG       ?? null,
+    nfci:           pulseState.nfci           ?? null,
+    hySpreads:      pulseState.hySpreads      ?? null,
+    tnx:            pulseState.tnx            ?? null,
+    aaiiBull:       pulseState.aaiiBull       ?? null,
+    aaiiBear:       pulseState.aaiiBear       ?? null,
+    putCallRatio:   pulseState.putCallRatio   ?? null,
+    naaimExposure:  pulseState.naaimExposure  ?? null,
+    btcPrice:       pulseState.btcPrice       ?? null,
+    oilPrice:       pulseState.oilPrice       ?? null,
+    goldPrice:      pulseState.goldPrice      ?? null,
+    conflictStep:   (typeof currentConflictStep!=='undefined')?currentConflictStep:null,
+    tariffStep:     (typeof currentTariffStep  !=='undefined')?currentTariffStep  :null,
+  };
+}
+
+function renderWhatChanged(prev, curr){
+  const panel=document.getElementById('what-changed-panel');
+  const rowsEl=document.getElementById('wc-rows');
+  const tsEl=document.getElementById('wc-timestamps');
+  if(!panel||!rowsEl) return;
+
+  const fmtTs=ts=>{
+    const d=new Date(ts);
+    return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  };
+  if(tsEl) tsEl.textContent=fmtTs(prev.ts)+' → '+fmtTs(curr.ts);
+
+  // Field config: key, label, display format, bullish direction, threshold
+  const FIELDS=[
+    {k:'spyPrice',     lb:'SPY',         fmt:'$f2',  bull:'up',   thr:{pct:2}},
+    {k:'qqqPrice',     lb:'QQQ',         fmt:'$f2',  bull:'up',   thr:{pct:2}},
+    {k:'vix',          lb:'VIX',         fmt:'f2',   bull:'down', thr:{pts:1}},
+    {k:'vixRatio',     lb:'VIX/VIX3M',   fmt:'f3',   bull:'down', thr:{pts:0.02}},
+    {k:'cnnFG',        lb:'CNN F&G',     fmt:'i',    bull:'up',   thr:{pts:1}},
+    {k:'cryptoFG',     lb:'Crypto F&G',  fmt:'i',    bull:'up',   thr:{pts:1}},
+    {k:'nfci',         lb:'NFCI',        fmt:'f2',   bull:'down', thr:{pts:0.05}},
+    {k:'hySpreads',    lb:'HY Spreads',  fmt:'i',    bull:'down', thr:{pts:5}},
+    {k:'tnx',          lb:'10Y Yield',   fmt:'f2pct',bull:'down', thr:{pts:0.05}},
+    {k:'aaiiBull',     lb:'AAII Bull %', fmt:'i',    bull:'up',   thr:{pts:1}},
+    {k:'aaiiBear',     lb:'AAII Bear %', fmt:'i',    bull:'down', thr:{pts:1}},
+    {k:'putCallRatio', lb:'Put/Call',    fmt:'f2',   bull:'down', thr:{pts:0.02}},
+    {k:'naaimExposure',lb:'NAAIM',       fmt:'i',    bull:'up',   thr:{pts:2}},
+    {k:'btcPrice',     lb:'BTC',         fmt:'$int', bull:'up',   thr:{pct:2}},
+    {k:'oilPrice',     lb:'Oil (WTI)',   fmt:'$f2',  bull:null,   thr:{pct:2}},
+    {k:'goldPrice',    lb:'Gold',        fmt:'$int', bull:null,   thr:{pct:2}},
+  ];
+
+  function fmtV(v,fmt){
+    if(v===null||v===undefined||isNaN(v)) return '??';
+    if(fmt==='$f2')   return '$'+v.toFixed(2);
+    if(fmt==='$int')  return '$'+Math.round(v).toLocaleString();
+    if(fmt==='f2')    return v.toFixed(2);
+    if(fmt==='f3')    return v.toFixed(3);
+    if(fmt==='f2pct') return v.toFixed(2)+'%';
+    if(fmt==='i')     return Math.round(v).toString();
+    return String(v);
+  }
+
+  function fmtDelta(delta, fmt, pct){
+    const sign=delta>0?'+':'';
+    if(pct!==null) return `(${sign}${pct.toFixed(1)}%)`;
+    if(fmt==='i')    return `(${sign}${Math.round(delta)})`;
+    if(fmt==='f3')   return `(${sign}${delta.toFixed(3)})`;
+    if(fmt==='f2pct')return `(${sign}${delta.toFixed(2)}pp)`;
+    return `(${sign}${delta.toFixed(2)})`;
+  }
+
+  const rows=[];
+  for(const f of FIELDS){
+    const p=prev[f.k], c=curr[f.k];
+    if(p===null||p===undefined||c===null||c===undefined||isNaN(p)||isNaN(c)) continue;
+    const delta=c-p;
+    if(delta===0) continue;
+    const absDelta=Math.abs(delta);
+    let pctChg=null, passes=false;
+    if(f.thr.pct){
+      pctChg=Math.abs(p)>0?delta/Math.abs(p)*100:0;
+      passes=Math.abs(pctChg)>=f.thr.pct;
+    } else {
+      passes=absDelta>=f.thr.pts;
+    }
+    if(!passes) continue;
+    const bigMove=pctChg!==null&&Math.abs(pctChg)>=5;
+    const up=delta>0;
+    let color='rgba(255,255,255,0.5)';
+    if(f.bull==='up')   color=up?'#22c55e':'#ef4444';
+    if(f.bull==='down') color=up?'#ef4444':'#22c55e';
+    const arrow=up?'↑':'↓';
+    rows.push({f,p,c,delta,pctChg,bigMove,color,arrow,chgStr:fmtDelta(delta,f.fmt,pctChg)});
+  }
+
+  // Step changes — always shown if changed
+  for(const [k,lb] of [['conflictStep','Conflict Step'],['tariffStep','Tariff Step']]){
+    const p=prev[k], c=curr[k];
+    if(p===null||c===null||p===c) continue;
+    const up=c>p;
+    // Higher conflict/tariff step = more escalation = bad for markets
+    const color=up?'#ef4444':'#22c55e';
+    rows.push({step:true,lb,p,c,color,arrow:up?'↑':'↓',bigMove:false});
+  }
+
+  if(rows.length===0){
+    rowsEl.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;padding:6px 0">No significant changes since last fetch</div>';
+  } else {
+    rowsEl.innerHTML=rows.map(r=>{
+      if(r.step){
+        return `<div class="wc-row"><span class="wc-label">${r.lb}</span><span class="wc-change" style="color:${r.color}">${r.p} → ${r.c} ← STEP CHANGE ${r.arrow}</span></div>`;
+      }
+      const bigBadge=r.bigMove?` <span class="wc-big">BIG MOVE</span>`:'';
+      return `<div class="wc-row"><span class="wc-label">${r.f.lb}</span><span class="wc-change" style="color:${r.color}">${fmtV(r.p,r.f.fmt)} → ${fmtV(r.c,r.f.fmt)} ${r.chgStr} ${r.arrow}${bigBadge}</span></div>`;
+    }).join('');
+  }
+  panel.style.display='block';
 }
 
 // ===== 30-DAY HISTORY TRACKING =====
