@@ -1639,21 +1639,52 @@ function updateActionCard(){
     if(gap) missing.push(gap);
   });
 
-  // NEXT TRIGGER — signal with highest marginal score impact if it fires
-  let nextTrigger='';
+  // NEXT TRIGGER — highest-marginal-gain signal + regime-specific narrative catalyst
+  let nextTrigger='', nextTriggerCatalyst='';
   const candidates=[];
   signals.forEach(s=>{
     const sc=Math.min(1,s.score());
-    if(sc>=0.75) return; // already firing well
+    if(sc>=0.75) return;
     const clusterWeight={A:0.20,B:0.35,C:0.25,D:0.20}[s.cluster]||0;
     const marginalGain=(1.0-sc)*clusterWeight*10;
-    candidates.push({name:s.name,cluster:s.cluster,sc,marginalGain,thresh:s.threshold});
+    candidates.push({id:s.id,name:s.name,cluster:s.cluster,sc,marginalGain,thresh:s.threshold});
   });
   candidates.sort((a,b)=>b.marginalGain-a.marginalGain);
   if(candidates[0]){
     const c=candidates[0];
-    const clusterWeight={A:0.20,B:0.35,C:0.25,D:0.20}[c.cluster]||0;
-    nextTrigger=`${c.name} fires (${c.thresh}) → +${(clusterWeight*10).toFixed(1)} pts max to score`;
+    const pts=c.marginalGain.toFixed(1);
+    const SIGNAL_NARRATIVES={
+      vixTermStructure:`VIX crosses above VIX3M → backwardation → vol-targeting funds forced to de-risk → squeeze fuel fully loaded → +${pts} pts`,
+      vix:            `Panic spike drives VIX ≥ 35 → institutions cover shorts on first green day → short-covering cascade → +${pts} pts`,
+      skew:           `SKEW drops below 120 → options market stops pricing further tail risk → fear exhausting at extremes → +${pts} pts`,
+      cnnFG:          `Mass retail panic → CNN F&G ≤ 14 → historically 80%+ positive 3-month returns from this zone → +${pts} pts`,
+      cryptoFG:       `Crypto capitulation → F&G ≤ 10 → risk-off sentiment at peak → crypto historically leads equity recovery → +${pts} pts`,
+      aaii:           `Weekly survey hits bears ≥ 50% → historically the strongest contrarian 6-month return predictor → +${pts} pts`,
+      stockTwits:     `Retail panic: 65%+ bearish posts → crowded short → single positive catalyst triggers violent squeeze → +${pts} pts`,
+      nfci:           `Financial conditions tighten → NFCI > 0 → Fed forced to accelerate pivot timeline → +${pts} pts`,
+      hySpreads:      `HY spreads blow out ≥ 500 bps → systemic stress forces Fed backstop or emergency cut → +${pts} pts`,
+      igSpreads:      `IG spreads join the selloff ≥ 150 bps → full credit seizure → Fed forced to act immediately → +${pts} pts`,
+      yieldCurve:     `Curve deeply inverted → recession probability spikes → Fed forced to cut → eventual violent re-leveraging rally → +${pts} pts`,
+      spyDrawdown:    `SPY falls ≥ 10% from ATH → risk-parity + vol-targeting systematic de-risk → forced flush creates low-risk entry → +${pts} pts`,
+      putcall:        `Put rush drives CBOE ratio ≥ 1.2 → maximum fear hedging → historically 80%+ positive next 30 days → +${pts} pts`,
+      naaim:          `Active managers liquidate → NAAIM ≤ 40 → professional money fully de-risked → smart money entry window opens → +${pts} pts`,
+      moneyMarket:    `Cash on sidelines exceeds $6T → dry powder at record → first risk-on catalyst triggers massive inflow → +${pts} pts`,
+      spyVolSpike:    `Panic liquidation 2x+ avg volume → Coulling accumulation pattern → smart money absorbs retail panic selling → +${pts} pts`,
+    };
+    nextTrigger=SIGNAL_NARRATIVES[c.id]||`${c.name} reaches ${c.thresh} → +${pts} pts to score`;
+
+    // Regime-specific macro catalyst (the real-world event to watch for)
+    const cStep=typeof currentConflictStep!=='undefined'?currentConflictStep:null;
+    const REGIME_CATALYST={
+      CREDIT_CRISIS:    `Watch for: Fed emergency action (emergency cut · QE · bank backstop) — that's the all-clear`,
+      MECHANICAL_FLUSH: `Watch for: Any positive catalyst (trade deal, ceasefire, Fed comment) → vol crush → mechanical squeeze. No fundamental fix needed.`,
+      GEOPOLITICAL:     cStep!==null&&cStep>=8
+        ? `Watch for: Ceasefire/peace talks headline → oil collapses $10-20 → inflation scare evaporates → Step ${cStep}→10 → squeeze probability 70%+`
+        : `Watch for: De-escalation headline → war risk premium unwinds → geopolitical discount closes fast`,
+      FUNDAMENTAL_BEAR: `Watch for: Fed pivot signal (pause in hikes · rate cut · QE restart) → growth-at-risk trade unwinds → relief rally`,
+      UNKNOWN:          `Watch for: Vol spike on negative macro headline → institutions forced to de-risk → capitulation creates entry`,
+    };
+    nextTriggerCatalyst=REGIME_CATALYST[regKey]||'';
   }
 
   // IF BUYING NOW — entry/stop/target
@@ -1724,6 +1755,7 @@ function updateActionCard(){
       <div class="ac-section-title">Highest-Impact Next Trigger</div>
       <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${moveColor}">
         ${nextTrigger||'All major signals firing — monitor for regime change'}
+        ${nextTriggerCatalyst?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);font-size:10px;font-weight:600;color:rgba(255,255,255,0.45);letter-spacing:0.2px">${nextTriggerCatalyst}</div>`:''}
       </div>
     </div>
 
