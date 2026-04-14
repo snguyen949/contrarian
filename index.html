@@ -420,6 +420,19 @@
   .dir-arrow { font-size:13px; font-weight:900; margin-right:2px; }
   .rolling-banner { display:none; align-items:center; gap:10px; padding:12px 18px; background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,211,238,0.06)); border:1px solid rgba(34,197,94,0.35); border-radius:10px; margin-bottom:16px; font-size:12px; font-weight:800; color:#22c55e; letter-spacing:0.5px; animation:banner-glow 2s ease-in-out infinite; }
 
+  /* ===== AUTO-REFRESH PILLS ===== */
+  .ar-pills { display:flex; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; flex-shrink:0; }
+  .ar-pill { background:transparent; border:none; border-right:1px solid rgba(255,255,255,0.12); padding:5px 13px; font-size:10px; font-weight:700; font-family:var(--sans); letter-spacing:0.5px; color:rgba(255,255,255,0.25); cursor:pointer; text-transform:uppercase; transition:all 0.15s; }
+  .ar-pill:last-child { border-right:none; }
+  .ar-pill:hover:not(.active) { color:rgba(255,255,255,0.55); background:rgba(255,255,255,0.05); }
+  .ar-pill.active { background:rgba(34,197,94,0.12); color:#22c55e; }
+  .ar-pill[data-mode="off"].active { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); }
+  .live-badge { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); border-radius:4px; font-size:8px; font-weight:800; color:#22c55e; letter-spacing:1.5px; text-transform:uppercase; animation:banner-glow 1.5s ease-in-out infinite; cursor:default; }
+  [data-theme="light"] .ar-pills { border-color:rgba(0,0,0,0.12); }
+  [data-theme="light"] .ar-pill { color:rgba(0,0,0,0.3); border-color:rgba(0,0,0,0.1); }
+  [data-theme="light"] .ar-pill.active { background:rgba(34,197,94,0.1); color:#16a34a; }
+  [data-theme="light"] .ar-pill[data-mode="off"].active { background:rgba(0,0,0,0.04); color:rgba(0,0,0,0.4); }
+
   /* ===== WHAT CHANGED ===== */
   .wc-row { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:11px; }
   .wc-row:last-child { border-bottom:none; }
@@ -648,21 +661,21 @@
   <div id="tab-pulse" class="tab-panel active">
 
     <!-- Fetch controls -->
-    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px">
       <button id="fetch-btn" onclick="fetchAllData()" style="padding:10px 24px;border:1px solid var(--cyan);border-radius:8px;background:rgba(34,211,238,0.1);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1.5px;transition:all 0.2s">
         ⟳ Fetch Latest Data
       </button>
-      <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" style="padding:10px 16px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:rgba(255,255,255,0.3);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
-        ⏱ Auto: Off
-      </button>
-      <select id="auto-refresh-interval" style="padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.4);font-size:10px;font-family:var(--mono);cursor:pointer;outline:none">
-        <option value="60000">1 min</option>
-        <option value="300000" selected>5 min</option>
-        <option value="900000">15 min</option>
-        <option value="1800000">30 min</option>
-      </select>
+      <span id="live-badge" class="live-badge" style="display:none">● LIVE</span>
+      <span id="ar-countdown" style="display:none;font-size:10px;color:#22c55e;font-family:var(--mono);font-weight:600"></span>
       <span id="fetch-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Click to fetch live data from free APIs</span>
-      <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2);margin-left:auto"></span>
+      <div class="ar-pills" style="margin-left:auto" title="Auto-refresh (light: prices + Polymarket only)">
+        <button class="ar-pill active" data-mode="off" onclick="setAutoRefreshMode('off')">Off</button>
+        <button class="ar-pill" data-mode="5min" onclick="setAutoRefreshMode('5min')">5 min</button>
+        <button class="ar-pill" data-mode="15min" onclick="setAutoRefreshMode('15min')">15 min</button>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2)"></span>
     </div>
 
     <!-- Fetch log (appears after fetch) -->
@@ -1872,6 +1885,49 @@ const PROXIES=[
 const PROXY_NAMES=['direct','corsproxy.io','allorigins','corsproxy.org','cors.sh'];
 let workingProxy=-1;
 
+// yahooChart — hoisted to outer scope so both fetchAllData and fetchLightData can use it
+async function yahooChart(ticker,range='1mo',interval='1d'){
+  const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
+  const n=PROXIES.length;
+  const allIdx=Array.from({length:n},(_,i)=>i);
+  const order=workingProxy>=0?[workingProxy,...allIdx.filter(i=>i!==workingProxy)]:allIdx;
+  for(const pi of order){
+    for(const host of yHosts){
+      const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+      try{
+        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
+        if(!r.ok) continue;
+        const d=await r.json();
+        if(!d.chart||!d.chart.result) continue;
+        const res=d.chart.result[0];
+        const ts=res.timestamp;
+        const q=res.indicators.quote[0];
+        const closes=q.close, volumes=q.volume;
+        let lastIdx=closes.length-1;
+        while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
+        if(lastIdx<0) continue;
+        workingProxy=pi;
+        const lastDate=new Date(ts[lastIdx]*1000);
+        const validCloses=closes.filter(v=>v!==null);
+        const validVols=volumes?volumes.filter(v=>v!==null):[];
+        return {
+          price:closes[lastIdx],
+          prevClose:lastIdx>0?closes[lastIdx-1]:null,
+          volume:volumes?volumes[lastIdx]:null,
+          avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
+          date:lastDate,
+          dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+          allCloses:validCloses,
+          allVols:validVols,
+          proxy:PROXY_NAMES[pi],
+          ok:true
+        };
+      }catch(e){ continue; }
+    }
+  }
+  return {ok:false};
+}
+
 // Fetches full daily OHLCV time series from Yahoo Finance
 async function fetchYahooHistory(ticker, range){
   const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
@@ -2113,24 +2169,225 @@ function renderHistoricalCharts(series, range){
   },50);
 }
 
-function toggleAutoRefresh(){
-  const btn=document.getElementById('auto-refresh-btn');
-  const sel=document.getElementById('auto-refresh-interval');
-  if(autoRefreshTimer){
-    clearInterval(autoRefreshTimer);
-    autoRefreshTimer=null;
-    btn.textContent='⏱ Auto: Off';
-    btn.style.borderColor='rgba(255,255,255,0.15)';
-    btn.style.color='rgba(255,255,255,0.3)';
-    btn.style.background='transparent';
-  }else{
-    const ms=parseInt(sel.value)||300000;
-    autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
-    btn.textContent='⏱ Auto: On';
-    btn.style.borderColor='var(--green,#22c55e)';
-    btn.style.color='var(--green,#22c55e)';
-    btn.style.background='rgba(34,197,94,0.08)';
+let _arCountdownTimer=null;
+let _arNextAt=null;
+const AR_INTERVALS={'5min':300000,'15min':900000};
+
+function setAutoRefreshMode(mode){
+  // Cancel existing timers
+  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
+  if(_arCountdownTimer){ clearInterval(_arCountdownTimer); _arCountdownTimer=null; }
+  _arNextAt=null;
+
+  // Update pill selection
+  document.querySelectorAll('.ar-pill').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+
+  const badge=document.getElementById('live-badge');
+  const countdown=document.getElementById('ar-countdown');
+  if(badge) badge.style.display='none';
+  if(countdown) countdown.style.display='none';
+
+  try{ localStorage.setItem('arMode',mode); }catch(e){}
+
+  if(mode==='off') return;
+
+  const ms=AR_INTERVALS[mode]||300000;
+  _arNextAt=Date.now()+ms;
+  if(badge) badge.style.display='inline-flex';
+  if(countdown) countdown.style.display='inline';
+
+  function tick(){
+    if(!_arNextAt) return;
+    const rem=Math.max(0,_arNextAt-Date.now());
+    const m=Math.floor(rem/60000);
+    const s=Math.floor((rem%60000)/1000);
+    if(countdown) countdown.textContent=`Next refresh in ${m}:${s.toString().padStart(2,'0')}`;
   }
+  tick();
+  _arCountdownTimer=setInterval(tick,1000);
+
+  autoRefreshTimer=setInterval(()=>{
+    if(!isFetching){
+      fetchLightData();
+      _arNextAt=Date.now()+ms;
+    }
+  },ms);
+}
+
+// ===== LIGHT REFRESH (auto-refresh path) — prices + Polymarket only =====
+async function fetchLightData(){
+  if(isFetching) return;
+  isFetching=true;
+  const status=document.getElementById('fetch-status');
+  if(status) status.textContent='Auto-refreshing prices...';
+  const _preSnap=prevFetchSnapshot;
+  const SPY_ATH=698;
+
+  // Parallel: Crypto F&G, BTC, Yahoo tickers, Polymarket
+  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR]=
+    await Promise.allSettled([
+      fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
+      fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true').then(r=>r.json()),
+      yahooChart('SPY','1mo','1d'),
+      yahooChart('%5EVIX','5d','1d'),
+      yahooChart('QQQ','5d','1d'),
+      yahooChart('IWM','5d','1d'),
+      yahooChart('CL=F','5d','1d'),
+      yahooChart('%5ETNX','5d','1d'),
+      yahooChart('GC=F','5d','1d'),
+      yahooChart('%5ESPXA200R','5d','1d'),
+      yahooChart('%5EVIX3M','5d','1d'),
+      yahooChart('%5ESKEW','5d','1d'),
+      fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('iran ceasefire')),6000).then(r=>r.ok?r.json():null),
+      fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('us recession 2026')),6000).then(r=>r.ok?r.json():null),
+    ]);
+
+  // Process Crypto F&G
+  if(_cfR.status==='fulfilled'&&_cfR.value?.data?.[0]){
+    const d=_cfR.value;
+    pulseState.cryptoFG=parseInt(d.data[0].value);
+    pulseState.cryptoFGLabel=d.data[0].value_classification;
+    pulseState.cryptoFGDate=new Date(d.data[0].timestamp*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  }
+  // Process BTC
+  if(_btcR.status==='fulfilled'&&_btcR.value?.bitcoin){
+    pulseState.btcPrice=_btcR.value.bitcoin.usd;
+    pulseState.btcChange24h=_btcR.value.bitcoin.usd_24h_change;
+  }
+  // Process SPY
+  const spyD=_spyR.status==='fulfilled'?_spyR.value:{ok:false};
+  if(spyD.ok){
+    pulseState.spyPrice=spyD.price; pulseState.spyPrevClose=spyD.prevClose;
+    pulseState.spyVol=spyD.volume; pulseState.spy20dAvgVol=spyD.avg20Vol;
+    pulseState.spyPctFromATH=((SPY_ATH-spyD.price)/SPY_ATH)*100;
+    pulseState.spyDate=spyD.dateStr;
+    pulseState.spyChange=spyD.prevClose?((spyD.price-spyD.prevClose)/spyD.prevClose*100):null;
+    pulseState.spySpark=spyD.allCloses.slice(-20);
+  }
+  // Process VIX
+  const vixD=_vixR.status==='fulfilled'?_vixR.value:{ok:false};
+  if(vixD.ok){
+    pulseState.vix=vixD.price; pulseState.vixDate=vixD.dateStr;
+    pulseState.vixPrevClose=vixD.prevClose;
+    pulseState.vixChange=vixD.prevClose?((vixD.price-vixD.prevClose)/vixD.prevClose*100):null;
+    pulseState.vixSpark=vixD.allCloses.slice(-10);
+  }
+  // Process QQQ
+  const qqqD=_qqqR.status==='fulfilled'?_qqqR.value:{ok:false};
+  if(qqqD.ok){
+    pulseState.qqqPrice=qqqD.price; pulseState.qqqDate=qqqD.dateStr;
+    pulseState.qqqChange=qqqD.prevClose?((qqqD.price-qqqD.prevClose)/qqqD.prevClose*100):null;
+    pulseState.qqqSpark=qqqD.allCloses.slice(-10);
+  }
+  // Process IWM
+  const iwmD=_iwmR.status==='fulfilled'?_iwmR.value:{ok:false};
+  if(iwmD.ok){
+    pulseState.iwmPrice=iwmD.price; pulseState.iwmDate=iwmD.dateStr;
+    pulseState.iwmChange=iwmD.prevClose?((iwmD.price-iwmD.prevClose)/iwmD.prevClose*100):null;
+  }
+  // Process Oil
+  const oilD=_oilR.status==='fulfilled'?_oilR.value:{ok:false};
+  if(oilD.ok){
+    pulseState.oilPrice=oilD.price; pulseState.oilDate=oilD.dateStr;
+    pulseState.oilChange=oilD.prevClose?((oilD.price-oilD.prevClose)/oilD.prevClose*100):null;
+    pulseState.oilSpark=oilD.allCloses.slice(-10);
+  }
+  // Process TNX
+  const tnxD=_tnxR.status==='fulfilled'?_tnxR.value:{ok:false};
+  if(tnxD.ok){
+    pulseState.tnx=tnxD.price; pulseState.tnxDate=tnxD.dateStr;
+    pulseState.tnxSpark=tnxD.allCloses.slice(-10);
+  }
+  // Process Gold
+  const goldD=_goldR.status==='fulfilled'?_goldR.value:{ok:false};
+  if(goldD.ok){
+    pulseState.goldPrice=goldD.price; pulseState.goldDate=goldD.dateStr;
+    pulseState.goldSpark=goldD.allCloses.slice(-10);
+  }
+  // Process ^SPXA200R
+  const spxaD=_spxaR.status==='fulfilled'?_spxaR.value:{ok:false};
+  if(spxaD.ok){
+    pulseState.pctAbove200dma=Math.round(spxaD.price*10)/10;
+    const el=document.getElementById('input-pctAbove200dma');
+    if(el) el.value=pulseState.pctAbove200dma;
+  }
+  // Process VIX3M → vixRatio
+  const vix3mD=_vix3mR.status==='fulfilled'?_vix3mR.value:{ok:false};
+  if(vix3mD.ok&&pulseState.vix){
+    pulseState.vix3m=vix3mD.price;
+    pulseState.vixRatio=pulseState.vix/vix3mD.price;
+    pulseState.vixTermStructure=pulseState.vixRatio>1?'backwardation':'contango';
+    const vtEl=document.getElementById('input-vixTermStructure');
+    if(vtEl) vtEl.value=pulseState.vixTermStructure;
+  }
+  // Process SKEW
+  const skewD=_skewR.status==='fulfilled'?_skewR.value:{ok:false};
+  if(skewD.ok) pulseState.skew=skewD.price;
+
+  // Process Polymarket
+  for(const [res,field,label] of [[_pmCeaseR,'polyIranCeasefire','Iran Ceasefire'],[_pmRecR,'polyRecession','US Recession']]){
+    if(res.status==='fulfilled'&&Array.isArray(res.value)&&res.value.length>0){
+      const mkt=res.value[0];
+      const prob=mkt.outcomePrices?JSON.parse(mkt.outcomePrices)[0]:mkt.bestBid||null;
+      if(prob!==null){
+        const pct=Math.round(parseFloat(prob)*100);
+        pulseState[field]={pct,title:mkt.question||label,volume:mkt.volume||0,slug:mkt.slug};
+      }
+    }
+  }
+
+  // CNN F&G (fast proxy, optional)
+  try{
+    const cnnR=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent('https://production.dataviz.cnn.io/index/fearandgreed/graphdata'),5000);
+    if(cnnR.ok){
+      const cnnD=await cnnR.json();
+      if(cnnD?.fear_and_greed?.score!==undefined){
+        pulseState.cnnFG=Math.round(cnnD.fear_and_greed.score);
+        pulseState.cnnFGRating=cnnD.fear_and_greed.rating||'';
+        pulseState.cnnFGDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        const el=document.getElementById('input-cnnFG');
+        if(el) el.value=pulseState.cnnFG;
+      }
+    }
+  }catch(e){}
+
+  // StockTwits SPY (fast, no API key)
+  try{
+    const stR=await fetchWithTimeout('https://api.stocktwits.com/api/2/streams/symbol/SPY.json?limit=30',5000);
+    if(stR.ok){
+      const stD=await stR.json();
+      if(stD.messages){
+        const msgs=stD.messages.filter(m=>m.entities?.sentiment?.basic);
+        const bull=msgs.filter(m=>m.entities.sentiment.basic==='Bullish').length;
+        const bear=msgs.filter(m=>m.entities.sentiment.basic==='Bearish').length;
+        const total=bull+bear;
+        if(total>0) pulseState.stwSpy={bull:Math.round(bull/total*100),bear:Math.round(bear/total*100),total};
+      }
+    }
+  }catch(e){}
+
+  // Update UI
+  const okSrcs=[spyD,vixD,qqqD,oilD,tnxD,goldD].filter(d=>d.ok).length;
+  if(status) status.innerHTML=`<span style="color:#22c55e">Auto-refreshed — ${okSrcs} price sources</span> <span style="color:rgba(255,255,255,0.25)">· ${new Date().toLocaleTimeString()}</span>`;
+  const luEl=document.getElementById('last-updated');
+  if(luEl) luEl.innerHTML=`<span style="color:rgba(255,255,255,0.35)">Prices as of: <strong style="color:var(--cyan)">${pulseState.spyDate||'--'}</strong></span> <span style="color:rgba(255,255,255,0.15)">· Auto-refreshed ${new Date().toLocaleTimeString()}</span>`;
+
+  // Cache + propagate
+  try{ localStorage.setItem('contrarianCache',JSON.stringify({data:{...pulseState},ts:Date.now()})); }catch(e){}
+  propagateData();
+  recalcScore();
+  captureSignalHistory();
+  signalDirs=computeDirections();
+  renderRollingOverBanner(signalDirs);
+  recalcScore();
+  captureSnapshot();
+
+  // What Changed
+  const _postSnap=snapshotForDiff();
+  if(_preSnap!==null) renderWhatChanged(_preSnap,_postSnap);
+  prevFetchSnapshot=_postSnap;
+
+  isFetching=false;
 }
 
 // Persist API keys to localStorage
@@ -2156,50 +2413,7 @@ async function fetchAllData(){
   const SPY_ATH=698;
   // Capture pre-fetch state so we can diff after
   const _preSnap=prevFetchSnapshot;
-  // PROXIES, PROXY_NAMES, workingProxy are at outer scope (shared with fetchYahooHistory)
-
-  async function yahooChart(ticker,range='1mo',interval='1d'){
-    // Try both Yahoo Finance endpoints + all CORS proxies for maximum resilience
-    const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
-    const n=PROXIES.length;
-    const allIdx=Array.from({length:n},(_,i)=>i);
-    const order=workingProxy>=0?[workingProxy,...allIdx.filter(i=>i!==workingProxy)]:allIdx;
-    for(const pi of order){
-      for(const host of yHosts){
-        const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
-        try{
-          const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
-          if(!r.ok) continue;
-          const d=await r.json();
-          if(!d.chart||!d.chart.result) continue;
-          const res=d.chart.result[0];
-          const ts=res.timestamp;
-          const q=res.indicators.quote[0];
-          const closes=q.close, volumes=q.volume;
-          let lastIdx=closes.length-1;
-          while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
-          if(lastIdx<0) continue;
-          workingProxy=pi;
-          const lastDate=new Date(ts[lastIdx]*1000);
-          const validCloses=closes.filter(v=>v!==null);
-          const validVols=volumes?volumes.filter(v=>v!==null):[];
-          return {
-            price:closes[lastIdx],
-            prevClose:lastIdx>0?closes[lastIdx-1]:null,
-            volume:volumes?volumes[lastIdx]:null,
-            avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
-            date:lastDate,
-            dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
-            allCloses:validCloses,
-            allVols:validVols,
-            proxy:PROXY_NAMES[pi],
-            ok:true
-          };
-        }catch(e){ continue; }
-      }
-    }
-    return {ok:false};
-  }
+  // yahooChart is defined at outer scope — shared with fetchLightData
 
   // 1-10) Parallel fetch: Crypto F&G, BTC, 7 Yahoo Finance tickers, and ^SPXA200R breadth
   status.textContent='Fetching market data (parallel)...';
@@ -4970,17 +5184,11 @@ propagateData();
 recalcScore();
 // Then immediately fetch fresh live data — no button click needed
 fetchAllData();
-// Also start auto-refresh (5 min default) so the page stays live
-(function startAutoRefresh(){
-  const ms=300000; // 5 minutes
-  autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
-  const btn=document.getElementById('auto-refresh-btn');
-  if(btn){
-    btn.textContent='⏱ Auto: On';
-    btn.style.borderColor='var(--green,#22c55e)';
-    btn.style.color='var(--green,#22c55e)';
-    btn.style.background='rgba(34,197,94,0.08)';
-  }
+// Restore auto-refresh preference from localStorage (default: 5 min)
+(function restoreAutoRefresh(){
+  let saved='5min';
+  try{ const v=localStorage.getItem('arMode'); if(v==='off'||v==='5min'||v==='15min') saved=v; }catch(e){}
+  setAutoRefreshMode(saved);
 })();
 </script>
 </body>
