@@ -412,6 +412,13 @@
   .cluster-B { background:rgba(168,85,247,0.18); color:#a855f7; }
   .cluster-C { background:rgba(34,211,238,0.18); color:#22d3ee; }
   .cluster-D { background:rgba(245,158,11,0.18); color:#f59e0b; }
+  @keyframes roll-pulse { 0%,100%{box-shadow:0 0 5px rgba(34,197,94,0.4);} 50%{box-shadow:0 0 14px rgba(34,197,94,0.9);} }
+  @keyframes banner-glow { 0%,100%{border-color:rgba(34,197,94,0.3);} 50%{border-color:rgba(34,197,94,0.7);} }
+  .badge-peak { display:inline-block; padding:1px 6px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(239,68,68,0.2); color:#ef4444; margin-left:4px; }
+  .badge-rolling { display:inline-block; padding:1px 6px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(34,197,94,0.2); color:#22c55e; margin-left:4px; animation:roll-pulse 1.5s ease-in-out infinite; }
+  .badge-building { display:inline-block; padding:1px 6px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(245,158,11,0.2); color:#f59e0b; margin-left:4px; }
+  .dir-arrow { font-size:13px; font-weight:900; margin-right:2px; }
+  .rolling-banner { display:none; align-items:center; gap:10px; padding:12px 18px; background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,211,238,0.06)); border:1px solid rgba(34,197,94,0.35); border-radius:10px; margin-bottom:16px; font-size:12px; font-weight:800; color:#22c55e; letter-spacing:0.5px; animation:banner-glow 2s ease-in-out infinite; }
 
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 768px) {
@@ -639,6 +646,9 @@
         Recalculate Score
       </button>
     </details>
+
+    <!-- Rolling-over banner (shown when 2+ indicators roll over simultaneously) -->
+    <div id="rolling-over-banner" class="rolling-banner"></div>
 
     <!-- Signal breakdown -->
     <div class="panel">
@@ -1126,6 +1136,12 @@ const manualFields = [
   {id:'putCallRatio',label:'Put/Call Ratio (CBOE)',placeholder:'e.g. 1.25',src:'cboe.com/data/market-statistics'},
 ];
 
+// Direction-aware detection — tracks last 5 values per indicator
+// fearDir: 'up' = higher value = more fearful; 'down' = lower value = more fearful
+const TRACKED_FEAR_DIR={vix:'up',cnnFG:'down',cryptoFG:'down',nfci:'up',vixRatio:'up',skew:'up'};
+const TRACKED_NAMES={vix:'VIX',cnnFG:'CNN F&G',cryptoFG:'Crypto F&G',nfci:'NFCI',vixRatio:'VIX/VIX3M',skew:'SKEW'};
+let signalDirs={}; // populated after each fetch
+
 // Color helpers — declared here (before all render functions) so they're available immediately
 function fearColor(v){ return v<=10?'#ef4444':v<=25?'#f97316':v<=40?'#f59e0b':'#22c55e'; }
 function vixColor(v){ return v>=60?'#ef4444':v>=35?'#f97316':v>=25?'#f59e0b':'#22c55e'; }
@@ -1254,17 +1270,30 @@ function recalcScore(){
     scoreEl.style.color='#94a3b8';barEl.style.background='#94a3b8';labelEl.style.color='#94a3b8';labelEl.textContent='NO BUY SIGNAL';
   }
 
-  // Render signal breakdown with cluster badges
+  // Render signal breakdown with cluster badges + direction-aware indicators
   document.getElementById('signal-breakdown').innerHTML=signals.map(s=>{
     const sc=Math.min(1,s.score());let r=s.reading();const col=r!==null?s.color():'#555';const interp=r!==null?s.interpret():'No data';
     if(typeof r==='number') r=r.toFixed(2);
+    // Direction arrow + status badge for tracked indicators
+    const fd=TRACKED_FEAR_DIR[s.id];
+    const d=signalDirs[s.id];
+    let arrow='', statusBadge='';
+    if(fd&&d&&d.hasData){
+      const towardFear=(fd==='up'&&d.direction==='rising')||(fd==='down'&&d.direction==='falling');
+      const arrowCol=d.direction==='flat'?'rgba(255,255,255,0.3)':towardFear?'#ef4444':'#22c55e';
+      const arrowGlyph=d.direction==='rising'?'↑':d.direction==='falling'?'↓':'→';
+      arrow=`<span class="dir-arrow" style="color:${arrowCol}">${arrowGlyph}</span>`;
+      if(d.rollingOver)   statusBadge=`<span class="badge-rolling">ROLLING OVER</span>`;
+      else if(d.atPeak)   statusBadge=`<span class="badge-peak">AT PEAK</span>`;
+      else if(towardFear) statusBadge=`<span class="badge-building">BUILDING</span>`;
+    }
     return `<div class="sig-row">
       <div class="sig-dot" style="background:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'rgba(255,255,255,0.1)'};${sc>=0.75?'box-shadow:0 0 8px #22c55e60':''}"></div>
       <div class="sig-info">
         <span class="sig-name"><span class="cluster-badge cluster-${s.cluster}">${s.cluster}</span>${s.name}</span>
         <span class="sig-thresh">${s.threshold}</span>
       </div>
-      <div class="sig-val" style="color:${col}">${r!==null?r:'--'}</div>
+      <div class="sig-val" style="color:${col}">${arrow}${r!==null?r:'--'}${statusBadge}</div>
       <div class="sig-interp">${interp}</div>
       <div class="sig-score" style="color:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'#555'}">${sc>0?'+'+sc.toFixed(2):'0'}</div>
     </div>`;
@@ -1309,6 +1338,50 @@ function recalcScore(){
     </div>`;
 
   renderPulseCards();
+}
+
+// ===== DIRECTION-AWARE SIGNAL DETECTION =====
+function captureSignalHistory(){
+  let hist=JSON.parse(localStorage.getItem('btf-history')||'{}');
+  Object.keys(TRACKED_FEAR_DIR).forEach(k=>{
+    const val=pulseState[k]??null;
+    if(val!==null&&!isNaN(val)){
+      if(!Array.isArray(hist[k])) hist[k]=[];
+      hist[k].push(Number(val));
+      hist[k]=hist[k].slice(-5);
+    }
+  });
+  localStorage.setItem('btf-history',JSON.stringify(hist));
+}
+
+function computeDirections(){
+  const hist=JSON.parse(localStorage.getItem('btf-history')||'{}');
+  const result={};
+  for(const [k,fd] of Object.entries(TRACKED_FEAR_DIR)){
+    const arr=(hist[k]||[]).filter(v=>v!==null&&!isNaN(v));
+    if(arr.length<2){result[k]={direction:'flat',atPeak:false,rollingOver:false,hasData:arr.length>0};continue;}
+    const cur=arr[arr.length-1], prev=arr[arr.length-2];
+    const pct=Math.abs(prev)>0?Math.abs(cur-prev)/Math.abs(prev)*100:0;
+    const direction=pct<2?'flat':cur>prev?'rising':'falling';
+    const atPeak=fd==='up'?cur>=Math.max(...arr):cur<=Math.min(...arr);
+    const prevExtreme=fd==='up'?Math.max(...arr.slice(0,-1)):Math.min(...arr.slice(0,-1));
+    const wasMoreExtreme=fd==='up'?(prevExtreme>cur):(prevExtreme<cur);
+    const rollingOver=wasMoreExtreme&&pct>=2;
+    result[k]={direction,atPeak,rollingOver,hasData:true,cur,prev};
+  }
+  return result;
+}
+
+function renderRollingOverBanner(dirs){
+  const rolling=Object.entries(dirs).filter(([,v])=>v.rollingOver).map(([k])=>TRACKED_NAMES[k]);
+  const el=document.getElementById('rolling-over-banner');
+  if(!el) return;
+  if(rolling.length>=2){
+    el.innerHTML=`<span style="font-size:18px;flex-shrink:0">⚡</span><span>MULTIPLE INDICATORS ROLLING OVER — high-probability buy zone</span><span style="color:rgba(255,255,255,0.5);font-weight:400;font-size:10px;white-space:nowrap">${rolling.join(', ')}</span>`;
+    el.style.display='flex';
+  } else {
+    el.style.display='none';
+  }
 }
 
 // Global timeout helper for fetch calls
@@ -2235,6 +2308,11 @@ async function fetchAllData(){
   // Propagate data across all tabs
   propagateData();
   recalcScore();
+  // Update direction-aware detection (history → arrows/badges/banner)
+  captureSignalHistory();
+  signalDirs=computeDirections();
+  renderRollingOverBanner(signalDirs);
+  recalcScore(); // re-render breakdown now that signalDirs is populated
   // Save daily snapshot to 30-day history
   captureSnapshot();
 
