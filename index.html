@@ -407,6 +407,108 @@
   .sig-val { font-size:18px; font-weight:800; font-family:var(--mono); min-width:70px; }
   .sig-interp { font-size:11px; color:rgba(255,255,255,0.4); flex:1; min-width:120px; }
   .sig-score { font-size:11px; font-weight:700; font-family:var(--mono); }
+  .cluster-badge { display:inline-block; padding:1px 5px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; margin-right:4px; vertical-align:middle; }
+  .cluster-A { background:rgba(239,68,68,0.18); color:#ef4444; }
+  .cluster-B { background:rgba(168,85,247,0.18); color:#a855f7; }
+  .cluster-C { background:rgba(34,211,238,0.18); color:#22d3ee; }
+  .cluster-D { background:rgba(245,158,11,0.18); color:#f59e0b; }
+  @keyframes roll-pulse { 0%,100%{box-shadow:0 0 5px rgba(34,197,94,0.4);} 50%{box-shadow:0 0 14px rgba(34,197,94,0.9);} }
+  @keyframes banner-glow { 0%,100%{border-color:rgba(34,197,94,0.3);} 50%{border-color:rgba(34,197,94,0.7);} }
+  .badge-peak { display:inline-block; padding:1px 6px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(239,68,68,0.2); color:#ef4444; margin-left:4px; }
+  .badge-rolling { display:inline-block; padding:1px 6px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(34,197,94,0.2); color:#22c55e; margin-left:4px; animation:roll-pulse 1.5s ease-in-out infinite; }
+  .badge-building { display:inline-block; padding:1px 6px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(245,158,11,0.2); color:#f59e0b; margin-left:4px; }
+  .dir-arrow { font-size:13px; font-weight:900; margin-right:2px; }
+  .rolling-banner { display:none; align-items:center; gap:10px; padding:12px 18px; background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,211,238,0.06)); border:1px solid rgba(34,197,94,0.35); border-radius:10px; margin-bottom:16px; font-size:12px; font-weight:800; color:#22c55e; letter-spacing:0.5px; animation:banner-glow 2s ease-in-out infinite; }
+
+  /* ===== AUTO-REFRESH PILLS ===== */
+  .ar-pills { display:flex; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; flex-shrink:0; }
+  .ar-pill { background:transparent; border:none; border-right:1px solid rgba(255,255,255,0.12); padding:5px 13px; font-size:10px; font-weight:700; font-family:var(--sans); letter-spacing:0.5px; color:rgba(255,255,255,0.25); cursor:pointer; text-transform:uppercase; transition:all 0.15s; }
+  .ar-pill:last-child { border-right:none; }
+  .ar-pill:hover:not(.active) { color:rgba(255,255,255,0.55); background:rgba(255,255,255,0.05); }
+  .ar-pill.active { background:rgba(34,197,94,0.12); color:#22c55e; }
+  .ar-pill[data-mode="off"].active { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.4); }
+  .live-badge { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); border-radius:4px; font-size:8px; font-weight:800; color:#22c55e; letter-spacing:1.5px; text-transform:uppercase; animation:banner-glow 1.5s ease-in-out infinite; cursor:default; }
+  [data-theme="light"] .ar-pills { border-color:rgba(0,0,0,0.12); }
+  [data-theme="light"] .ar-pill { color:rgba(0,0,0,0.3); border-color:rgba(0,0,0,0.1); }
+  [data-theme="light"] .ar-pill.active { background:rgba(34,197,94,0.1); color:#16a34a; }
+  [data-theme="light"] .ar-pill[data-mode="off"].active { background:rgba(0,0,0,0.04); color:rgba(0,0,0,0.4); }
+
+  /* ===== WHAT CHANGED ===== */
+  .wc-row { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:11px; }
+  .wc-row:last-child { border-bottom:none; }
+  .wc-label { color:rgba(255,255,255,0.35); font-family:var(--mono); font-size:10px; white-space:nowrap; flex-shrink:0; }
+  .wc-change { font-family:var(--mono); font-weight:700; text-align:right; }
+  .wc-big { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:3px; font-size:8px; font-weight:800; letter-spacing:0.5px; background:rgba(239,68,68,0.18); color:#ef4444; border:1px solid rgba(239,68,68,0.3); vertical-align:middle; animation:banner-glow 1.5s ease-in-out infinite; }
+  [data-theme="light"] .wc-row { border-color:rgba(0,0,0,0.07); }
+  [data-theme="light"] .wc-label { color:rgba(0,0,0,0.4); }
+
+  /* ===== ACTION CARD ===== */
+  .action-card { border-radius:14px; padding:24px; margin-top:20px; border:1px solid transparent; transition:background 0.6s ease, border-color 0.6s ease; }
+  .action-card.score-low  { background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(249,115,22,0.05)); border-color:rgba(239,68,68,0.2); }
+  .action-card.score-mid  { background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(249,115,22,0.05)); border-color:rgba(245,158,11,0.25); }
+  .action-card.score-high { background:linear-gradient(135deg,rgba(34,197,94,0.10),rgba(34,211,238,0.05)); border-color:rgba(34,197,94,0.30); }
+  [data-theme="light"] .action-card.score-low  { background:rgba(239,68,68,0.05); border-color:rgba(239,68,68,0.25); }
+  [data-theme="light"] .action-card.score-mid  { background:rgba(245,158,11,0.06); border-color:rgba(245,158,11,0.3); }
+  [data-theme="light"] .action-card.score-high { background:rgba(34,197,94,0.07); border-color:rgba(34,197,94,0.35); }
+  .ac-move { font-size:36px; font-weight:900; letter-spacing:2px; font-family:var(--sans); line-height:1; }
+  .ac-section-title { font-size:8px; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,0.3); margin-bottom:6px; font-weight:700; }
+  [data-theme="light"] .ac-section-title { color:rgba(0,0,0,0.35); }
+  .ac-cluster-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+  .ac-cluster-pip { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; }
+  .ac-pip-on  { background:rgba(34,197,94,0.15); color:#22c55e; }
+  .ac-pip-off { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.3); }
+  [data-theme="light"] .ac-pip-off { background:rgba(0,0,0,0.06); color:rgba(0,0,0,0.3); }
+  .ac-bullet { font-size:11px; color:rgba(255,255,255,0.55); line-height:1.6; padding:2px 0; display:flex; gap:8px; }
+  [data-theme="light"] .ac-bullet { color:rgba(0,0,0,0.6); }
+  .ac-bullet-dot { color:rgba(255,255,255,0.2); flex-shrink:0; }
+  [data-theme="light"] .ac-bullet-dot { color:rgba(0,0,0,0.25); }
+  .ac-trade-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:8px; }
+  .ac-trade-cell { background:rgba(0,0,0,0.2); border-radius:8px; padding:10px 12px; }
+  [data-theme="light"] .ac-trade-cell { background:rgba(0,0,0,0.04); }
+  .ac-trade-lbl { font-size:8px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.25); margin-bottom:3px; }
+  [data-theme="light"] .ac-trade-lbl { color:rgba(0,0,0,0.3); }
+  .ac-trade-val { font-size:16px; font-weight:800; font-family:var(--mono); }
+
+  /* ===== HERO BANNER ===== */
+  #hero-banner {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 0;
+    height: 60px; margin: 0 -20px 20px; padding: 0 24px;
+    background: rgba(10,14,23,0.97);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    transition: box-shadow 0.5s ease, border-color 0.5s ease;
+  }
+  #hero-banner.glow {
+    box-shadow: 0 0 32px rgba(34,197,94,0.18), 0 2px 0 rgba(34,197,94,0.35);
+    border-bottom-color: rgba(34,197,94,0.35);
+  }
+  [data-theme="light"] #hero-banner { background:rgba(255,255,255,0.98); border-bottom-color:#e5e5e5; }
+  [data-theme="light"] #hero-banner.glow { border-bottom-color:#22c55e; box-shadow:0 2px 0 rgba(34,197,94,0.45); }
+  [data-theme="light"] .hero-metric-lbl { color:rgba(0,0,0,0.4); }
+  .hero-left { display:flex; flex-direction:column; align-items:flex-start; min-width:80px; flex-shrink:0; }
+  #hero-score { font-size:48px; font-weight:800; font-family:var(--mono); line-height:1; }
+  #hero-label { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-top:1px; white-space:nowrap; }
+  .hero-center { flex:1; display:flex; align-items:center; justify-content:center; gap:24px; }
+  .hero-metric { display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .hero-metric-val { font-size:15px; font-weight:800; font-family:var(--mono); white-space:nowrap; }
+  .hero-metric-lbl { font-size:7px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.28); }
+  .hero-right { display:flex; align-items:center; min-width:100px; justify-content:flex-end; flex-shrink:0; }
+  #hero-verdict { font-size:20px; font-weight:900; letter-spacing:1.5px; font-family:var(--sans); }
+  @media (max-width: 768px) {
+    #hero-banner { height:50px; margin:0 -12px 16px; padding:0 12px; }
+    #hero-score { font-size:34px; }
+    .hero-metric-val { font-size:13px; }
+    #hero-verdict { font-size:15px; letter-spacing:1px; }
+    .hero-center { gap:14px; }
+  }
+  @media (max-width: 480px) {
+    #hero-banner { height:50px; margin:0 -8px 12px; padding:0 8px; }
+    #hero-score { font-size:28px; }
+    .hero-metric-val { font-size:11px; }
+    #hero-verdict { font-size:13px; letter-spacing:0.5px; }
+    .hero-center { gap:8px; }
+  }
 
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 768px) {
@@ -517,6 +619,31 @@
     <h1>Buy the Fear</h1>
   </div>
 
+  <!-- Sticky Hero Banner -->
+  <div id="hero-banner">
+    <div class="hero-left">
+      <div id="hero-score" style="color:var(--amber)">--</div>
+      <div id="hero-label" style="color:var(--amber)">WAITING</div>
+    </div>
+    <div class="hero-center">
+      <div class="hero-metric">
+        <div id="hero-conflict" class="hero-metric-val" style="color:var(--cyan)">--</div>
+        <div class="hero-metric-lbl">Conflict</div>
+      </div>
+      <div class="hero-metric">
+        <div id="hero-vix-ratio" class="hero-metric-val" style="color:var(--amber)">--</div>
+        <div class="hero-metric-lbl">VIX/VIX3M</div>
+      </div>
+      <div class="hero-metric">
+        <div id="hero-regime" class="hero-metric-val" style="color:rgba(255,255,255,0.3)">--</div>
+        <div class="hero-metric-lbl">Regime</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div id="hero-verdict" style="color:var(--amber)">WAIT</div>
+    </div>
+  </div>
+
   <!-- Tabs -->
   <div class="tabs" style="overflow-x:auto;flex-wrap:nowrap">
     <button class="tab-btn active" data-tab="pulse">Daily Pulse</button>
@@ -534,33 +661,44 @@
   <div id="tab-pulse" class="tab-panel active">
 
     <!-- Fetch controls -->
-    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px">
       <button id="fetch-btn" onclick="fetchAllData()" style="padding:10px 24px;border:1px solid var(--cyan);border-radius:8px;background:rgba(34,211,238,0.1);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1.5px;transition:all 0.2s">
         ⟳ Fetch Latest Data
       </button>
-      <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" style="padding:10px 16px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:rgba(255,255,255,0.3);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
-        ⏱ Auto: Off
-      </button>
-      <select id="auto-refresh-interval" style="padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.4);font-size:10px;font-family:var(--mono);cursor:pointer;outline:none">
-        <option value="60000">1 min</option>
-        <option value="300000" selected>5 min</option>
-        <option value="900000">15 min</option>
-        <option value="1800000">30 min</option>
-      </select>
+      <span id="live-badge" class="live-badge" style="display:none">● LIVE</span>
+      <span id="ar-countdown" style="display:none;font-size:10px;color:#22c55e;font-family:var(--mono);font-weight:600"></span>
       <span id="fetch-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Click to fetch live data from free APIs</span>
-      <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2);margin-left:auto"></span>
+      <div class="ar-pills" style="margin-left:auto" title="Auto-refresh (light: prices + Polymarket only)">
+        <button class="ar-pill active" data-mode="off" onclick="setAutoRefreshMode('off')">Off</button>
+        <button class="ar-pill" data-mode="5min" onclick="setAutoRefreshMode('5min')">5 min</button>
+        <button class="ar-pill" data-mode="15min" onclick="setAutoRefreshMode('15min')">15 min</button>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2)"></span>
     </div>
 
     <!-- Fetch log (appears after fetch) -->
     <div id="fetch-log" style="margin-bottom:16px"></div>
 
+    <!-- What Changed (hidden until second fetch) -->
+    <div id="what-changed-panel" style="display:none;margin-bottom:16px">
+      <div class="panel" style="border-color:rgba(34,211,238,0.18);background:linear-gradient(135deg,rgba(34,211,238,0.03),rgba(168,85,247,0.02))">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="panel-title" style="margin:0">What Changed</div>
+          <div id="wc-timestamps" style="font-size:9px;color:rgba(255,255,255,0.22);font-family:var(--mono)"></div>
+        </div>
+        <div id="wc-rows"></div>
+      </div>
+    </div>
+
     <!-- API Keys (collapsed) -->
-    <details style="margin-bottom:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;cursor:pointer">
+    <details open style="margin-bottom:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;cursor:pointer">
       <summary style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);font-weight:700;list-style:none;display:flex;align-items:center;gap:8px">
         <span>▶</span> API Keys (free — unlocks more live data)
       </summary>
       <p style="font-size:10px;color:rgba(255,255,255,0.2);margin:10px 0 12px;line-height:1.6">
-        All free, no credit card. Keys are stored in memory only (cleared on page reload). Enter any or all — the fetch button will use whatever is available.
+        All free, no credit card. Keys are saved in your browser (localStorage) and persist across reloads. Enter any or all — the fetch button will use whatever is available.
       </p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
         <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.04)">
@@ -593,6 +731,11 @@
           <input id="key-marketaux" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
           <a href="https://www.marketaux.com/account/dashboard" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
         </div>
+        <div style="background:rgba(168,85,247,0.06);border-radius:6px;padding:10px;border:1px solid rgba(168,85,247,0.15)">
+          <label style="font-size:9px;color:rgba(168,85,247,0.8);display:block;margin-bottom:4px">Groq AI <span style="color:rgba(255,255,255,0.15)">— AI headline classification (free, fast)</span></label>
+          <input id="key-groq" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(168,85,247,0.2);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none" oninput="saveApiKeys()">
+          <a href="https://console.groq.com/keys" target="_blank" style="font-size:8px;color:rgba(168,85,247,0.6);text-decoration:none">→ Get free key at console.groq.com</a>
+        </div>
       </div>
     </details>
 
@@ -602,13 +745,15 @@
         <div>
           <div class="panel-title" style="color:var(--cyan);margin-bottom:6px">Contrarian Buy Signal Score</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.35);max-width:500px;line-height:1.5">
-            Composite of all sentiment, volume, positioning, and <strong style="color:var(--cyan)">leading indicators</strong> below. Per Coulling: institutions install fear at lows via headlines to buy cheap from retail. Score of 7+ = strong contrarian buy. Currently tracking <span id="active-signals" style="color:var(--amber);font-weight:700">--</span> of 13 signals (★ = leading indicator, weighted higher).
+            Cluster-weighted across 4 signal groups: <span class="cluster-badge cluster-A">A</span>Fear <span class="cluster-badge cluster-B">B</span>Vol <span class="cluster-badge cluster-C">C</span>Flow <span class="cluster-badge cluster-D">D</span>Credit. Score of 7+ with A+B+(C or D) firing = strong contrarian buy. Currently <span id="active-signals" style="color:var(--amber);font-weight:700">--</span> signals active.
           </div>
         </div>
         <div style="text-align:center">
           <div id="contrarian-score" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--amber);line-height:1">--</div>
           <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">/ 10</div>
           <div id="score-label" style="font-size:11px;font-weight:700;color:var(--amber);margin-top:4px">WAITING FOR DATA</div>
+          <div id="cluster-status" style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">-- / 4 clusters active</div>
+          <div id="regime-badge" style="display:none;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:0.3px"></div>
         </div>
         <div style="width:200px">
           <div style="height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden">
@@ -633,6 +778,9 @@
         Recalculate Score
       </button>
     </details>
+
+    <!-- Rolling-over banner (shown when 2+ indicators roll over simultaneously) -->
+    <div id="rolling-over-banner" class="rolling-banner"></div>
 
     <!-- Signal breakdown -->
     <div class="panel">
@@ -694,6 +842,9 @@
         <div id="momentum-signals"></div>
       </div>
     </div>
+
+    <!-- Action Card -->
+    <div id="action-card" class="action-card score-low"></div>
   </div>
 
   <!-- ============ SENTIMENT TAB ============ -->
@@ -1090,22 +1241,48 @@ const pulseState = {
   igSpreads:null,       // IG credit spreads — FRED BAMLC0A0CM
 };
 
-// Thresholds for contrarian scoring
+// Thresholds for contrarian scoring — cluster-based aggregation
+// A=Fear Level (0.20) | B=Vol Structure (0.35) | C=Flow/Positioning (0.25) | D=Credit/Macro (0.20)
 const signals = [
-  {id:'cnnFG', name:'CNN Fear & Greed', type:'manual', threshold:'≤ 14', score:()=> pulseState.cnnFG!==null && pulseState.cnnFG<=14 ? 1 : pulseState.cnnFG!==null && pulseState.cnnFG<=25 ? 0.5 : 0, reading:()=>pulseState.cnnFG, color:()=>pulseState.cnnFG<=14?'#ef4444':pulseState.cnnFG<=25?'#f97316':pulseState.cnnFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cnnFG<=14?'EXTREME FEAR — contrarian buy zone':pulseState.cnnFG<=25?'FEAR — approaching buy zone':'NOT fearful enough yet'},
-  {id:'vix', name:'VIX', type:'auto', threshold:'≥ 35', score:()=> pulseState.vix!==null && pulseState.vix>=45 ? 1 : pulseState.vix>=35 ? 0.75 : pulseState.vix>=28 ? 0.25 : 0, reading:()=>pulseState.vix, color:()=>pulseState.vix>=45?'#ef4444':pulseState.vix>=35?'#f97316':pulseState.vix>=25?'#f59e0b':'#22c55e', interpret:()=>pulseState.vix>=45?'PANIC — capitulation level VIX':pulseState.vix>=35?'HIGH FEAR — approaching capitulation':pulseState.vix>=25?'Elevated but not extreme':'Low vol — complacent market'},
-  {id:'cryptoFG', name:'Crypto Fear & Greed', type:'auto', threshold:'≤ 15', score:()=> pulseState.cryptoFG!==null && pulseState.cryptoFG<=10 ? 1 : pulseState.cryptoFG<=20 ? 0.75 : pulseState.cryptoFG<=30 ? 0.25 : 0, reading:()=>pulseState.cryptoFG, color:()=>pulseState.cryptoFG<=15?'#ef4444':pulseState.cryptoFG<=25?'#f97316':pulseState.cryptoFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cryptoFG<=15?'EXTREME FEAR — historically 80% positive 30d returns':pulseState.cryptoFG<=25?'FEAR — crypto sentiment very negative':'Not extreme enough'},
-  {id:'spyVolSpike', name:'SPY Volume vs 20d Avg', type:'auto', threshold:'≥ 2.0x', score:()=>{ if(!pulseState.spyVol||!pulseState.spy20dAvgVol)return 0; const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=3?1:r>=2?0.75:r>=1.5?0.25:0; }, reading:()=>pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(1)+'x':null, color:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'#ef4444':r>=1.8?'#f97316':r>=1.3?'#f59e0b':'#22c55e'; }, interpret:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'CAPITULATION VOLUME — Coulling accumulation signal':r>=1.8?'High volume — watch for narrowing spread':r>=1.3?'Above average — some institutional activity':'Normal volume — no panic selling'; }},
-  {id:'spyDrawdown', name:'SPY % from ATH', type:'auto', threshold:'≥ 10%', score:()=>{ const d=pulseState.spyPctFromATH; return d>=20?1:d>=10?0.75:d>=7?0.25:0; }, reading:()=>pulseState.spyPctFromATH!==null?'-'+pulseState.spyPctFromATH.toFixed(1)+'%':null, color:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'#ef4444':d>=10?'#f97316':d>=5?'#f59e0b':'#22c55e'; }, interpret:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'BEAR TERRITORY — deep correction':d>=10?'CORRECTION — historical buy zone':d>=5?'Pullback — not deep enough yet':'Near ATH — no discount'; }},
-  // === LEADING INDICATORS (higher weight — these PREDICT bottoms) ===
-  {id:'vixTermStructure', name:'VIX/VIX3M Ratio ★', type:'auto', threshold:'> 1.0 (backwardation)', score:()=>{ const r=pulseState.vixRatio; return r!==null&&r>1.05?1.5:r>1.0?1.25:r>0.95?0.5:0; }, reading:()=>pulseState.vixRatio!==null?pulseState.vixRatio.toFixed(3):null, color:()=>{ const r=pulseState.vixRatio; return r>1.0?'#ef4444':r>0.92?'#f97316':'#22c55e'; }, interpret:()=>{ const r=pulseState.vixRatio; return r>1.0?'⚡ BACKWARDATION — strongest contrarian buy signal. Only 4 times since 2005 (GFC, 2011, Vol, COVID). All preceded massive rallies.':r>0.92?'Flattening — approaching signal. Near-term fear rising faster than long-term.':'Contango — normal. No term structure signal.'; }},
-  {id:'skew', name:'SKEW Index', type:'auto', threshold:'< 120 (fear exhausting)', score:()=>{ const s=pulseState.skew; return s!==null&&s<115?0.75:s<120?0.5:0; }, reading:()=>pulseState.skew!==null?pulseState.skew.toFixed(0):null, color:()=>{ const s=pulseState.skew; return s<120?'#22c55e':s>145?'#ef4444':'#94a3b8'; }, interpret:()=>{ const s=pulseState.skew; return s<120?'Low SKEW = market NOT pricing further tail risk. Fear exhausting — contrarian bullish.':s>145?'High SKEW — significant tail risk priced. Market expects more downside.':'Normal tail risk pricing.'; }},
+  // ===== CLUSTER A — Fear Level (weight 0.20) =====
+  {id:'cnnFG', cluster:'A', name:'CNN Fear & Greed', type:'manual', threshold:'≤ 14', score:()=> pulseState.cnnFG!==null && pulseState.cnnFG<=14 ? 1 : pulseState.cnnFG!==null && pulseState.cnnFG<=25 ? 0.5 : 0, reading:()=>pulseState.cnnFG, color:()=>pulseState.cnnFG<=14?'#ef4444':pulseState.cnnFG<=25?'#f97316':pulseState.cnnFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cnnFG<=14?'EXTREME FEAR — contrarian buy zone':pulseState.cnnFG<=25?'FEAR — approaching buy zone':'NOT fearful enough yet'},
+  {id:'cryptoFG', cluster:'A', name:'Crypto Fear & Greed', type:'auto', threshold:'≤ 15', score:()=>{ const v=pulseState.cryptoFG; return v!==null&&v<=10?1:v!==null&&v<=20?0.75:v!==null&&v<=30?0.25:0; }, reading:()=>pulseState.cryptoFG, color:()=>pulseState.cryptoFG<=15?'#ef4444':pulseState.cryptoFG<=25?'#f97316':pulseState.cryptoFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cryptoFG<=15?'EXTREME FEAR — historically 80% positive 30d returns':pulseState.cryptoFG<=25?'FEAR — crypto sentiment very negative':'Not extreme enough'},
+  {id:'aaii', cluster:'A', name:'AAII Bear %', type:'auto', threshold:'Bear ≥ 50%', score:()=>{ const v=pulseState.aaiiBear; return v!==null&&v>=55?1:v!==null&&v>=45?0.75:v!==null&&v>=38?0.25:0; }, reading:()=>pulseState.aaiiBear!==null?pulseState.aaiiBear+'%':null, color:()=>{ const v=pulseState.aaiiBear; return v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.aaiiBear; return v>=50?'EXTREME bearish — historically strong contrarian buy':v>=40?'Very bearish — approaching signal':'Mildly bearish — not extreme'; }},
+  {id:'stockTwits', cluster:'A', name:'StockTwits Bear %', type:'auto', threshold:'Bear ≥ 55%', score:()=>{ const b=pulseState.stwSpy?.bear; return b>=65?1:b>=55?0.75:b>=45?0.25:0; }, reading:()=>pulseState.stwSpy?pulseState.stwSpy.bear+'%':null, color:()=>{ const b=pulseState.stwSpy?.bear; return b>=60?'#ef4444':b>=45?'#f97316':'#22c55e'; }, interpret:()=>{ const b=pulseState.stwSpy?.bear; return b>=60?'Retail heavily bearish — crowded short, fuel for squeeze':b>=45?'Bearish lean — fear building':'Neutral or bullish retail sentiment'; }},
+  // ===== CLUSTER B — Vol Structure (weight 0.35) =====
+  {id:'vixTermStructure', cluster:'B', name:'VIX/VIX3M Ratio ★', type:'auto', threshold:'> 1.0 (backwardation)', score:()=>{ const r=pulseState.vixRatio; return r!==null&&r>1.05?1:r!==null&&r>1.0?0.75:r!==null&&r>0.95?0.5:0; }, reading:()=>pulseState.vixRatio!==null?pulseState.vixRatio.toFixed(3):null, color:()=>{ const r=pulseState.vixRatio; return r>1.0?'#ef4444':r>0.92?'#f97316':'#22c55e'; }, interpret:()=>{ const r=pulseState.vixRatio; return r>1.0?'⚡ BACKWARDATION — strongest contrarian buy signal. Only 4 times since 2005 (GFC, 2011, Vol, COVID). All preceded massive rallies.':r>0.92?'Flattening — approaching signal. Near-term fear rising faster than long-term.':'Contango — normal. No term structure signal.'; }},
+  {id:'vix', cluster:'B', name:'VIX', type:'auto', threshold:'≥ 35', score:()=>{ const v=pulseState.vix; return v!==null&&v>=45?1:v!==null&&v>=35?0.75:v!==null&&v>=28?0.25:0; }, reading:()=>pulseState.vix, color:()=>pulseState.vix>=45?'#ef4444':pulseState.vix>=35?'#f97316':pulseState.vix>=25?'#f59e0b':'#22c55e', interpret:()=>pulseState.vix>=45?'PANIC — capitulation level VIX':pulseState.vix>=35?'HIGH FEAR — approaching capitulation':pulseState.vix>=25?'Elevated but not extreme':'Low vol — complacent market'},
+  {id:'skew', cluster:'B', name:'SKEW Index', type:'auto', threshold:'< 120 (fear exhausting)', score:()=>{ const s=pulseState.skew; return s!==null&&s<115?0.75:s!==null&&s<120?0.5:0; }, reading:()=>pulseState.skew!==null?pulseState.skew.toFixed(0):null, color:()=>{ const s=pulseState.skew; return s<120?'#22c55e':s>145?'#ef4444':'#94a3b8'; }, interpret:()=>{ const s=pulseState.skew; return s<120?'Low SKEW = market NOT pricing further tail risk. Fear exhausting — contrarian bullish.':s>145?'High SKEW — significant tail risk priced. Market expects more downside.':'Normal tail risk pricing.'; }},
+  // ===== CLUSTER C — Flow / Positioning (weight 0.25) =====
+  {id:'spyVolSpike', cluster:'C', name:'SPY Volume vs 20d Avg', type:'auto', threshold:'≥ 2.0x', score:()=>{ if(!pulseState.spyVol||!pulseState.spy20dAvgVol)return 0; const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=3?1:r>=2?0.75:r>=1.5?0.25:0; }, reading:()=>pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(1)+'x':null, color:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'#ef4444':r>=1.8?'#f97316':r>=1.3?'#f59e0b':'#22c55e'; }, interpret:()=>{ const r=pulseState.spyVol/pulseState.spy20dAvgVol; return r>=2.5?'CAPITULATION VOLUME — Coulling accumulation signal':r>=1.8?'High volume — watch for narrowing spread':r>=1.3?'Above average — some institutional activity':'Normal volume — no panic selling'; }},
+  {id:'putcall', cluster:'C', name:'Put/Call Ratio', type:'manual', threshold:'≥ 1.2', score:()=>{ const v=pulseState.putCallRatio; return v!==null&&v>=1.3?1:v!==null&&v>=1.1?0.75:v!==null&&v>=0.95?0.25:0; }, reading:()=>pulseState.putCallRatio, color:()=>{ const v=pulseState.putCallRatio; return v>=1.2?'#ef4444':v>=1.0?'#f97316':v>=0.8?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.putCallRatio; return v>=1.2?'Heavy put buying — maximum fear hedging':v>=1.0?'Elevated hedging activity':'Normal or low hedging'; }},
+  {id:'naaim', cluster:'C', name:'NAAIM Exposure Index', type:'auto', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v!==null&&v<=40?0.75:v!==null&&v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
+  {id:'moneyMarket', cluster:'C', name:'Money Market Assets', type:'auto', threshold:'≥ $6.0T', score:()=>{ const v=parseFloat(pulseState.moneyMarket); return v>=6.5?1:v>=6.0?0.75:v>=5.5?0.25:0; }, reading:()=>pulseState.moneyMarket?'$'+parseFloat(pulseState.moneyMarket).toFixed(1)+'T':null, color:()=>{ const v=parseFloat(pulseState.moneyMarket); return v>=6.0?'#ef4444':v>=5.5?'#f97316':'#22c55e'; }, interpret:()=>{ const v=parseFloat(pulseState.moneyMarket); return v>=6.0?'Cash flood — retail hiding in money markets, dry powder for eventual return':v>=5.5?'Elevated cash on sidelines':'Normal cash levels — no panic hoarding'; }},
+  // ===== CLUSTER D — Credit / Macro (weight 0.20) =====
+  {id:'nfci', cluster:'D', name:'Chicago Fed NFCI', type:'auto', threshold:'> 0 (tightening)', score:()=>{ const v=pulseState.nfci; return v!==null&&v>=0.5?1:v!==null&&v>=0.1?0.75:v!==null&&v>=0?0.25:0; }, reading:()=>pulseState.nfci!==null?pulseState.nfci.toFixed(2):null, color:()=>{ const v=pulseState.nfci; return v>=0.5?'#ef4444':v>=0.1?'#f97316':v>=0?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.nfci; const d=pulseState.nfciPrev!==undefined?(v>pulseState.nfciPrev?' ↑ tightening':' ↓ loosening'):''; return v>=0.5?'TIGHT'+d+' — credit stress. Above 0.5 = recession proximity.':v>=0.1?'Slightly tight'+d+' — watch for further tightening.':v>=0?'Near neutral'+d:'Loose'+d+' — accommodative.'; }},
+  {id:'hySpreads', cluster:'D', name:'HY Credit Spreads', type:'auto', threshold:'≥ 500 bps', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v!==null&&v>=500?0.75:v!==null&&v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?Math.round(pulseState.hySpreads)+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic in credit'; }},
+  {id:'igSpreads', cluster:'D', name:'IG Credit Spreads', type:'auto', threshold:'≥ 150 bps', score:()=>{ const v=parseFloat(pulseState.igSpreads); return v>=200?1:v>=150?0.75:v>=120?0.25:0; }, reading:()=>pulseState.igSpreads?Math.round(parseFloat(pulseState.igSpreads))+' bps':null, color:()=>{ const v=parseFloat(pulseState.igSpreads); return v>=150?'#ef4444':v>=120?'#f97316':v>=100?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=parseFloat(pulseState.igSpreads); return v>=150?'IG widening — investment grade stress':v>=120?'IG spreads elevated — credit markets cautious':'IG spreads contained — no systemic stress'; }},
+  {id:'yieldCurve', cluster:'D', name:'Yield Curve (10Y-2Y)', type:'auto', threshold:'≤ -0.5%', score:()=>{ if(!pulseState.yield10y||!pulseState.yield2y)return 0; const sp=pulseState.yield10y-pulseState.yield2y; return sp<=-1?1:sp<=-0.5?0.75:sp<0?0.25:0; }, reading:()=>pulseState.yield10y&&pulseState.yield2y?(pulseState.yield10y-pulseState.yield2y).toFixed(2)+'%':null, color:()=>{ if(!pulseState.yield10y||!pulseState.yield2y)return '#94a3b8'; const sp=pulseState.yield10y-pulseState.yield2y; return sp<=-0.5?'#ef4444':sp<0?'#f97316':sp<0.5?'#f59e0b':'#22c55e'; }, interpret:()=>{ if(!pulseState.yield10y||!pulseState.yield2y)return 'No yield data'; const sp=pulseState.yield10y-pulseState.yield2y; return sp<=-0.5?'INVERTED ≤ -0.5% — recession signal. Precedes market stress by 6-18 months.':sp<0?'Inverted slightly — watch for normalization':'Normal curve — no inversion signal'; }},
+  {id:'spyDrawdown', cluster:'D', name:'SPY % from ATH', type:'auto', threshold:'≥ 10%', score:()=>{ const d=pulseState.spyPctFromATH; return d!==null&&d>=20?1:d!==null&&d>=10?0.75:d!==null&&d>=7?0.25:0; }, reading:()=>pulseState.spyPctFromATH!==null?'-'+pulseState.spyPctFromATH.toFixed(1)+'%':null, color:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'#ef4444':d>=10?'#f97316':d>=5?'#f59e0b':'#22c55e'; }, interpret:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'BEAR TERRITORY — deep correction':d>=10?'CORRECTION — historical buy zone':d>=5?'Pullback — not deep enough yet':'Near ATH — no discount'; }},
 ];
 
 // Manual input fields config — only metrics that contribute to Buy rating and may need manual override
 const manualFields = [
   {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'Auto-fetched — manual override only'},
+  {id:'putCallRatio',label:'Put/Call Ratio (CBOE)',placeholder:'e.g. 1.25',src:'cboe.com/data/market-statistics'},
 ];
+
+// Direction-aware detection — tracks last 5 values per indicator
+// fearDir: 'up' = higher value = more fearful; 'down' = lower value = more fearful
+const TRACKED_FEAR_DIR={vix:'up',cnnFG:'down',cryptoFG:'down',nfci:'up',vixRatio:'up',skew:'up'};
+const TRACKED_NAMES={vix:'VIX',cnnFG:'CNN F&G',cryptoFG:'Crypto F&G',nfci:'NFCI',vixRatio:'VIX/VIX3M',skew:'SKEW'};
+let signalDirs={}; // populated after each fetch
+
+// Color helpers — declared here (before all render functions) so they're available immediately
+function fearColor(v){ return v<=10?'#ef4444':v<=25?'#f97316':v<=40?'#f59e0b':'#22c55e'; }
+function vixColor(v){ return v>=60?'#ef4444':v>=35?'#f97316':v>=25?'#f59e0b':'#22c55e'; }
+function ddColor(v){ return v>=25?'#ef4444':v>=15?'#f97316':v>=8?'#f59e0b':'#22c55e'; }
+function aaiiColor(v){ return v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e'; }
 
 function renderManualInputs(){
   document.getElementById('manual-inputs').innerHTML = manualFields.map(f=>`
@@ -1183,43 +1360,98 @@ function recalcScore(){
     const el=document.getElementById('input-'+f.id);
     if(el&&el.value)pulseState[f.id]=parseFloat(el.value);
   });
-  let rawTotal=0, active=0, maxPossible=0;
+
+  // Cluster-based aggregation: take max signal per cluster, then weight
+  const clusterMax={A:0, B:0, C:0, D:0};
+  let active=0;
   signals.forEach(s=>{
-    const sc=s.score();
-    // Calculate max possible score for this signal (evaluate with extreme inputs)
-    const isLeading=s.id==='vixTermStructure';
-    maxPossible+=isLeading?1.5:s.id==='skew'?0.75:1;
-    if(sc>0)active++;
-    rawTotal+=sc;
+    const sc=Math.min(1, s.score()); // cap at 1.0
+    if(sc>0) active++;
+    const cl=s.cluster;
+    if(cl && clusterMax[cl]!==undefined && sc>clusterMax[cl]) clusterMax[cl]=sc;
   });
-  // Normalize to 0-10 scale
-  const total=(rawTotal/maxPossible)*10;
-  const pct=Math.min(100,(total/10)*100);
+
+  // Weighted score: A×0.20 + B×0.35 + C×0.25 + D×0.20, scaled to 0-10
+  const rawScore=clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20;
+  // Contrarian headline boost: +0.5 or +1.0 when Groq detects >40%/>60% contrarian headlines
+  const boost=pulseState.contrarianBoost||0;
+  const total=Math.min(10, rawScore*10 + boost);
+  // BUY gate: A + B + (C or D) must all be > 0.5
+  const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
+  const activeClusters=['A','B','C','D'].filter(c=>clusterMax[c]>0.5).length;
+  const pct=Math.min(100,total*10);
+
   const scoreEl=document.getElementById('contrarian-score');
   const barEl=document.getElementById('score-bar');
   const labelEl=document.getElementById('score-label');
   const activeEl=document.getElementById('active-signals');
+  const clusterStatusEl=document.getElementById('cluster-status');
+
   scoreEl.textContent=total.toFixed(1);
-  scoreEl.id&&(document.getElementById('score-value')||scoreEl).textContent; // preserve for alerts
   activeEl.textContent=active;
   barEl.style.width=pct+'%';
-  if(total>=7){scoreEl.style.color='#22c55e';barEl.style.background='#22c55e';labelEl.style.color='#22c55e';labelEl.textContent='STRONG CONTRARIAN BUY';}
-  else if(total>=5){scoreEl.style.color='#f59e0b';barEl.style.background='#f59e0b';labelEl.style.color='#f59e0b';labelEl.textContent='APPROACHING BUY ZONE';}
-  else if(total>=3){scoreEl.style.color='#f97316';barEl.style.background='#f97316';labelEl.style.color='#f97316';labelEl.textContent='EARLY SIGNALS — WAIT';}
-  else{scoreEl.style.color='#94a3b8';barEl.style.background='#94a3b8';labelEl.style.color='#94a3b8';labelEl.textContent='NO BUY SIGNAL';}
 
-  // Render signal breakdown
+  // Update cluster status row with colored badges (dimmed if inactive)
+  if(clusterStatusEl){
+    const badges=['A','B','C','D'].map(c=>`<span class="cluster-badge cluster-${c}" style="opacity:${clusterMax[c]>0.5?1:0.25}">${c}</span>`).join('');
+    const boostNote=boost>0?` &nbsp;<span style="color:#a855f7;font-size:9px">+${boost.toFixed(1)} AI boost (${pulseState.contrarianPct}% contrarian)</span>`:'';
+    clusterStatusEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;${badges}${boostNote}`;
+  }
+
+  // Regime-adjusted thresholds
+  const regimeKey=classifyRegime();
+  const reg=REGIMES[regimeKey];
+  const buyThr=reg.threshold;
+  const approachThr=+(buyThr*0.70).toFixed(1);
+  const earlyThr=+(buyThr*0.43).toFixed(1);
+
+  // Update regime badge (below cluster-status)
+  const regimeBadgeEl=document.getElementById('regime-badge');
+  if(regimeBadgeEl){
+    if(reg.label){
+      regimeBadgeEl.style.display='block';
+      regimeBadgeEl.innerHTML=`<span style="color:${reg.color}">${reg.icon} ${reg.label}</span> <span style="color:rgba(255,255,255,0.35);font-weight:400">— buy at ${buyThr}/10</span>`;
+    } else {
+      regimeBadgeEl.style.display='none';
+    }
+  }
+
+  if(total>=buyThr&&buyGate){
+    scoreEl.style.color='#22c55e';barEl.style.background='#22c55e';labelEl.style.color='#22c55e';
+    labelEl.textContent=reg.label?`STRONG BUY — ${reg.label}`:'STRONG CONTRARIAN BUY';
+  } else if(total>=approachThr){
+    scoreEl.style.color='#f59e0b';barEl.style.background='#f59e0b';labelEl.style.color='#f59e0b';
+    labelEl.textContent=buyGate?'APPROACHING BUY ZONE':'APPROACHING — BUY GATE NOT MET';
+  } else if(total>=earlyThr){
+    scoreEl.style.color='#f97316';barEl.style.background='#f97316';labelEl.style.color='#f97316';labelEl.textContent='EARLY SIGNALS — WAIT';
+  } else {
+    scoreEl.style.color='#94a3b8';barEl.style.background='#94a3b8';labelEl.style.color='#94a3b8';labelEl.textContent='NO BUY SIGNAL';
+  }
+
+  // Render signal breakdown with cluster badges + direction-aware indicators
   document.getElementById('signal-breakdown').innerHTML=signals.map(s=>{
-    const sc=s.score();let r=s.reading();const col=r!==null?s.color():'#555';const interp=r!==null?s.interpret():'No data';
-    // Fix floating point display
+    const sc=Math.min(1,s.score());let r=s.reading();const col=r!==null?s.color():'#555';const interp=r!==null?s.interpret():'No data';
     if(typeof r==='number') r=r.toFixed(2);
+    // Direction arrow + status badge for tracked indicators
+    const fd=TRACKED_FEAR_DIR[s.id];
+    const d=signalDirs[s.id];
+    let arrow='', statusBadge='';
+    if(fd&&d&&d.hasData){
+      const towardFear=(fd==='up'&&d.direction==='rising')||(fd==='down'&&d.direction==='falling');
+      const arrowCol=d.direction==='flat'?'rgba(255,255,255,0.3)':towardFear?'#ef4444':'#22c55e';
+      const arrowGlyph=d.direction==='rising'?'↑':d.direction==='falling'?'↓':'→';
+      arrow=`<span class="dir-arrow" style="color:${arrowCol}">${arrowGlyph}</span>`;
+      if(d.rollingOver)   statusBadge=`<span class="badge-rolling">ROLLING OVER</span>`;
+      else if(d.atPeak)   statusBadge=`<span class="badge-peak">AT PEAK</span>`;
+      else if(towardFear) statusBadge=`<span class="badge-building">BUILDING</span>`;
+    }
     return `<div class="sig-row">
       <div class="sig-dot" style="background:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'rgba(255,255,255,0.1)'};${sc>=0.75?'box-shadow:0 0 8px #22c55e60':''}"></div>
       <div class="sig-info">
-        <span class="sig-name">${s.name}</span>
+        <span class="sig-name"><span class="cluster-badge cluster-${s.cluster}">${s.cluster}</span>${s.name}</span>
         <span class="sig-thresh">${s.threshold}</span>
       </div>
-      <div class="sig-val" style="color:${col}">${r!==null?r:'--'}</div>
+      <div class="sig-val" style="color:${col}">${arrow}${r!==null?r:'--'}${statusBadge}</div>
       <div class="sig-interp">${interp}</div>
       <div class="sig-score" style="color:${sc>=0.75?'#22c55e':sc>=0.5?'#f59e0b':sc>0?'#f97316':'#555'}">${sc>0?'+'+sc.toFixed(2):'0'}</div>
     </div>`;
@@ -1264,6 +1496,396 @@ function recalcScore(){
     </div>`;
 
   renderPulseCards();
+  updateHeroBanner();
+  updateActionCard();
+}
+
+// ===== DIRECTION-AWARE SIGNAL DETECTION =====
+function captureSignalHistory(){
+  let hist=JSON.parse(localStorage.getItem('btf-history')||'{}');
+  Object.keys(TRACKED_FEAR_DIR).forEach(k=>{
+    const val=pulseState[k]??null;
+    if(val!==null&&!isNaN(val)){
+      if(!Array.isArray(hist[k])) hist[k]=[];
+      hist[k].push(Number(val));
+      hist[k]=hist[k].slice(-5);
+    }
+  });
+  localStorage.setItem('btf-history',JSON.stringify(hist));
+}
+
+function computeDirections(){
+  const hist=JSON.parse(localStorage.getItem('btf-history')||'{}');
+  const result={};
+  for(const [k,fd] of Object.entries(TRACKED_FEAR_DIR)){
+    const arr=(hist[k]||[]).filter(v=>v!==null&&!isNaN(v));
+    if(arr.length<2){result[k]={direction:'flat',atPeak:false,rollingOver:false,hasData:arr.length>0};continue;}
+    const cur=arr[arr.length-1], prev=arr[arr.length-2];
+    const pct=Math.abs(prev)>0?Math.abs(cur-prev)/Math.abs(prev)*100:0;
+    const direction=pct<2?'flat':cur>prev?'rising':'falling';
+    const atPeak=fd==='up'?cur>=Math.max(...arr):cur<=Math.min(...arr);
+    const prevExtreme=fd==='up'?Math.max(...arr.slice(0,-1)):Math.min(...arr.slice(0,-1));
+    const wasMoreExtreme=fd==='up'?(prevExtreme>cur):(prevExtreme<cur);
+    const rollingOver=wasMoreExtreme&&pct>=2;
+    result[k]={direction,atPeak,rollingOver,hasData:true,cur,prev};
+  }
+  return result;
+}
+
+function renderRollingOverBanner(dirs){
+  const rolling=Object.entries(dirs).filter(([,v])=>v.rollingOver).map(([k])=>TRACKED_NAMES[k]);
+  const el=document.getElementById('rolling-over-banner');
+  if(!el) return;
+  if(rolling.length>=2){
+    el.innerHTML=`<span style="font-size:18px;flex-shrink:0">⚡</span><span>MULTIPLE INDICATORS ROLLING OVER — high-probability buy zone</span><span style="color:rgba(255,255,255,0.5);font-weight:400;font-size:10px;white-space:nowrap">${rolling.join(', ')}</span>`;
+    el.style.display='flex';
+  } else {
+    el.style.display='none';
+  }
+}
+
+// ===== ACTION CARD =====
+function updateActionCard(){
+  const el=document.getElementById('action-card');
+  if(!el) return;
+
+  // Recompute cluster state (cheap — just calls each signal.score())
+  const clusterMax={A:0,B:0,C:0,D:0};
+  signals.forEach(s=>{
+    const sc=Math.min(1,s.score());
+    if(s.cluster&&clusterMax[s.cluster]!==undefined&&sc>clusterMax[s.cluster]) clusterMax[s.cluster]=sc;
+  });
+  const rawScore=clusterMax.A*0.20+clusterMax.B*0.35+clusterMax.C*0.25+clusterMax.D*0.20;
+  const boost=pulseState.contrarianBoost||0;
+  const total=Math.min(10,rawScore*10+boost);
+  const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
+  const regKey=classifyRegime();
+  const reg=REGIMES[regKey];
+  const buyThr=reg.threshold;
+  const approachThr=+(buyThr*0.70).toFixed(1);
+
+  // YOUR MOVE
+  let move,moveColor;
+  if(total>=buyThr&&buyGate){ move='BUY NOW'; moveColor='#22c55e'; }
+  else if(total>=approachThr||buyGate){ move='SCALE IN'; moveColor='#f59e0b'; }
+  else { move='WAIT'; moveColor='#94a3b8'; }
+
+  // Card gradient class
+  el.className='action-card '+(total>=7?'score-high':total>=4?'score-mid':'score-low');
+
+  // CLUSTER BREAKDOWN
+  const clusterNames={A:'Fear',B:'Vol',C:'Flow',D:'Credit'};
+  const pipHTML=Object.entries(clusterNames).map(([k,name])=>{
+    const on=clusterMax[k]>0.5;
+    return `<span class="ac-cluster-pip ${on?'ac-pip-on':'ac-pip-off'}">${on?'✓':'✗'} ${name} <span style="font-size:9px;opacity:0.7">${(clusterMax[k]*100).toFixed(0)}%</span></span>`;
+  }).join('');
+
+  // MISSING SIGNALS — per cluster, find gap and describe what's needed
+  const missing=[];
+  const SIGNAL_GAPS=[
+    {id:'vixTermStructure', cluster:'B', fn:()=>{
+      const r=pulseState.vixRatio;
+      if(r===null||r===undefined) return 'VIX/VIX3M — fetch data';
+      if(r>=1.0) return null;
+      return `VIX/VIX3M cross 1.0 (now ${r.toFixed(3)}, gap ${((1.0-r)/r*100).toFixed(1)}%)`;
+    }},
+    {id:'cnnFG', cluster:'A', fn:()=>{
+      const v=pulseState.cnnFG;
+      if(v===null||v===undefined) return null;
+      if(v<=14) return null;
+      return `CNN F&G drop below ${v<=25?'14':'25'} (now ${v})`;
+    }},
+    {id:'vix', cluster:'B', fn:()=>{
+      const v=pulseState.vix;
+      if(!v||v>=35) return null;
+      return `VIX spike above 35 (now ${v.toFixed(1)})`;
+    }},
+    {id:'aaii', cluster:'A', fn:()=>{
+      const v=pulseState.aaiiBear;
+      if(v===null||v===undefined||v>=45) return null;
+      return `AAII bears rise above 45% (now ${v?.toFixed?v.toFixed(0):v}%)`;
+    }},
+    {id:'nfci', cluster:'D', fn:()=>{
+      const v=pulseState.nfci;
+      if(v===null||v===undefined||v>=0.1) return null;
+      return `NFCI rise above 0 (now ${v.toFixed(2)} — credit still loose)`;
+    }},
+    {id:'hySpreads', cluster:'D', fn:()=>{
+      const v=pulseState.hySpreads;
+      if(!v||v>=400) return null;
+      return `HY spreads widen above 400 bps (now ${Math.round(v)} bps)`;
+    }},
+    {id:'putcall', cluster:'C', fn:()=>{
+      const v=pulseState.putCallRatio;
+      if(!v) return 'Put/Call ratio — enter manually (cboe.com)';
+      if(v>=0.95) return null;
+      return `Put/Call rise above 0.95 (now ${v.toFixed(2)})`;
+    }},
+    {id:'naaim', cluster:'C', fn:()=>{
+      const v=pulseState.naaimExposure;
+      if(v===null||v===undefined||v<=60) return null;
+      return `NAAIM exposure drop below 60 (now ${v})`;
+    }},
+    {id:'spyDrawdown', cluster:'D', fn:()=>{
+      const v=pulseState.spyPctFromATH;
+      if(v===null||v===undefined||v>=10) return null;
+      return `SPY pull back ≥10% from ATH (now ${v.toFixed(1)}%)`;
+    }},
+  ];
+
+  // Only show gaps for clusters that aren't yet firing
+  SIGNAL_GAPS.forEach(sg=>{
+    if(clusterMax[sg.cluster]>0.5) return; // cluster already firing
+    const gap=sg.fn();
+    if(gap) missing.push(gap);
+  });
+
+  // NEXT TRIGGER — highest-marginal-gain signal + regime-specific narrative catalyst
+  let nextTrigger='', nextTriggerCatalyst='';
+  const candidates=[];
+  signals.forEach(s=>{
+    const sc=Math.min(1,s.score());
+    if(sc>=0.75) return;
+    const clusterWeight={A:0.20,B:0.35,C:0.25,D:0.20}[s.cluster]||0;
+    const marginalGain=(1.0-sc)*clusterWeight*10;
+    candidates.push({id:s.id,name:s.name,cluster:s.cluster,sc,marginalGain,thresh:s.threshold});
+  });
+  candidates.sort((a,b)=>b.marginalGain-a.marginalGain);
+  if(candidates[0]){
+    const c=candidates[0];
+    const pts=c.marginalGain.toFixed(1);
+    const SIGNAL_NARRATIVES={
+      vixTermStructure:`VIX crosses above VIX3M → backwardation → vol-targeting funds forced to de-risk → squeeze fuel fully loaded → +${pts} pts`,
+      vix:            `Panic spike drives VIX ≥ 35 → institutions cover shorts on first green day → short-covering cascade → +${pts} pts`,
+      skew:           `SKEW drops below 120 → options market stops pricing further tail risk → fear exhausting at extremes → +${pts} pts`,
+      cnnFG:          `Mass retail panic → CNN F&G ≤ 14 → historically 80%+ positive 3-month returns from this zone → +${pts} pts`,
+      cryptoFG:       `Crypto capitulation → F&G ≤ 10 → risk-off sentiment at peak → crypto historically leads equity recovery → +${pts} pts`,
+      aaii:           `Weekly survey hits bears ≥ 50% → historically the strongest contrarian 6-month return predictor → +${pts} pts`,
+      stockTwits:     `Retail panic: 65%+ bearish posts → crowded short → single positive catalyst triggers violent squeeze → +${pts} pts`,
+      nfci:           `Financial conditions tighten → NFCI > 0 → Fed forced to accelerate pivot timeline → +${pts} pts`,
+      hySpreads:      `HY spreads blow out ≥ 500 bps → systemic stress forces Fed backstop or emergency cut → +${pts} pts`,
+      igSpreads:      `IG spreads join the selloff ≥ 150 bps → full credit seizure → Fed forced to act immediately → +${pts} pts`,
+      yieldCurve:     `Curve deeply inverted → recession probability spikes → Fed forced to cut → eventual violent re-leveraging rally → +${pts} pts`,
+      spyDrawdown:    `SPY falls ≥ 10% from ATH → risk-parity + vol-targeting systematic de-risk → forced flush creates low-risk entry → +${pts} pts`,
+      putcall:        `Put rush drives CBOE ratio ≥ 1.2 → maximum fear hedging → historically 80%+ positive next 30 days → +${pts} pts`,
+      naaim:          `Active managers liquidate → NAAIM ≤ 40 → professional money fully de-risked → smart money entry window opens → +${pts} pts`,
+      moneyMarket:    `Cash on sidelines exceeds $6T → dry powder at record → first risk-on catalyst triggers massive inflow → +${pts} pts`,
+      spyVolSpike:    `Panic liquidation 2x+ avg volume → Coulling accumulation pattern → smart money absorbs retail panic selling → +${pts} pts`,
+    };
+    nextTrigger=SIGNAL_NARRATIVES[c.id]||`${c.name} reaches ${c.thresh} → +${pts} pts to score`;
+
+    // Regime-specific macro catalyst (the real-world event to watch for)
+    const cStep=typeof currentConflictStep!=='undefined'?currentConflictStep:null;
+    const REGIME_CATALYST={
+      CREDIT_CRISIS:    `Watch for: Fed emergency action (emergency cut · QE · bank backstop) — that's the all-clear`,
+      MECHANICAL_FLUSH: `Watch for: Any positive catalyst (trade deal, ceasefire, Fed comment) → vol crush → mechanical squeeze. No fundamental fix needed.`,
+      GEOPOLITICAL:     cStep!==null&&cStep>=8
+        ? `Watch for: Ceasefire/peace talks headline → oil collapses $10-20 → inflation scare evaporates → Step ${cStep}→10 → squeeze probability 70%+`
+        : `Watch for: De-escalation headline → war risk premium unwinds → geopolitical discount closes fast`,
+      FUNDAMENTAL_BEAR: `Watch for: Fed pivot signal (pause in hikes · rate cut · QE restart) → growth-at-risk trade unwinds → relief rally`,
+      UNKNOWN:          `Watch for: Vol spike on negative macro headline → institutions forced to de-risk → capitulation creates entry`,
+    };
+    nextTriggerCatalyst=REGIME_CATALYST[regKey]||'';
+  }
+
+  // IF BUYING NOW — entry/stop/target
+  let tradeHTML='<div style="font-size:10px;color:rgba(255,255,255,0.3)">Fetch SPY price to see trade levels.</div>';
+  if(pulseState.spyPrice){
+    const entry=pulseState.spyPrice;
+    const stopPct=0.06;
+    const stop=entry*(1-stopPct);
+    const ath=698; // SPY ATH used across the app
+    const target1=Math.max(ath,entry*1.10);
+    const target2=entry*1.18;
+    const rr1=((target1-entry)/(entry-stop)).toFixed(1);
+    const rr2=((target2-entry)/(entry-stop)).toFixed(1);
+    tradeHTML=`<div class="ac-trade-grid">
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Entry (market)</div>
+        <div class="ac-trade-val" style="color:var(--cyan)">$${entry.toFixed(2)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">current SPY</div>
+      </div>
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Stop Loss</div>
+        <div class="ac-trade-val" style="color:#ef4444">$${stop.toFixed(2)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">-${(stopPct*100).toFixed(0)}% max risk</div>
+      </div>
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Target 1 — ATH retest</div>
+        <div class="ac-trade-val" style="color:#22c55e">$${target1.toFixed(0)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">+${((target1/entry-1)*100).toFixed(1)}% · R/R ${rr1}:1</div>
+      </div>
+      <div class="ac-trade-cell">
+        <div class="ac-trade-lbl">Target 2 — full recovery</div>
+        <div class="ac-trade-val" style="color:#22c55e">$${target2.toFixed(0)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">+${((target2/entry-1)*100).toFixed(1)}% · R/R ${rr2}:1</div>
+      </div>
+    </div>`;
+  }
+
+  const missingHTML=missing.length
+    ? missing.slice(0,4).map(m=>`<div class="ac-bullet"><span class="ac-bullet-dot">▸</span>${m}</div>`).join('')
+    : `<div class="ac-bullet"><span class="ac-bullet-dot">✓</span><span style="color:#22c55e">All key thresholds met — buy gate ${buyGate?'<strong>open</strong>':'needs more cluster confirmation'}</span></div>`;
+
+  el.innerHTML=`
+    <!-- YOUR MOVE -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35)">Your Move:</span>
+      <span class="ac-move" style="color:${moveColor}">${move}</span>
+      ${reg.label?`<span style="font-size:10px;padding:3px 10px;border-radius:20px;background:${reg.color}22;color:${reg.color};font-weight:700;border:1px solid ${reg.color}44">${reg.icon} ${reg.label} — buy at ${buyThr}/10</span>`:''}
+    </div>
+
+    <!-- SCORE + CLUSTERS -->
+    <div style="margin-bottom:18px">
+      <div class="ac-section-title">Score &amp; Cluster Status</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:22px;font-weight:800;font-family:var(--mono);color:${moveColor}">${total.toFixed(1)}<span style="font-size:13px;color:rgba(255,255,255,0.3)">/10</span></span>
+        <div class="ac-cluster-row">${pipHTML}</div>
+        ${boost>0?`<span style="font-size:9px;color:#a855f7;font-weight:700">+${boost.toFixed(1)} AI</span>`:''}
+      </div>
+    </div>
+
+    <!-- MISSING SIGNALS -->
+    <div style="margin-bottom:18px">
+      <div class="ac-section-title">Missing Signals</div>
+      ${missingHTML}
+    </div>
+
+    <!-- NEXT TRIGGER -->
+    <div style="margin-bottom:18px">
+      <div class="ac-section-title">Highest-Impact Next Trigger</div>
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${moveColor}">
+        ${nextTrigger||'All major signals firing — monitor for regime change'}
+        ${nextTriggerCatalyst?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);font-size:10px;font-weight:600;color:rgba(255,255,255,0.45);letter-spacing:0.2px">${nextTriggerCatalyst}</div>`:''}
+      </div>
+    </div>
+
+    <!-- IF BUYING NOW -->
+    <div>
+      <div class="ac-section-title">If Buying Now — SPY Trade Levels</div>
+      ${tradeHTML}
+      <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-top:8px;line-height:1.5">Not financial advice. Stop based on 6% max risk. Targets based on prior ATH retest and 18% historical crisis recovery.</div>
+    </div>`;
+}
+
+// ===== HERO BANNER =====
+function updateHeroBanner(){
+  const banner=document.getElementById('hero-banner');
+  if(!banner) return;
+
+  // Read score + label from DOM — recalcScore already computed them
+  const scoreText=document.getElementById('contrarian-score')?.textContent||'';
+  const labelText=document.getElementById('score-label')?.textContent||'';
+  const scoreVal=parseFloat(scoreText)||0;
+
+  // Score color
+  const scoreColor=scoreVal>=7?'#22c55e':scoreVal>=5?'#f59e0b':scoreVal>=3?'#f97316':'#94a3b8';
+
+  // Left: score + label
+  const heroScore=document.getElementById('hero-score');
+  heroScore.textContent=scoreVal>0?scoreVal.toFixed(1):'--';
+  heroScore.style.color=scoreColor;
+  const heroLabel=document.getElementById('hero-label');
+  const shortLabel=labelText.includes('STRONG')?'STRONG BUY'
+    :labelText.includes('APPROACHING')?'APPROACHING'
+    :labelText.includes('EARLY')?'EARLY SIGNALS'
+    :labelText.includes('WAITING')?'WAITING...'
+    :(labelText||'--');
+  heroLabel.textContent=shortLabel;
+  heroLabel.style.color=scoreColor;
+
+  // Center: Conflict step
+  const conflictEl=document.getElementById('hero-conflict');
+  const cStep=typeof currentConflictStep!=='undefined'?currentConflictStep:null;
+  conflictEl.textContent=cStep?'STEP '+cStep:'--';
+
+  // Center: VIX/VIX3M ratio with direction arrow
+  const ratioEl=document.getElementById('hero-vix-ratio');
+  const ratio=pulseState.vixRatio;
+  const ratioDir=signalDirs.vixRatio;
+  const ratioColor=ratio?(ratio>1.0?'#ef4444':ratio>0.92?'#f97316':'#22c55e'):'#94a3b8';
+  let ratioStr=ratio?ratio.toFixed(3):'--';
+  if(ratio&&ratioDir?.hasData){
+    const arrow=ratioDir.direction==='rising'?'↑':ratioDir.direction==='falling'?'↓':'→';
+    ratioStr=arrow+' '+ratioStr;
+  }
+  ratioEl.textContent=ratioStr;
+  ratioEl.style.color=ratioColor;
+
+  // Center: Regime badge
+  const regimeEl=document.getElementById('hero-regime');
+  const regKey=classifyRegime();
+  const reg=REGIMES[regKey];
+  if(reg.label){
+    const short=regKey==='MECHANICAL_FLUSH'?'MECH FLUSH'
+      :regKey==='FUNDAMENTAL_BEAR'?'FUND BEAR'
+      :regKey==='CREDIT_CRISIS'?'CREDIT CRISIS'
+      :'GEO SHOCK';
+    regimeEl.textContent=short;
+    regimeEl.style.color=reg.color;
+  } else {
+    regimeEl.textContent='--';
+    regimeEl.style.color='rgba(255,255,255,0.3)';
+  }
+
+  // Right: Verdict
+  const verdictEl=document.getElementById('hero-verdict');
+  let verdict,verdictColor;
+  if(labelText.includes('STRONG')){
+    verdict='BUY NOW'; verdictColor='#22c55e';
+  } else if(labelText.includes('APPROACHING')){
+    verdict='APPROACHING'; verdictColor='#f59e0b';
+  } else if(labelText.includes('EARLY')){
+    verdict='WAIT'; verdictColor='#f97316';
+  } else {
+    verdict='WAIT'; verdictColor='#94a3b8';
+  }
+  verdictEl.textContent=verdict;
+  verdictEl.style.color=verdictColor;
+
+  // Glow effect
+  banner.classList.toggle('glow', verdict==='BUY NOW');
+}
+
+// ===== REGIME CLASSIFIER =====
+// Regimes (checked in priority order): CREDIT_CRISIS → MECHANICAL_FLUSH → GEOPOLITICAL → FUNDAMENTAL_BEAR
+const REGIMES = {
+  CREDIT_CRISIS:    { threshold:8, color:'#ef4444', icon:'🔴', label:'CREDIT CRISIS',      desc:'System stress — needs Fed intervention. Buy threshold raised to 8.' },
+  MECHANICAL_FLUSH: { threshold:4, color:'#22d3ee', icon:'⚡', label:'MECHANICAL FLUSH',   desc:'No fundamental damage — V-shape recovery likely. Buy threshold lowered to 4.' },
+  GEOPOLITICAL:     { threshold:5, color:'#f59e0b', icon:'⚑', label:'GEOPOLITICAL SHOCK', desc:'Fast recovery expected. Buy threshold lowered to 5.' },
+  FUNDAMENTAL_BEAR: { threshold:7, color:'#f97316', icon:'🐻', label:'FUNDAMENTAL BEAR',   desc:'Slow recovery — wait for Fed pivot.' },
+  UNKNOWN:          { threshold:7, color:null,      icon:'',   label:null,                 desc:null },
+};
+
+function classifyRegime(){
+  const nfci      = pulseState.nfci;
+  const hy        = pulseState.hySpreads;
+  const ig        = parseFloat(pulseState.igSpreads)||0;
+  const vixDay    = pulseState.vixChange;            // % change VIX vs prev close
+  const oilDay    = pulseState.oilChange;            // % change oil vs prev close
+  const volRatio  = (pulseState.spyVol&&pulseState.spy20dAvgVol)
+                    ? pulseState.spyVol/pulseState.spy20dAvgVol : null;
+  const drawdown  = pulseState.spyPctFromATH;
+  const unempl    = pulseState.unemployment;
+  const creditOk  = hy===null||hy<400;
+
+  // CREDIT_CRISIS — systemic stress, most dangerous, check first
+  if(nfci!==null&&nfci>0.5 && hy!==null&&hy>500 && ig>150)
+    return 'CREDIT_CRISIS';
+
+  // MECHANICAL_FLUSH — VIX spiked >50% intraday, vol huge, credit fine
+  if(vixDay!==null&&vixDay>50 && volRatio!==null&&volRatio>2.5 && creditOk)
+    return 'MECHANICAL_FLUSH';
+
+  // GEOPOLITICAL — oil shocked >15%, credit still fine (war/supply shock)
+  if(oilDay!==null&&oilDay>15 && creditOk && (nfci===null||nfci<0.3))
+    return 'GEOPOLITICAL';
+
+  // FUNDAMENTAL_BEAR — deep drawdown + macro deterioration
+  if(drawdown!==null&&drawdown>15 && unempl!==null&&unempl>4.5)
+    return 'FUNDAMENTAL_BEAR';
+
+  return 'UNKNOWN';
 }
 
 // Global timeout helper for fetch calls
@@ -1295,6 +1917,49 @@ const PROXIES=[
 ];
 const PROXY_NAMES=['direct','corsproxy.io','allorigins','corsproxy.org','cors.sh'];
 let workingProxy=-1;
+
+// yahooChart — hoisted to outer scope so both fetchAllData and fetchLightData can use it
+async function yahooChart(ticker,range='1mo',interval='1d'){
+  const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
+  const n=PROXIES.length;
+  const allIdx=Array.from({length:n},(_,i)=>i);
+  const order=workingProxy>=0?[workingProxy,...allIdx.filter(i=>i!==workingProxy)]:allIdx;
+  for(const pi of order){
+    for(const host of yHosts){
+      const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+      try{
+        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),12000);
+        if(!r.ok) continue;
+        const d=await r.json();
+        if(!d.chart||!d.chart.result) continue;
+        const res=d.chart.result[0];
+        const ts=res.timestamp;
+        const q=res.indicators.quote[0];
+        const closes=q.close, volumes=q.volume;
+        let lastIdx=closes.length-1;
+        while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
+        if(lastIdx<0) continue;
+        workingProxy=pi;
+        const lastDate=new Date(ts[lastIdx]*1000);
+        const validCloses=closes.filter(v=>v!==null);
+        const validVols=volumes?volumes.filter(v=>v!==null):[];
+        return {
+          price:closes[lastIdx],
+          prevClose:lastIdx>0?closes[lastIdx-1]:null,
+          volume:volumes?volumes[lastIdx]:null,
+          avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
+          date:lastDate,
+          dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+          allCloses:validCloses,
+          allVols:validVols,
+          proxy:PROXY_NAMES[pi],
+          ok:true
+        };
+      }catch(e){ continue; }
+    }
+  }
+  return {ok:false};
+}
 
 // Fetches full daily OHLCV time series from Yahoo Finance
 async function fetchYahooHistory(ticker, range){
@@ -1537,31 +2202,232 @@ function renderHistoricalCharts(series, range){
   },50);
 }
 
-function toggleAutoRefresh(){
-  const btn=document.getElementById('auto-refresh-btn');
-  const sel=document.getElementById('auto-refresh-interval');
-  if(autoRefreshTimer){
-    clearInterval(autoRefreshTimer);
-    autoRefreshTimer=null;
-    btn.textContent='⏱ Auto: Off';
-    btn.style.borderColor='rgba(255,255,255,0.15)';
-    btn.style.color='rgba(255,255,255,0.3)';
-    btn.style.background='transparent';
-  }else{
-    const ms=parseInt(sel.value)||300000;
-    autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
-    btn.textContent='⏱ Auto: On';
-    btn.style.borderColor='var(--green,#22c55e)';
-    btn.style.color='var(--green,#22c55e)';
-    btn.style.background='rgba(34,197,94,0.08)';
+let _arCountdownTimer=null;
+let _arNextAt=null;
+const AR_INTERVALS={'5min':300000,'15min':900000};
+
+function setAutoRefreshMode(mode){
+  // Cancel existing timers
+  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
+  if(_arCountdownTimer){ clearInterval(_arCountdownTimer); _arCountdownTimer=null; }
+  _arNextAt=null;
+
+  // Update pill selection
+  document.querySelectorAll('.ar-pill').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+
+  const badge=document.getElementById('live-badge');
+  const countdown=document.getElementById('ar-countdown');
+  if(badge) badge.style.display='none';
+  if(countdown) countdown.style.display='none';
+
+  try{ localStorage.setItem('arMode',mode); }catch(e){}
+
+  if(mode==='off') return;
+
+  const ms=AR_INTERVALS[mode]||300000;
+  _arNextAt=Date.now()+ms;
+  if(badge) badge.style.display='inline-flex';
+  if(countdown) countdown.style.display='inline';
+
+  function tick(){
+    if(!_arNextAt) return;
+    const rem=Math.max(0,_arNextAt-Date.now());
+    const m=Math.floor(rem/60000);
+    const s=Math.floor((rem%60000)/1000);
+    if(countdown) countdown.textContent=`Next refresh in ${m}:${s.toString().padStart(2,'0')}`;
   }
+  tick();
+  _arCountdownTimer=setInterval(tick,1000);
+
+  autoRefreshTimer=setInterval(()=>{
+    if(!isFetching){
+      fetchLightData();
+      _arNextAt=Date.now()+ms;
+    }
+  },ms);
+}
+
+// ===== LIGHT REFRESH (auto-refresh path) — prices + Polymarket only =====
+async function fetchLightData(){
+  if(isFetching) return;
+  isFetching=true;
+  const status=document.getElementById('fetch-status');
+  if(status) status.textContent='Auto-refreshing prices...';
+  const _preSnap=prevFetchSnapshot;
+  const SPY_ATH=698;
+
+  // Parallel: Crypto F&G, BTC, Yahoo tickers, Polymarket
+  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR]=
+    await Promise.allSettled([
+      fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
+      fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true').then(r=>r.json()),
+      yahooChart('SPY','1mo','1d'),
+      yahooChart('%5EVIX','5d','1d'),
+      yahooChart('QQQ','5d','1d'),
+      yahooChart('IWM','5d','1d'),
+      yahooChart('CL=F','5d','1d'),
+      yahooChart('%5ETNX','5d','1d'),
+      yahooChart('GC=F','5d','1d'),
+      yahooChart('%5ESPXA200R','5d','1d'),
+      yahooChart('%5EVIX3M','5d','1d'),
+      yahooChart('%5ESKEW','5d','1d'),
+      fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('iran ceasefire')),6000).then(r=>r.ok?r.json():null),
+      fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('us recession 2026')),6000).then(r=>r.ok?r.json():null),
+    ]);
+
+  // Process Crypto F&G
+  if(_cfR.status==='fulfilled'&&_cfR.value?.data?.[0]){
+    const d=_cfR.value;
+    pulseState.cryptoFG=parseInt(d.data[0].value);
+    pulseState.cryptoFGLabel=d.data[0].value_classification;
+    pulseState.cryptoFGDate=new Date(d.data[0].timestamp*1000).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  }
+  // Process BTC
+  if(_btcR.status==='fulfilled'&&_btcR.value?.bitcoin){
+    pulseState.btcPrice=_btcR.value.bitcoin.usd;
+    pulseState.btcChange24h=_btcR.value.bitcoin.usd_24h_change;
+  }
+  // Process SPY
+  const spyD=_spyR.status==='fulfilled'?_spyR.value:{ok:false};
+  if(spyD.ok){
+    pulseState.spyPrice=spyD.price; pulseState.spyPrevClose=spyD.prevClose;
+    pulseState.spyVol=spyD.volume; pulseState.spy20dAvgVol=spyD.avg20Vol;
+    pulseState.spyPctFromATH=((SPY_ATH-spyD.price)/SPY_ATH)*100;
+    pulseState.spyDate=spyD.dateStr;
+    pulseState.spyChange=spyD.prevClose?((spyD.price-spyD.prevClose)/spyD.prevClose*100):null;
+    pulseState.spySpark=spyD.allCloses.slice(-20);
+  }
+  // Process VIX
+  const vixD=_vixR.status==='fulfilled'?_vixR.value:{ok:false};
+  if(vixD.ok){
+    pulseState.vix=vixD.price; pulseState.vixDate=vixD.dateStr;
+    pulseState.vixPrevClose=vixD.prevClose;
+    pulseState.vixChange=vixD.prevClose?((vixD.price-vixD.prevClose)/vixD.prevClose*100):null;
+    pulseState.vixSpark=vixD.allCloses.slice(-10);
+  }
+  // Process QQQ
+  const qqqD=_qqqR.status==='fulfilled'?_qqqR.value:{ok:false};
+  if(qqqD.ok){
+    pulseState.qqqPrice=qqqD.price; pulseState.qqqDate=qqqD.dateStr;
+    pulseState.qqqChange=qqqD.prevClose?((qqqD.price-qqqD.prevClose)/qqqD.prevClose*100):null;
+    pulseState.qqqSpark=qqqD.allCloses.slice(-10);
+  }
+  // Process IWM
+  const iwmD=_iwmR.status==='fulfilled'?_iwmR.value:{ok:false};
+  if(iwmD.ok){
+    pulseState.iwmPrice=iwmD.price; pulseState.iwmDate=iwmD.dateStr;
+    pulseState.iwmChange=iwmD.prevClose?((iwmD.price-iwmD.prevClose)/iwmD.prevClose*100):null;
+  }
+  // Process Oil
+  const oilD=_oilR.status==='fulfilled'?_oilR.value:{ok:false};
+  if(oilD.ok){
+    pulseState.oilPrice=oilD.price; pulseState.oilDate=oilD.dateStr;
+    pulseState.oilChange=oilD.prevClose?((oilD.price-oilD.prevClose)/oilD.prevClose*100):null;
+    pulseState.oilSpark=oilD.allCloses.slice(-10);
+  }
+  // Process TNX
+  const tnxD=_tnxR.status==='fulfilled'?_tnxR.value:{ok:false};
+  if(tnxD.ok){
+    pulseState.tnx=tnxD.price; pulseState.tnxDate=tnxD.dateStr;
+    pulseState.tnxSpark=tnxD.allCloses.slice(-10);
+  }
+  // Process Gold
+  const goldD=_goldR.status==='fulfilled'?_goldR.value:{ok:false};
+  if(goldD.ok){
+    pulseState.goldPrice=goldD.price; pulseState.goldDate=goldD.dateStr;
+    pulseState.goldSpark=goldD.allCloses.slice(-10);
+  }
+  // Process ^SPXA200R
+  const spxaD=_spxaR.status==='fulfilled'?_spxaR.value:{ok:false};
+  if(spxaD.ok){
+    pulseState.pctAbove200dma=Math.round(spxaD.price*10)/10;
+    const el=document.getElementById('input-pctAbove200dma');
+    if(el) el.value=pulseState.pctAbove200dma;
+  }
+  // Process VIX3M → vixRatio
+  const vix3mD=_vix3mR.status==='fulfilled'?_vix3mR.value:{ok:false};
+  if(vix3mD.ok&&pulseState.vix){
+    pulseState.vix3m=vix3mD.price;
+    pulseState.vixRatio=pulseState.vix/vix3mD.price;
+    pulseState.vixTermStructure=pulseState.vixRatio>1?'backwardation':'contango';
+    const vtEl=document.getElementById('input-vixTermStructure');
+    if(vtEl) vtEl.value=pulseState.vixTermStructure;
+  }
+  // Process SKEW
+  const skewD=_skewR.status==='fulfilled'?_skewR.value:{ok:false};
+  if(skewD.ok) pulseState.skew=skewD.price;
+
+  // Process Polymarket
+  for(const [res,field,label] of [[_pmCeaseR,'polyIranCeasefire','Iran Ceasefire'],[_pmRecR,'polyRecession','US Recession']]){
+    if(res.status==='fulfilled'&&Array.isArray(res.value)&&res.value.length>0){
+      const mkt=res.value[0];
+      const prob=mkt.outcomePrices?JSON.parse(mkt.outcomePrices)[0]:mkt.bestBid||null;
+      if(prob!==null){
+        const pct=Math.round(parseFloat(prob)*100);
+        pulseState[field]={pct,title:mkt.question||label,volume:mkt.volume||0,slug:mkt.slug};
+      }
+    }
+  }
+
+  // CNN F&G (fast proxy, optional)
+  try{
+    const cnnR=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent('https://production.dataviz.cnn.io/index/fearandgreed/graphdata'),5000);
+    if(cnnR.ok){
+      const cnnD=await cnnR.json();
+      if(cnnD?.fear_and_greed?.score!==undefined){
+        pulseState.cnnFG=Math.round(cnnD.fear_and_greed.score);
+        pulseState.cnnFGRating=cnnD.fear_and_greed.rating||'';
+        pulseState.cnnFGDate=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        const el=document.getElementById('input-cnnFG');
+        if(el) el.value=pulseState.cnnFG;
+      }
+    }
+  }catch(e){}
+
+  // StockTwits SPY (fast, no API key)
+  try{
+    const stR=await fetchWithTimeout('https://api.stocktwits.com/api/2/streams/symbol/SPY.json?limit=30',5000);
+    if(stR.ok){
+      const stD=await stR.json();
+      if(stD.messages){
+        const msgs=stD.messages.filter(m=>m.entities?.sentiment?.basic);
+        const bull=msgs.filter(m=>m.entities.sentiment.basic==='Bullish').length;
+        const bear=msgs.filter(m=>m.entities.sentiment.basic==='Bearish').length;
+        const total=bull+bear;
+        if(total>0) pulseState.stwSpy={bull:Math.round(bull/total*100),bear:Math.round(bear/total*100),total};
+      }
+    }
+  }catch(e){}
+
+  // Update UI
+  const okSrcs=[spyD,vixD,qqqD,oilD,tnxD,goldD].filter(d=>d.ok).length;
+  if(status) status.innerHTML=`<span style="color:#22c55e">Auto-refreshed — ${okSrcs} price sources</span> <span style="color:rgba(255,255,255,0.25)">· ${new Date().toLocaleTimeString()}</span>`;
+  const luEl=document.getElementById('last-updated');
+  if(luEl) luEl.innerHTML=`<span style="color:rgba(255,255,255,0.35)">Prices as of: <strong style="color:var(--cyan)">${pulseState.spyDate||'--'}</strong></span> <span style="color:rgba(255,255,255,0.15)">· Auto-refreshed ${new Date().toLocaleTimeString()}</span>`;
+
+  // Cache + propagate
+  try{ localStorage.setItem('contrarianCache',JSON.stringify({data:{...pulseState},ts:Date.now()})); }catch(e){}
+  propagateData();
+  recalcScore();
+  captureSignalHistory();
+  signalDirs=computeDirections();
+  renderRollingOverBanner(signalDirs);
+  recalcScore();
+  captureSnapshot();
+
+  // What Changed
+  const _postSnap=snapshotForDiff();
+  if(_preSnap!==null) renderWhatChanged(_preSnap,_postSnap);
+  prevFetchSnapshot=_postSnap;
+
+  isFetching=false;
 }
 
 // Persist API keys to localStorage
 function saveApiKeys(){
   try{
     const keys={};
-    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux'].forEach(k=>{
+    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux','groq'].forEach(k=>{
       const el=document.getElementById('key-'+k);
       if(el&&el.value.trim()) keys[k]=el.value.trim();
     });
@@ -1578,50 +2444,9 @@ async function fetchAllData(){
   status.textContent='Connecting to free APIs...';
   const log=[];
   const SPY_ATH=698;
-  // PROXIES, PROXY_NAMES, workingProxy are at outer scope (shared with fetchYahooHistory)
-
-  async function yahooChart(ticker,range='1mo',interval='1d'){
-    // Try both Yahoo Finance endpoints + all CORS proxies for maximum resilience
-    const yHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com'];
-    const n=PROXIES.length;
-    const allIdx=Array.from({length:n},(_,i)=>i);
-    const order=workingProxy>=0?[workingProxy,...allIdx.filter(i=>i!==workingProxy)]:allIdx;
-    for(const pi of order){
-      for(const host of yHosts){
-        const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
-        try{
-          const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
-          if(!r.ok) continue;
-          const d=await r.json();
-          if(!d.chart||!d.chart.result) continue;
-          const res=d.chart.result[0];
-          const ts=res.timestamp;
-          const q=res.indicators.quote[0];
-          const closes=q.close, volumes=q.volume;
-          let lastIdx=closes.length-1;
-          while(lastIdx>=0&&closes[lastIdx]===null) lastIdx--;
-          if(lastIdx<0) continue;
-          workingProxy=pi;
-          const lastDate=new Date(ts[lastIdx]*1000);
-          const validCloses=closes.filter(v=>v!==null);
-          const validVols=volumes?volumes.filter(v=>v!==null):[];
-          return {
-            price:closes[lastIdx],
-            prevClose:lastIdx>0?closes[lastIdx-1]:null,
-            volume:volumes?volumes[lastIdx]:null,
-            avg20Vol:validVols.length>=20?validVols.slice(-20).reduce((a,b)=>a+b,0)/20:validVols.length>0?validVols.reduce((a,b)=>a+b,0)/validVols.length:null,
-            date:lastDate,
-            dateStr:lastDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
-            allCloses:validCloses,
-            allVols:validVols,
-            proxy:PROXY_NAMES[pi],
-            ok:true
-          };
-        }catch(e){ continue; }
-      }
-    }
-    return {ok:false};
-  }
+  // Capture pre-fetch state so we can diff after
+  const _preSnap=prevFetchSnapshot;
+  // yahooChart is defined at outer scope — shared with fetchLightData
 
   // 1-10) Parallel fetch: Crypto F&G, BTC, 7 Yahoo Finance tickers, and ^SPXA200R breadth
   status.textContent='Fetching market data (parallel)...';
@@ -2190,12 +3015,149 @@ async function fetchAllData(){
   // Propagate data across all tabs
   propagateData();
   recalcScore();
+  // Update direction-aware detection (history → arrows/badges/banner)
+  captureSignalHistory();
+  signalDirs=computeDirections();
+  renderRollingOverBanner(signalDirs);
+  recalcScore(); // re-render breakdown now that signalDirs is populated
   // Save daily snapshot to 30-day history
   captureSnapshot();
+
+  // What Changed — compare previous fetch vs current state
+  const _postSnap=snapshotForDiff();
+  if(_preSnap!==null) renderWhatChanged(_preSnap, _postSnap);
+  prevFetchSnapshot=_postSnap;
 
   // Fetch headlines for conflict phase detection (async, non-blocking)
   fetchConflictHeadlines().catch(()=>{});
   isFetching=false;
+}
+
+// ===== WHAT CHANGED =====
+let prevFetchSnapshot = null;
+
+function snapshotForDiff(){
+  return {
+    ts:             Date.now(),
+    spyPrice:       pulseState.spyPrice       ?? null,
+    qqqPrice:       pulseState.qqqPrice       ?? null,
+    vix:            pulseState.vix            ?? null,
+    vixRatio:       pulseState.vixRatio       ?? null,
+    cnnFG:          pulseState.cnnFG          ?? null,
+    cryptoFG:       pulseState.cryptoFG       ?? null,
+    nfci:           pulseState.nfci           ?? null,
+    hySpreads:      pulseState.hySpreads      ?? null,
+    tnx:            pulseState.tnx            ?? null,
+    aaiiBull:       pulseState.aaiiBull       ?? null,
+    aaiiBear:       pulseState.aaiiBear       ?? null,
+    putCallRatio:   pulseState.putCallRatio   ?? null,
+    naaimExposure:  pulseState.naaimExposure  ?? null,
+    btcPrice:       pulseState.btcPrice       ?? null,
+    oilPrice:       pulseState.oilPrice       ?? null,
+    goldPrice:      pulseState.goldPrice      ?? null,
+    conflictStep:   (typeof currentConflictStep!=='undefined')?currentConflictStep:null,
+    tariffStep:     (typeof currentTariffStep  !=='undefined')?currentTariffStep  :null,
+  };
+}
+
+function renderWhatChanged(prev, curr){
+  const panel=document.getElementById('what-changed-panel');
+  const rowsEl=document.getElementById('wc-rows');
+  const tsEl=document.getElementById('wc-timestamps');
+  if(!panel||!rowsEl) return;
+
+  const fmtTs=ts=>{
+    const d=new Date(ts);
+    return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  };
+  if(tsEl) tsEl.textContent=fmtTs(prev.ts)+' → '+fmtTs(curr.ts);
+
+  // Field config: key, label, display format, bullish direction, threshold
+  const FIELDS=[
+    {k:'spyPrice',     lb:'SPY',         fmt:'$f2',  bull:'up',   thr:{pct:2}},
+    {k:'qqqPrice',     lb:'QQQ',         fmt:'$f2',  bull:'up',   thr:{pct:2}},
+    {k:'vix',          lb:'VIX',         fmt:'f2',   bull:'down', thr:{pts:1}},
+    {k:'vixRatio',     lb:'VIX/VIX3M',   fmt:'f3',   bull:'down', thr:{pts:0.02}},
+    {k:'cnnFG',        lb:'CNN F&G',     fmt:'i',    bull:'up',   thr:{pts:1}},
+    {k:'cryptoFG',     lb:'Crypto F&G',  fmt:'i',    bull:'up',   thr:{pts:1}},
+    {k:'nfci',         lb:'NFCI',        fmt:'f2',   bull:'down', thr:{pts:0.05}},
+    {k:'hySpreads',    lb:'HY Spreads',  fmt:'i',    bull:'down', thr:{pts:5}},
+    {k:'tnx',          lb:'10Y Yield',   fmt:'f2pct',bull:'down', thr:{pts:0.05}},
+    {k:'aaiiBull',     lb:'AAII Bull %', fmt:'i',    bull:'up',   thr:{pts:1}},
+    {k:'aaiiBear',     lb:'AAII Bear %', fmt:'i',    bull:'down', thr:{pts:1}},
+    {k:'putCallRatio', lb:'Put/Call',    fmt:'f2',   bull:'down', thr:{pts:0.02}},
+    {k:'naaimExposure',lb:'NAAIM',       fmt:'i',    bull:'up',   thr:{pts:2}},
+    {k:'btcPrice',     lb:'BTC',         fmt:'$int', bull:'up',   thr:{pct:2}},
+    {k:'oilPrice',     lb:'Oil (WTI)',   fmt:'$f2',  bull:null,   thr:{pct:2}},
+    {k:'goldPrice',    lb:'Gold',        fmt:'$int', bull:null,   thr:{pct:2}},
+  ];
+
+  function fmtV(v,fmt){
+    if(v===null||v===undefined||isNaN(v)) return '??';
+    if(fmt==='$f2')   return '$'+v.toFixed(2);
+    if(fmt==='$int')  return '$'+Math.round(v).toLocaleString();
+    if(fmt==='f2')    return v.toFixed(2);
+    if(fmt==='f3')    return v.toFixed(3);
+    if(fmt==='f2pct') return v.toFixed(2)+'%';
+    if(fmt==='i')     return Math.round(v).toString();
+    return String(v);
+  }
+
+  function fmtDelta(delta, fmt, pct){
+    const sign=delta>0?'+':'';
+    if(pct!==null) return `(${sign}${pct.toFixed(1)}%)`;
+    if(fmt==='i')    return `(${sign}${Math.round(delta)})`;
+    if(fmt==='f3')   return `(${sign}${delta.toFixed(3)})`;
+    if(fmt==='f2pct')return `(${sign}${delta.toFixed(2)}pp)`;
+    return `(${sign}${delta.toFixed(2)})`;
+  }
+
+  const rows=[];
+  for(const f of FIELDS){
+    const p=prev[f.k], c=curr[f.k];
+    if(p===null||p===undefined||c===null||c===undefined||isNaN(p)||isNaN(c)) continue;
+    const delta=c-p;
+    if(delta===0) continue;
+    const absDelta=Math.abs(delta);
+    let pctChg=null, passes=false;
+    if(f.thr.pct){
+      pctChg=Math.abs(p)>0?delta/Math.abs(p)*100:0;
+      passes=Math.abs(pctChg)>=f.thr.pct;
+    } else {
+      passes=absDelta>=f.thr.pts;
+    }
+    if(!passes) continue;
+    const bigMove=pctChg!==null&&Math.abs(pctChg)>=5;
+    const up=delta>0;
+    let color='rgba(255,255,255,0.5)';
+    if(f.bull==='up')   color=up?'#22c55e':'#ef4444';
+    if(f.bull==='down') color=up?'#ef4444':'#22c55e';
+    const arrow=up?'↑':'↓';
+    rows.push({f,p,c,delta,pctChg,bigMove,color,arrow,chgStr:fmtDelta(delta,f.fmt,pctChg)});
+  }
+
+  // Step changes — always shown if changed
+  for(const [k,lb] of [['conflictStep','Conflict Step'],['tariffStep','Tariff Step']]){
+    const p=prev[k], c=curr[k];
+    if(p===null||c===null||p===c) continue;
+    const up=c>p;
+    // Higher conflict/tariff step = more escalation = bad for markets
+    const color=up?'#ef4444':'#22c55e';
+    rows.push({step:true,lb,p,c,color,arrow:up?'↑':'↓',bigMove:false});
+  }
+
+  if(rows.length===0){
+    rowsEl.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;padding:6px 0">No significant changes since last fetch</div>';
+  } else {
+    rowsEl.innerHTML=rows.map(r=>{
+      if(r.step){
+        return `<div class="wc-row"><span class="wc-label">${r.lb}</span><span class="wc-change" style="color:${r.color}">${r.p} → ${r.c} ← STEP CHANGE ${r.arrow}</span></div>`;
+      }
+      const bigBadge=r.bigMove?` <span class="wc-big">BIG MOVE</span>`:'';
+      return `<div class="wc-row"><span class="wc-label">${r.f.lb}</span><span class="wc-change" style="color:${r.color}">${fmtV(r.p,r.f.fmt)} → ${fmtV(r.c,r.f.fmt)} ${r.chgStr} ${r.arrow}${bigBadge}</span></div>`;
+    }).join('');
+  }
+  panel.style.display='block';
 }
 
 // ===== 30-DAY HISTORY TRACKING =====
@@ -2578,13 +3540,16 @@ function propagateData(){
     const nowLabel = document.getElementById('accum-now-label');
     if(nowLabel) nowLabel.textContent = '$' + Math.round(pulseState.spyPrice) + ' NOW';
   }
+
+  updateHeroBanner();
+  updateActionCard();
 }
 
 // Restore saved API keys from localStorage
 (function loadSavedKeys(){
   try{
     const saved=JSON.parse(localStorage.getItem('contrarianApiKeys')||'{}');
-    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux'].forEach(k=>{
+    ['alphavantage','fred','finnhub','newsapi','twelvedata','marketaux','groq'].forEach(k=>{
       const el=document.getElementById('key-'+k);
       if(el&&saved[k]) el.value=saved[k];
     });
@@ -2605,10 +3570,10 @@ function propagateData(){
   }catch(e){}
 })();
 
-// Initial render
-renderManualInputs();
-renderPulseCards();
-recalcScore();
+// Initial render — wrapped in try/catch so a crash here cannot prevent tab setup
+try { renderManualInputs(); } catch(e) { console.error('[init] renderManualInputs:', e); }
+try { renderPulseCards(); } catch(e) { console.error('[init] renderPulseCards:', e); }
+try { recalcScore(); } catch(e) { console.error('[init] recalcScore:', e); }
 
 // ===== SHORT-TERM SIGNALS =====
 const volSpikeData = [
@@ -2839,7 +3804,7 @@ function updateShortTermSignals() {
   }
 }
 // Initial render
-updateShortTermSignals();
+try { updateShortTermSignals(); } catch(e) { console.error('[init] updateShortTermSignals:', e); }
 
 // ===== DATA =====
 const crisisData = [
@@ -2859,11 +3824,6 @@ const crisisData = [
   { id:"tariff", name:"Tariff Crisis", date:"Apr 2025", fearGreed:3, vixPeak:60.13, spyBottom:482, drawdown:18, aaiiBearish:62, catalyst:"Liberation Day tariffs, trade war panic, 29B share record volume", resolution:"Tariff rollbacks, 90-day pause after bond market stress", timeToATH:"~8 months (Jan 2026)", contrariansRight:true, oilContext:"Oil fell to ~$58 on recession fears", fedResponse:"On hold, market priced cuts", laborMarket:"Weakening — 4.2% unemployment", formerATH:480, retestLevel:482 },
   { id:"iran", name:"Iran War", date:"Mar 2026", fearGreed:20, vixPeak:27.7, spyBottom:656, drawdown:6.0, aaiiBearish:45, catalyst:"US-Israel strikes on Iran, oil shock, Strait of Hormuz closure", resolution:"No resolution — Strait of Hormuz closed, oil $98+", timeToATH:"TBD", contrariansRight:null, oilContext:"Oil surging $98+ (Brent $112), Strait of Hormuz closed", fedResponse:"Trapped — stagflation risk, rates on hold", laborMarket:"Cracking — payrolls -92K, UE 4.4%", formerATH:590, retestLevel:null }
 ];
-
-const fearColor = v => v<=10?'#ef4444':v<=25?'#f97316':v<=40?'#f59e0b':'#22c55e';
-const vixColor = v => v>=60?'#ef4444':v>=35?'#f97316':v>=25?'#f59e0b':'#22c55e';
-const ddColor = v => v>=25?'#ef4444':v>=15?'#f97316':v>=8?'#f59e0b':'#22c55e';
-const aaiiColor = v => v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e';
 
 // ===== TABS =====
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -3826,6 +4786,51 @@ function detectTariffPhase(){
 }
 
 // ===== MULTI-SOURCE HEADLINE FETCHER =====
+// ===== GROQ AI HEADLINE CLASSIFICATION =====
+let groqClassifications = []; // [{conflictStep,tariffStep,sentiment,contrarian,reasoning}, ...]
+
+async function classifyHeadlinesWithGroq(headlines, groqKey){
+  const top15 = headlines.slice(0, 15);
+  const numbered = top15.map((h, i) => `${i+1}. ${h.title}`).join('\n');
+  const systemPrompt = `You are a financial market analyst for a contrarian buy-signal dashboard. Classify each headline concisely. Return ONLY a JSON array with no extra text.`;
+  const userPrompt = `Classify each headline for a contrarian market timing dashboard.
+For each headline, return JSON with these exact fields:
+{
+  "conflictStep": (integer 1-10 mapping to Kobeissi conflict escalation cycle, or null),
+  "tariffStep": (integer 1-13 mapping to Kobeissi tariff/trade-war cycle, or null),
+  "sentiment": (float -1.0 to +1.0, financial market impact: -1=very bearish, +1=very bullish),
+  "contrarian": (boolean: true if this scares retail but is actually a buy signal for smart money),
+  "reasoning": (string: one sentence explaining your classification)
+}
+
+Return a JSON array — one object per headline in the same order. Headlines:
+${numbered}`;
+
+  const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+    body: JSON.stringify({
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0,
+      max_tokens: 2000,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]
+    })
+  });
+  if(!groqResp.ok) throw new Error('Groq HTTP ' + groqResp.status);
+  const data = await groqResp.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  // Extract JSON array — model may wrap in ```json``` fences
+  const jsonMatch = content.match(/\[[\s\S]*\]/);
+  if(!jsonMatch) throw new Error('No JSON array in Groq response');
+  const parsed = JSON.parse(jsonMatch[0]);
+  // Validate length — pad with nulls if model returned fewer entries
+  while(parsed.length < top15.length) parsed.push({conflictStep:null,tariffStep:null,sentiment:0,contrarian:false,reasoning:''});
+  return parsed.slice(0, top15.length);
+}
+
 async function fetchHeadlines(){
   const headlinesEl = document.getElementById('conflict-headlines');
   if(headlinesEl) headlinesEl.innerHTML='<div style="color:rgba(255,255,255,0.2);font-size:10px">Scanning multiple sources...</div>';
@@ -3970,6 +4975,41 @@ async function fetchHeadlines(){
   headlineSignals = allHeadlines.map(h=>h.title);
   allFetchedHeadlines = allHeadlines;
 
+  // ===== GROQ AI CLASSIFICATION =====
+  groqClassifications = [];
+  const groqKey = (document.getElementById('key-groq')||{}).value?.trim()||'';
+  let groqUsed = false;
+  if(groqKey && allHeadlines.length > 0){
+    try {
+      groqClassifications = await classifyHeadlinesWithGroq(allHeadlines, groqKey);
+      groqUsed = true;
+
+      // Override conflict/tariff step with AI votes (majority of non-null values)
+      const cVotes = groqClassifications.map(r=>r?.conflictStep).filter(v=>v!=null&&v>=1&&v<=10);
+      const tVotes = groqClassifications.map(r=>r?.tariffStep).filter(v=>v!=null&&v>=1&&v<=13);
+      if(cVotes.length > 0){
+        const cMode = cVotes.sort((a,b)=>cVotes.filter(v=>v===b).length-cVotes.filter(v=>v===a).length)[0];
+        currentConflictStep = Math.round(cMode);
+      }
+      if(tVotes.length > 0){
+        const tMode = tVotes.sort((a,b)=>tVotes.filter(v=>v===b).length-tVotes.filter(v=>v===a).length)[0];
+        currentTariffStep = Math.round(tMode);
+      }
+
+      // Contrarian headline boost: >60% contrarian → +1 to buy score
+      const contrarianCount = groqClassifications.filter(r=>r?.contrarian).length;
+      const pct = contrarianCount / groqClassifications.length;
+      pulseState.contrarianBoost = pct > 0.6 ? 1 : pct > 0.4 ? 0.5 : 0;
+      pulseState.contrarianPct = Math.round(pct * 100);
+    } catch(e) {
+      groqClassifications = [];
+      console.warn('[Groq]', e.message);
+    }
+  } else {
+    pulseState.contrarianBoost = 0;
+    pulseState.contrarianPct = null;
+  }
+
   // Classify and render in Conflict tab
   if(headlinesEl) {
     if(allHeadlines.length > 0) {
@@ -3981,13 +5021,24 @@ async function fetchHeadlines(){
         <div style="font-size:8px;color:rgba(255,255,255,0.15);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.04)">
           ${allHeadlines.length} headlines from ${Object.keys(srcBadges).length} sources (${srcSummary})${errors.length>0?' · <span style="color:rgba(239,68,68,0.4)">failed: '+errors.join(', ')+'</span>':''}
         </div>` +
-        allHeadlines.map(h => {
-          const cStep = matchKeywords(h.title.toLowerCase(), conflictKeywords);
-          const tStep = matchKeywords(h.title.toLowerCase(), tariffKeywords);
+        allHeadlines.map((h, idx) => {
+          const ai = groqClassifications[idx] || null;
+          // Step badge: prefer AI classification, fall back to keyword match
+          const cStep = ai?.conflictStep || matchKeywords(h.title.toLowerCase(), conflictKeywords);
+          const tStep = ai?.tariffStep   || matchKeywords(h.title.toLowerCase(), tariffKeywords);
           const step = cStep || tStep;
           const isConflict = !!cStep;
-          const isTariff = !!tStep && !cStep;
-          const stepBadge = step ? `<span style="padding:1px 6px;border-radius:3px;font-size:7px;font-weight:700;background:${step>=9?'rgba(34,197,94,0.15)':step>=7?'rgba(34,211,238,0.15)':'rgba(249,115,22,0.15)'};color:${step>=9?'#22c55e':step>=7?'#22d3ee':'#f97316'}">${isConflict?'C':'T'}-STEP ${step}</span>` : '';
+          const stepBadge = step ? `<span style="padding:1px 6px;border-radius:3px;font-size:7px;font-weight:700;background:${step>=9?'rgba(34,197,94,0.15)':step>=7?'rgba(34,211,238,0.15)':'rgba(249,115,22,0.15)'};color:${step>=9?'#22c55e':step>=7?'#22d3ee':'#f97316'}">${isConflict?'C':'T'}-STEP ${step}${ai?'✦':''}</span>` : '';
+          // AI badges
+          let aiBadges = '';
+          if(ai){
+            const sent = ai.sentiment;
+            const sentCol = sent < -0.3 ? '#ef4444' : sent > 0.3 ? '#22c55e' : '#94a3b8';
+            const sentStr = sent > 0 ? '+'+sent.toFixed(2) : sent.toFixed(2);
+            const tooltip = ai.reasoning ? ai.reasoning.replace(/"/g, '&quot;') : '';
+            aiBadges += `<span title="${tooltip}" style="cursor:help;padding:1px 5px;border-radius:3px;font-size:7px;font-weight:700;background:rgba(168,85,247,0.12);color:${sentCol};margin-left:3px">AI ${sentStr}</span>`;
+            if(ai.contrarian) aiBadges += `<span title="Smart money buy signal — retail fear = opportunity" style="cursor:help;padding:1px 5px;border-radius:3px;font-size:7px;font-weight:700;background:rgba(34,197,94,0.12);color:#22c55e;margin-left:3px">CONTRARIAN ✓</span>`;
+          }
           const srcIcon = h.src==='gnews'?'📰':h.src==='reddit'?'🔗':h.src==='finnhub'?'📊':h.src==='newsapi'?'📡':'📄';
           const age = Math.round((Date.now()/1000 - h.created) / 3600);
           const ageStr = age < 1 ? 'now' : age < 24 ? age+'h' : Math.round(age/24)+'d';
@@ -3996,7 +5047,7 @@ async function fetchHeadlines(){
             <div style="font-size:9px;flex-shrink:0;padding-top:1px">${srcIcon}</div>
             <div style="flex:1">
               <a href="${h.url}" target="_blank" rel="noopener" style="font-size:10px;color:rgba(255,255,255,0.55);text-decoration:none;line-height:1.35;display:block">${h.title}</a>
-              <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:1px">${h.domain} ${stepBadge}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:2px;display:flex;flex-wrap:wrap;gap:2px;align-items:center">${h.domain} ${stepBadge}${aiBadges}</div>
             </div>
           </div>`;
         }).join('');
@@ -4246,17 +5297,11 @@ propagateData();
 recalcScore();
 // Then immediately fetch fresh live data — no button click needed
 fetchAllData();
-// Also start auto-refresh (5 min default) so the page stays live
-(function startAutoRefresh(){
-  const ms=300000; // 5 minutes
-  autoRefreshTimer=setInterval(()=>{ if(!isFetching) fetchAllData(); },ms);
-  const btn=document.getElementById('auto-refresh-btn');
-  if(btn){
-    btn.textContent='⏱ Auto: On';
-    btn.style.borderColor='var(--green,#22c55e)';
-    btn.style.color='var(--green,#22c55e)';
-    btn.style.background='rgba(34,197,94,0.08)';
-  }
+// Restore auto-refresh preference from localStorage (default: 5 min)
+(function restoreAutoRefresh(){
+  let saved='5min';
+  try{ const v=localStorage.getItem('arMode'); if(v==='off'||v==='5min'||v==='15min') saved=v; }catch(e){}
+  setAutoRefreshMode(saved);
 })();
 </script>
 </body>
