@@ -690,6 +690,14 @@
         <div id="momentum-signals"></div>
       </div>
     </div>
+
+    <!-- RSI CONFLUENCE PANEL -->
+    <div class="panel" style="border-color:rgba(34,197,94,0.2)">
+      <div class="panel-title" style="color:#22c55e">RSI Confluence — Multi-Instrument Oversold</div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:14px">When 3+ instruments reach RSI&lt;30 (daily) or RSI&lt;35 (weekly) simultaneously, forced-seller exhaustion is broad-based — highest-conviction contrarian buy signal.</p>
+      <div id="rsi-confluence-badge" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;text-align:center;font-weight:700;letter-spacing:1px;font-size:13px"></div>
+      <div id="rsi-confluence-grid"></div>
+    </div>
   </div>
 
   <!-- ============ SENTIMENT TAB ============ -->
@@ -1155,7 +1163,14 @@ const pulseState = {
   // StockTwits sentiment
   stwSpy:null, stwQqq:null,
   // AAII auto
-  aaiiAutoDate:null
+  aaiiAutoDate:null,
+  // ES1! / NQ1! prices
+  esPrice:null, esDate:null, esChange:null,
+  nqPrice:null, nqDate:null, nqChange:null,
+  // Multi-instrument daily RSI(14)
+  rsiSPY:null, rsiQQQ:null, rsiIWM:null, rsiES:null, rsiNQ:null,
+  // Multi-instrument weekly RSI(14)
+  weeklyRsiSPY:null, weeklyRsiQQQ:null, weeklyRsiIWM:null, weeklyRsiES:null, weeklyRsiNQ:null,
 };
 
 // Thresholds for contrarian scoring
@@ -1532,9 +1547,9 @@ async function fetchAllData(){
     log.push({src:'VIX',val:'All proxies failed',date:'--',ok:false});
   }
 
-  // 5) QQQ
+  // 5) QQQ — use 1mo so we have enough closes for RSI(14)
   status.textContent='Fetching QQQ...';
-  const qqqData=await yahooChart('QQQ','5d','1d');
+  const qqqData=await yahooChart('QQQ','1mo','1d');
   if(qqqData.ok){
     pulseState.qqqPrice=qqqData.price;
     pulseState.qqqDate=qqqData.dateStr;
@@ -1542,15 +1557,35 @@ async function fetchAllData(){
     log.push({src:'QQQ',val:'$'+qqqData.price.toFixed(2),date:qqqData.dateStr,ok:true});
   }else{ log.push({src:'QQQ',val:'All proxies failed',date:'--',ok:false}); }
 
-  // 6) IWM
+  // 6) IWM — use 1mo for RSI(14)
   status.textContent='Fetching IWM...';
-  const iwmData=await yahooChart('IWM','5d','1d');
+  const iwmData=await yahooChart('IWM','1mo','1d');
   if(iwmData.ok){
     pulseState.iwmPrice=iwmData.price;
     pulseState.iwmDate=iwmData.dateStr;
     pulseState.iwmChange=iwmData.prevClose?((iwmData.price-iwmData.prevClose)/iwmData.prevClose*100):null;
     log.push({src:'IWM',val:'$'+iwmData.price.toFixed(2),date:iwmData.dateStr,ok:true});
   }else{ log.push({src:'IWM',val:'All proxies failed',date:'--',ok:false}); }
+
+  // 6b) ES=F (S&P 500 Futures)
+  status.textContent='Fetching ES1! (S&P Futures)...';
+  const esData=await yahooChart('ES=F','1mo','1d');
+  if(esData.ok){
+    pulseState.esPrice=esData.price;
+    pulseState.esDate=esData.dateStr;
+    pulseState.esChange=esData.prevClose?((esData.price-esData.prevClose)/esData.prevClose*100):null;
+    log.push({src:'ES1!',val:'$'+Math.round(esData.price).toLocaleString(),date:esData.dateStr,ok:true});
+  }else{ log.push({src:'ES1!',val:'All proxies failed',date:'--',ok:false}); }
+
+  // 6c) NQ=F (Nasdaq Futures)
+  status.textContent='Fetching NQ1! (Nasdaq Futures)...';
+  const nqData=await yahooChart('NQ=F','1mo','1d');
+  if(nqData.ok){
+    pulseState.nqPrice=nqData.price;
+    pulseState.nqDate=nqData.dateStr;
+    pulseState.nqChange=nqData.prevClose?((nqData.price-nqData.prevClose)/nqData.prevClose*100):null;
+    log.push({src:'NQ1!',val:'$'+Math.round(nqData.price).toLocaleString(),date:nqData.dateStr,ok:true});
+  }else{ log.push({src:'NQ1!',val:'All proxies failed',date:'--',ok:false}); }
 
   // 7) Oil (CL=F)
   status.textContent='Fetching Oil...';
@@ -1736,6 +1771,26 @@ async function fetchAllData(){
   if(oilData.ok) pulseState.oilSpark=oilData.allCloses.slice(-10);
   if(goldData.ok) pulseState.goldSpark=goldData.allCloses.slice(-10);
   if(tnxData.ok) pulseState.tnxSpark=tnxData.allCloses.slice(-10);
+
+  // Calculate daily RSI(14) from allCloses (need 15+ bars — all 1mo fetches give ~21)
+  if(spyData.ok&&spyData.allCloses.length>=15) pulseState.rsiSPY=calcRSI(spyData.allCloses);
+  if(qqqData.ok&&qqqData.allCloses.length>=15) pulseState.rsiQQQ=calcRSI(qqqData.allCloses);
+  if(iwmData.ok&&iwmData.allCloses.length>=15) pulseState.rsiIWM=calcRSI(iwmData.allCloses);
+  if(typeof esData!=='undefined'&&esData.ok&&esData.allCloses.length>=15) pulseState.rsiES=calcRSI(esData.allCloses);
+  if(typeof nqData!=='undefined'&&nqData.ok&&nqData.allCloses.length>=15) pulseState.rsiNQ=calcRSI(nqData.allCloses);
+
+  // Fetch weekly closes for weekly RSI — 6mo gives ~26 weekly bars, plenty for RSI(14)
+  status.textContent='Fetching weekly RSI data...';
+  const [spyW,qqqW,iwmW,esW,nqW]=await Promise.all([
+    yahooChart('SPY','6mo','1wk'), yahooChart('QQQ','6mo','1wk'),
+    yahooChart('IWM','6mo','1wk'), yahooChart('ES=F','6mo','1wk'),
+    yahooChart('NQ=F','6mo','1wk'),
+  ]);
+  if(spyW.ok&&spyW.allCloses.length>=15)  pulseState.weeklyRsiSPY=calcRSI(spyW.allCloses);
+  if(qqqW.ok&&qqqW.allCloses.length>=15)  pulseState.weeklyRsiQQQ=calcRSI(qqqW.allCloses);
+  if(iwmW.ok&&iwmW.allCloses.length>=15)  pulseState.weeklyRsiIWM=calcRSI(iwmW.allCloses);
+  if(esW.ok&&esW.allCloses.length>=15)    pulseState.weeklyRsiES=calcRSI(esW.allCloses);
+  if(nqW.ok&&nqW.allCloses.length>=15)    pulseState.weeklyRsiNQ=calcRSI(nqW.allCloses);
 
   // 15) CNN Fear & Greed — scrape via allorigins proxy
   status.textContent='Fetching CNN Fear & Greed...';
@@ -1975,6 +2030,86 @@ function renderNewsPanel(articles){
     </div>`;
 }
 
+// ===== RSI CONFLUENCE PANEL =====
+const RSI_INSTRUMENTS=[
+  {key:'SPY', rsiKey:'rsiSPY',  wRsiKey:'weeklyRsiSPY',  support:480,  supportLabel:'$480 (prior ATH 2021)',    color:'#3b82f6'},
+  {key:'QQQ', rsiKey:'rsiQQQ',  wRsiKey:'weeklyRsiQQQ',  support:395,  supportLabel:'$395 (prior ATH 2021)',    color:'#8b5cf6'},
+  {key:'IWM', rsiKey:'rsiIWM',  wRsiKey:'weeklyRsiIWM',  support:170,  supportLabel:'$170 (prior ATH 2021)',    color:'#f59e0b'},
+  {key:'ES=F', rsiKey:'rsiES',   wRsiKey:'weeklyRsiES',   support:4700, supportLabel:'~4,700 (prior ATH 2021)', color:'#22c55e'},
+  {key:'NQ=F', rsiKey:'rsiNQ',   wRsiKey:'weeklyRsiNQ',   support:16200,supportLabel:'~16,200 (prior ATH 2021)',color:'#ec4899'},
+];
+
+function renderRSIConfluence(){
+  const p=pulseState;
+  const grid=document.getElementById('rsi-confluence-grid');
+  const badge=document.getElementById('rsi-confluence-badge');
+  if(!grid||!badge) return;
+
+  // Count oversold instruments (daily RSI<30 or weekly RSI<35)
+  let dailyOversold=0, weeklyOversold=0;
+  RSI_INSTRUMENTS.forEach(inst=>{
+    const dr=p[inst.rsiKey];
+    const wr=p[inst.wRsiKey];
+    if(dr!==null&&dr!==undefined&&dr<30) dailyOversold++;
+    if(wr!==null&&wr!==undefined&&wr<35) weeklyOversold++;
+  });
+
+  // Show/hide confluence badge
+  const hasConfluence=dailyOversold>=3||weeklyOversold>=3;
+  if(hasConfluence){
+    let msg='', bg='', border='';
+    if(dailyOversold>=4||weeklyOversold>=4){
+      msg='🚨 RSI CONFLUENCE — EXTREME OVERSOLD ('+Math.max(dailyOversold,weeklyOversold)+'/5)';
+      bg='rgba(34,197,94,0.12)'; border='rgba(34,197,94,0.4)';
+    } else {
+      msg='⚡ RSI CONFLUENCE — OVERSOLD ('+Math.max(dailyOversold,weeklyOversold)+'/5)';
+      bg='rgba(34,197,94,0.08)'; border='rgba(34,197,94,0.25)';
+    }
+    badge.style.display='block';
+    badge.style.background=bg;
+    badge.style.border='1px solid '+border;
+    badge.style.color='#22c55e';
+    badge.innerHTML=`<div style="font-size:13px;font-weight:800;margin-bottom:4px">${msg}</div><div style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.4)">${dailyOversold} instruments daily RSI&lt;30 · ${weeklyOversold} instruments weekly RSI&lt;35 — broad-based capitulation signal</div>`;
+  } else {
+    badge.style.display='none';
+  }
+
+  // Build grid table
+  const rows=RSI_INSTRUMENTS.map(inst=>{
+    const dr=p[inst.rsiKey];
+    const wr=p[inst.wRsiKey];
+    const drStr=dr!=null?dr.toFixed(1):'—';
+    const wrStr=wr!=null?wr.toFixed(1):'—';
+    const drColor=dr!=null?(dr<30?'#22c55e':dr<40?'#f59e0b':'rgba(255,255,255,0.5)'):'rgba(255,255,255,0.2)';
+    const wrColor=wr!=null?(wr<35?'#22c55e':wr<45?'#f59e0b':'rgba(255,255,255,0.5)'):'rgba(255,255,255,0.2)';
+    // Rough at-support check using current prices
+    let atSupport=false;
+    if(inst.key==='SPY'&&p.spyPrice) atSupport=p.spyPrice<=inst.support*1.03;
+    if(inst.key==='ES=F'&&p.esPrice) atSupport=p.esPrice<=inst.support*1.03;
+    if(inst.key==='NQ=F'&&p.nqPrice) atSupport=p.nqPrice<=inst.support*1.03;
+    const supportIcon=atSupport?'<span style="color:#22c55e;font-weight:700">✓ Yes</span>':'<span style="color:rgba(255,255,255,0.25)">No</span>';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+      <td style="padding:6px 8px;font-weight:700;color:${inst.color}">${inst.key}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:${drColor}">${drStr}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:${wrColor}">${wrStr}</td>
+      <td style="padding:6px 8px;text-align:center">${supportIcon}</td>
+      <td style="padding:6px 8px;font-size:9px;color:rgba(255,255,255,0.3)">${inst.supportLabel}</td>
+    </tr>`;
+  }).join('');
+
+  grid.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.08)">
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Instrument</th>
+      <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Daily RSI</th>
+      <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Weekly RSI</th>
+      <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">At Support?</th>
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Support Zone</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">Daily RSI&lt;30 = oversold · Weekly RSI&lt;35 = rare, high-conviction · At Support = within 3% of prior ATH level</div>`;
+}
+
 function propagateData(){
   // Update Sentiment tab snapshot cards with live data
   const snapEls=document.querySelectorAll('[data-live]');
@@ -2014,6 +2149,9 @@ function propagateData(){
 
   // Update short-term signals with live data
   if(typeof updateShortTermSignals==='function') updateShortTermSignals();
+
+  // Update RSI confluence panel
+  if(typeof renderRSIConfluence==='function') renderRSIConfluence();
 
   // Update accumulation zone NOW marker
   if(pulseState.spyPrice) {
@@ -3514,7 +3652,20 @@ renderBacktest();
 
 // ===== TECHNICAL CONFLUENCE DETECTION =====
 
-// Wilder's RSI-14
+// Simple RSI(14) — averages gains/losses over last `period` bars
+function calcRSI(closes, period=14) {
+  if (!closes || closes.length < period+1) return null;
+  let gains=0, losses=0;
+  for (let i=closes.length-period; i<closes.length; i++) {
+    const diff=closes[i]-closes[i-1];
+    if (diff>0) gains+=diff; else losses-=diff;
+  }
+  const avgGain=gains/period, avgLoss=losses/period;
+  if (avgLoss===0) return 100;
+  return 100-(100/(1+avgGain/avgLoss));
+}
+
+// Wilder's RSI-14 (used by Confluence tab for accuracy with 3mo data)
 function computeRSI14(closes) {
   if (!closes || closes.length < 15) return null;
   let avgGain = 0, avgLoss = 0;
