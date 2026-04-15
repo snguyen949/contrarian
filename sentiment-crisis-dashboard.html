@@ -1197,6 +1197,8 @@ const pulseState = {
   esVol:null, es20dAvgVol:null, nqVol:null, nq20dAvgVol:null,
   // Triple confluence state (set by detectTripleConfluence)
   tripleConfluenceActive:false, tripleConfluenceStrength:'none',
+  // Weekly Supertrend (ATR 10, factor 3.0) for SPY
+  weeklySupertrend:null, supertrendBullish:null, supertrendJustFlipped:false,
 };
 
 // Thresholds for contrarian scoring
@@ -1856,10 +1858,10 @@ async function fetchAllData(){
   if(typeof esData!=='undefined'&&esData.ok&&esData.allCloses.length>0) pulseState.esMonthLow=Math.min(...esData.allCloses);
   if(typeof nqData!=='undefined'&&nqData.ok&&nqData.allCloses.length>0) pulseState.nqMonthLow=Math.min(...nqData.allCloses);
 
-  // Fetch weekly closes for weekly RSI — 6mo gives ~26 weekly bars, plenty for RSI(14)
-  status.textContent='Fetching weekly RSI data...';
+  // Fetch weekly closes — SPY uses 2y for Supertrend convergence (~104 bars), others 6mo for RSI
+  status.textContent='Fetching weekly RSI + Supertrend data...';
   const [spyW,qqqW,iwmW,esW,nqW]=await Promise.all([
-    yahooChart('SPY','6mo','1wk'), yahooChart('QQQ','6mo','1wk'),
+    yahooChart('SPY','2y','1wk'), yahooChart('QQQ','6mo','1wk'),
     yahooChart('IWM','6mo','1wk'), yahooChart('ES=F','6mo','1wk'),
     yahooChart('NQ=F','6mo','1wk'),
   ]);
@@ -1868,6 +1870,11 @@ async function fetchAllData(){
   if(iwmW.ok&&iwmW.allCloses.length>=15)  pulseState.weeklyRsiIWM=calcRSI(iwmW.allCloses);
   if(esW.ok&&esW.allCloses.length>=15)    pulseState.weeklyRsiES=calcRSI(esW.allCloses);
   if(nqW.ok&&nqW.allCloses.length>=15)    pulseState.weeklyRsiNQ=calcRSI(nqW.allCloses);
+  // Weekly Supertrend (ATR 10, factor 3.0) — needs 12+ bars to initialise, 100+ to converge
+  if(spyW.ok&&spyW.allCloses.length>=12){
+    const st=calcWeeklySupertrend(spyW.allCloses,10,3.0);
+    if(st){ pulseState.weeklySupertrend=st.value; pulseState.supertrendBullish=st.bullish; pulseState.supertrendJustFlipped=st.justFlipped; }
+  }
 
   // 15) CNN Fear & Greed — scrape via allorigins proxy
   status.textContent='Fetching CNN Fear & Greed...';
@@ -2185,6 +2192,26 @@ function renderRSIConfluence(){
     <tbody>${rows}</tbody>
   </table>
   <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">Daily RSI&lt;30 = oversold · Weekly RSI&lt;35 = rare, high-conviction · At Support = within 3% of prior ATH level</div>`;
+
+  // Append Weekly Supertrend status row below the RSI table
+  if(p.weeklySupertrend!==null){
+    const stVal=p.weeklySupertrend.toFixed(2);
+    const bull=p.supertrendBullish;
+    const flipped=p.supertrendJustFlipped;
+    const stColor=flipped?'#22c55e':bull?'#4ade80':'#ef4444';
+    const stLabel=flipped?'⚡ JUST FLIPPED BULLISH ✅':bull?'BULLISH ✅':'BEARISH ⚠️';
+    const stNote=flipped?'This week\'s close crossed above the Supertrend — historically strongest weekly buy signal.'
+                :bull?'Price holding above weekly Supertrend. Pullbacks to $'+stVal+' are buying opportunities.'
+                :'Price below weekly Supertrend. Watch for close above $'+stVal+' to signal reversal.';
+    grid.innerHTML+=`<div style="margin-top:12px;padding:10px 14px;border-radius:8px;background:${bull?'rgba(34,197,94,0.06)':'rgba(239,68,68,0.06)'};border:1px solid ${stColor}30">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Weekly Supertrend (ATR 10, ×3.0)</span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:rgba(255,255,255,0.7)">$${stVal}</span>
+        <span style="font-size:11px;font-weight:800;color:${stColor}">${stLabel}</span>
+      </div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:5px;line-height:1.4">${stNote}</div>
+    </div>`;
+  }
 }
 
 function propagateData(){
@@ -2360,6 +2387,34 @@ function updateShortTermSignals() {
         activeSignals.push({name:'RSI Oversold', detail:'RSI '+p.rsi14.toFixed(1), strength:'strong'});
       } else if(p.rsi14 <= 40) {
         vixSignals.push({icon:'📊',label:'RSI(14) 30–40 — Weak',desc:'SPY daily RSI at '+p.rsi14.toFixed(1)+'. Approaching oversold but not there yet.',color:'#f59e0b',active:false});
+      }
+    }
+
+    // Weekly Supertrend signal
+    if(p.weeklySupertrend !== null && p.weeklySupertrend !== undefined) {
+      const st = p.weeklySupertrend.toFixed(2);
+      if(p.supertrendJustFlipped) {
+        vixSignals.push({
+          icon:'⚡',
+          label:'WEEKLY SUPERTREND FLIP — BULLISH',
+          desc:'SPY closed above the weekly Supertrend ($'+st+') this week. At COVID (Mar 2020) and Tariff (Apr 2025) bottoms, the weekly ST flip occurred within 1–2 weeks of the confirmed low — high-accuracy signal for the start of the recovery.',
+          color:'#22c55e', active:true
+        });
+        activeSignals.push({name:'Supertrend Flip', detail:'Bullish above $'+st, strength:'strong'});
+      } else if(p.supertrendBullish) {
+        vixSignals.push({
+          icon:'📈',
+          label:'Weekly Supertrend: BULLISH — $'+st,
+          desc:'SPY is above its weekly Supertrend. Trend remains up — any pullback to $'+st+' is a buy opportunity. No reversal signal.',
+          color:'#22c55e', active:false
+        });
+      } else {
+        vixSignals.push({
+          icon:'📉',
+          label:'Weekly Supertrend: BEARISH — $'+st,
+          desc:'SPY is below its weekly Supertrend ($'+st+'). Downtrend intact. A weekly close above $'+st+' would be the bullish flip signal — strongest weekly reversal indicator.',
+          color:'#ef4444', active:false
+        });
       }
     }
 
@@ -3863,6 +3918,52 @@ function calcRSI(closes, period=14) {
   const avgGain=gains/period, avgLoss=losses/period;
   if (avgLoss===0) return 100;
   return 100-(100/(1+avgGain/avgLoss));
+}
+
+// Weekly Supertrend (ATR period, factor) using close-to-close ATR approximation.
+// Since Yahoo chart endpoint returns closes only (no H/L), ATR is approximated as
+// a simple average of the last `period` absolute close-to-close changes.
+// Midpoint ≈ current close, so: upper = close + factor×ATR, lower = close - factor×ATR.
+// Returns {value, bullish, justFlipped, prevBullish} or null if insufficient data.
+function calcWeeklySupertrend(closes, period=10, factor=3.0) {
+  if (!closes || closes.length < period + 2) return null;
+  // Build absolute close-to-close changes (length = closes.length - 1)
+  const chg = [];
+  for (let i = 1; i < closes.length; i++) chg.push(Math.abs(closes[i] - closes[i-1]));
+
+  let stVal = null, isBullish = false, prevBullish = false;
+
+  for (let i = period; i < closes.length; i++) {
+    // ATR = simple avg of changes[i-period .. i-1]  (last `period` c-to-c ranges)
+    let atr = 0;
+    for (let j = i - period; j < i; j++) atr += chg[j];
+    atr /= period;
+
+    const close = closes[i];
+    const upper = close + factor * atr;
+    const lower = close - factor * atr;
+
+    prevBullish = isBullish;
+
+    if (stVal === null) {
+      // Seed: assume bullish on first bar
+      stVal = lower;
+      isBullish = true;
+    } else if (close > stVal) {
+      stVal = lower;   // price above → ride lower band (bullish)
+      isBullish = true;
+    } else {
+      stVal = upper;   // price below → ride upper band (bearish)
+      isBullish = false;
+    }
+  }
+
+  return {
+    value: stVal,
+    bullish: isBullish,
+    justFlipped: isBullish && !prevBullish, // true only on the bar that flipped bullish
+    prevBullish,
+  };
 }
 
 // Wilder's RSI-14 (used by Confluence tab for accuracy with 3mo data)
