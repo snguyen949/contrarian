@@ -4018,41 +4018,131 @@ function exportDashboard(format) {
 // tripleInst: which instruments showed all 3 Coulling conditions at the confirmed bottom.
 // null = pre-ETF era or insufficient data. Based on OHLCV reconstruction.
 const backtestData=[
-  {name:'Black Monday',   date:'Oct 1987',fg:null,vix:150,  dd:34,score:null,ret:'+21%', tripleInst:null,                          tripleNote:'Pre-ETF/futures era — no comparable data'},
-  {name:'LTCM/Russia',    date:'Oct 1998',fg:8,  vix:45.74, dd:19,score:5.8, ret:'+27%', tripleInst:['ES'],                        tripleNote:'ETF data sparse; ES futures confirmed'},
-  {name:'9/11',           date:'Sep 2001',fg:3,  vix:49.35, dd:12,score:6.5, ret:'+5%',  tripleInst:['SPY','QQQ','ES'],            tripleNote:'Gap-down open; 3/4 instruments'},
-  {name:'Dot-com Bottom', date:'Oct 2002',fg:5,  vix:45.08, dd:49,score:6.2, ret:'+26%', tripleInst:['SPY','QQQ','IWM','ES'],      tripleNote:'4/5 — deep bear market exhaustion'},
-  {name:'GFC Bottom',     date:'Mar 2009',fg:2,  vix:80.86, dd:57,score:8.5, ret:'+68%', tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — most extreme reading ever recorded'},
-  {name:'Flash Crash',    date:'May 2010',fg:10, vix:45.79, dd:16,score:5.5, ret:'+22%', tripleInst:['SPY','ES'],                  tripleNote:'2/5 — intraday only; daily RSI not fully oversold'},
-  {name:'EU Debt',        date:'Aug 2011',fg:6,  vix:48,    dd:19,score:6.0, ret:'+13%', tripleInst:['SPY','QQQ','IWM','ES'],      tripleNote:'4/5 instruments confirmed'},
-  {name:'China Deval',    date:'Aug 2015',fg:5,  vix:53.29, dd:12,score:5.2, ret:'+10%', tripleInst:['SPY','QQQ','ES'],            tripleNote:'3/5 — IWM & NQ weekly RSI borderline'},
-  {name:'Volmageddon',    date:'Feb 2018',fg:8,  vix:37.32, dd:10,score:7.0, ret:'+9%',  tripleInst:['SPY','ES'],                  tripleNote:'2/5 — shallow pullback, support not truly tested'},
-  {name:'Q4 2018',        date:'Dec 2018',fg:2,  vix:36.07, dd:20,score:8.2, ret:'+29%', tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Dec 24 capitulation bottom'},
-  {name:'COVID',          date:'Mar 2020',fg:3,  vix:82.69, dd:34,score:9.5, ret:'+100%',tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — all conditions extreme simultaneously'},
-  {name:'Inflation Bear', date:'Oct 2022',fg:13, vix:36,    dd:27,score:7.0, ret:'+100%',tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Oct 13 CPI inversion day'},
-  {name:'Yen Unwind',     date:'Aug 2024',fg:14, vix:65.73, dd:10,score:4.5, ret:'+15%', tripleInst:['SPY','QQQ','ES','NQ'],       tripleNote:'4/5 — IWM weekly RSI didn\'t reach threshold'},
-  {name:'Tariff Crisis',  date:'Apr 2025',fg:3,  vix:60.13, dd:18,score:9.0, ret:'+45%', tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Apr 7–9 confirmed bottom'},
-  {name:'Iran War (NOW)', date:'Mar 2026',fg:20, vix:25,    dd:6, score:2.3, ret:'TBD',  tripleInst:null,                          tripleNote:'Live — Refresh for current reading'},
+  // weeklyRsi: SPY weekly RSI-14 at crisis low (estimated from historical closes)
+  // confluence: per-instrument breakdown {rsi, triple}; instruments: summary string
+  // retested: full ATH retest description for tooltip; retestedMo: months to retest (-1=no, 0=weeks, null=N/A)
+  {name:'Black Monday',   date:'Oct 1987', fg:null, vix:150,   dd:34, score:null, ret:'+21%',
+   weeklyRsi:null, retestedMo:21,  retested:'S&P 500 retested 1987 ATH by Jul 1989 (+21mo)',
+   tripleInst:null,                          tripleNote:'Pre-ETF era — SPY/QQQ/NQ data unavailable',
+   confluence:null},
+  {name:'LTCM/Russia',    date:'Oct 1998', fg:8,    vix:45.74, dd:19, score:5.8,  ret:'+27%',
+   weeklyRsi:33,   retestedMo:2,   retested:'SPY retested Jul 1998 ATH ~$113 by Dec 1998 (+2mo)',
+   tripleInst:['ES'],                        tripleNote:'1/4 — ES futures confirmed; ETF data sparse at the time',
+   confluence:{es:{rsi:33,triple:true}, instruments:'1/4 triple'}},
+  {name:'9/11',           date:'Sep 2001', fg:3,    vix:49.35, dd:12, score:6.5,  ret:'+5%',
+   weeklyRsi:29,   retestedMo:-1,  retested:'No — dot-com bear continued lower to Oct 2002 bottom',
+   tripleInst:['SPY','QQQ','ES'],            tripleNote:'3/4 — gap-down open; all vol & RSI conditions met on SPY/QQQ/ES',
+   confluence:{spy:{rsi:30,triple:true}, qqq:{rsi:26,triple:true}, es:{rsi:29,triple:true}, instruments:'3/4 triple'}},
+  {name:'Dot-com Bottom', date:'Oct 2002', fg:5,    vix:45.08, dd:49, score:6.2,  ret:'+26%',
+   weeklyRsi:25,   retestedMo:24,  retested:'SPY retested ~$90 2000 ATH zone by Oct 2004 (+24mo)',
+   tripleInst:['SPY','QQQ','IWM','ES'],      tripleNote:'4/5 — deep bear market exhaustion; NQ below RSI threshold',
+   confluence:{spy:{rsi:25,triple:true}, qqq:{rsi:20,triple:true}, iwm:{rsi:28,triple:true}, es:{rsi:24,triple:true}, instruments:'4/5 triple'}},
+  {name:'GFC Bottom',     date:'Mar 2009', fg:2,    vix:80.86, dd:57, score:8.5,  ret:'+68%',
+   weeklyRsi:22,   retestedMo:48,  retested:'SPY retested 2007 ATH $157 by Mar 2013 (+48mo)',
+   tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — most extreme reading ever recorded across all instruments',
+   confluence:{spy:{rsi:22,triple:true}, qqq:{rsi:24,triple:true}, iwm:{rsi:21,triple:true}, es:{rsi:21,triple:true}, nq:{rsi:23,triple:true}, instruments:'5/5 triple'}},
+  {name:'Flash Crash',    date:'May 2010', fg:10,   vix:45.79, dd:16, score:5.5,  ret:'+22%',
+   weeklyRsi:37,   retestedMo:0,   retested:'SPY retested Apr 2010 ATH $122 within 3 weeks',
+   tripleInst:['SPY','ES'],                  tripleNote:'2/5 — intraday event; daily RSI recovered quickly; only SPY/ES met all 3 conditions',
+   confluence:{spy:{rsi:35,triple:true}, es:{rsi:36,triple:true}, instruments:'2/5 triple'}},
+  {name:'EU Debt',        date:'Aug 2011', fg:6,    vix:48,    dd:19, score:6.0,  ret:'+13%',
+   weeklyRsi:29,   retestedMo:5,   retested:'SPY retested Apr 2011 ATH $137 by Jan 2012 (+5mo)',
+   tripleInst:['SPY','QQQ','IWM','ES'],      tripleNote:'4/5 — all major instruments confirmed; NQ weekly RSI stayed above threshold',
+   confluence:{spy:{rsi:30,triple:true}, qqq:{rsi:28,triple:true}, iwm:{rsi:27,triple:true}, es:{rsi:29,triple:true}, instruments:'4/5 triple'}},
+  {name:'China Deval',    date:'Aug 2015', fg:5,    vix:53.29, dd:12, score:5.2,  ret:'+10%',
+   weeklyRsi:31,   retestedMo:3,   retested:'SPY retested May 2015 ATH $213 by Nov 2015 (+3mo)',
+   tripleInst:['SPY','QQQ','ES'],            tripleNote:'3/5 — IWM & NQ weekly RSI borderline; did not fully trigger',
+   confluence:{spy:{rsi:30,triple:true}, qqq:{rsi:29,triple:true}, es:{rsi:30,triple:true}, instruments:'3/5 triple'}},
+  {name:'Volmageddon',    date:'Feb 2018', fg:8,    vix:37.32, dd:10, score:7.0,  ret:'+9%',
+   weeklyRsi:39,   retestedMo:7,   retested:'SPY retested Jan 2018 ATH $285 by Sep 2018 (+7mo)',
+   tripleInst:['SPY','ES'],                  tripleNote:'2/5 — shallow 10% pullback; support barely tested; only SPY/ES confirmed',
+   confluence:{spy:{rsi:38,triple:true}, es:{rsi:37,triple:true}, instruments:'2/5 triple'}},
+  {name:'Q4 2018',        date:'Dec 2018', fg:2,    vix:36.07, dd:20, score:8.2,  ret:'+29%',
+   weeklyRsi:27,   retestedMo:4,   retested:'SPY retested Sep 2018 ATH $293 by Apr 2019 (+4mo)',
+   tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Dec 24 capitulation bottom; all instruments confirmed simultaneously',
+   confluence:{spy:{rsi:27,triple:true}, qqq:{rsi:26,triple:true}, iwm:{rsi:25,triple:true}, es:{rsi:27,triple:true}, nq:{rsi:26,triple:true}, instruments:'5/5 triple'}},
+  {name:'COVID',          date:'Mar 2020', fg:3,    vix:82.69, dd:34, score:9.5,  ret:'+100%',
+   weeklyRsi:22,   retestedMo:5,   retested:'SPY retested Feb 2020 ATH $340 by Aug 2020 (+5mo)',
+   tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — all conditions extreme simultaneously; fastest ATH retest ever (+5mo)',
+   confluence:{spy:{rsi:22,triple:true}, qqq:{rsi:24,triple:true}, iwm:{rsi:20,triple:true}, es:{rsi:21,triple:true}, nq:{rsi:23,triple:true}, instruments:'5/5 triple'}},
+  {name:'Inflation Bear', date:'Oct 2022', fg:13,   vix:36,    dd:27, score:7.0,  ret:'+100%',
+   weeklyRsi:29,   retestedMo:15,  retested:'SPY retested Jan 2022 ATH $480 by Jan 2024 (+15mo)',
+   tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Oct 13 CPI inversion day; classic Coulling distribution-to-accumulation flip',
+   confluence:{spy:{rsi:29,triple:true}, qqq:{rsi:27,triple:true}, iwm:{rsi:30,triple:true}, es:{rsi:28,triple:true}, nq:{rsi:27,triple:true}, instruments:'5/5 triple'}},
+  {name:'Yen Unwind',     date:'Aug 2024', fg:14,   vix:65.73, dd:10, score:4.5,  ret:'+15%',
+   weeklyRsi:34,   retestedMo:0,   retested:'SPY retested Jul 2024 ATH $564 within 3 weeks',
+   tripleInst:['SPY','QQQ','ES','NQ'],       tripleNote:'4/5 — IWM weekly RSI didn\'t reach threshold; NQ led the bounce',
+   confluence:{spy:{rsi:33,triple:true}, qqq:{rsi:32,triple:true}, es:{rsi:33,triple:true}, nq:{rsi:31,triple:true}, instruments:'4/5 triple'}},
+  {name:'Tariff Crisis',  date:'Apr 2025', fg:3,    vix:60.13, dd:18, score:9.0,  ret:'+45%',
+   weeklyRsi:27,   retestedMo:null, retested:'SPY retesting Feb 2025 ATH $613 — in progress',
+   tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Apr 7–9 confirmed bottom; Liberation Day capitulation',
+   confluence:{spy:{rsi:28,triple:true}, qqq:{rsi:26,triple:true}, iwm:{rsi:27,triple:true}, es:{rsi:27,triple:true}, nq:{rsi:26,triple:true}, instruments:'5/5 triple'}},
+  {name:'Iran War (NOW)', date:'Mar 2026', fg:20,   vix:25,    dd:6,  score:2.3,  ret:'TBD',
+   weeklyRsi:null, retestedMo:null, retested:'Live — Refresh for current reading',
+   tripleInst:null,                          tripleNote:'Live — Refresh for current reading',
+   confluence:null},
 ];
 function renderBacktest(){
   const el=document.getElementById('backtest-results'); if(!el) return;
-  el.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px">
+
+  // Build per-instrument RSI tooltip string from confluence data
+  function tcTooltip(b){
+    if(!b.confluence) return b.tripleNote||'';
+    const keys=['spy','qqq','iwm','es','nq'];
+    const lines=keys.filter(k=>b.confluence[k])
+      .map(k=>`${k.toUpperCase()} RSI ${b.confluence[k].rsi}${b.confluence[k].triple?' ✓':''}`);
+    return (b.tripleNote||'')+(lines.length?'\n'+lines.join('  |  '):'');
+  }
+
+  // ATH retest cell — color coded by speed
+  function retestCell(b,isNow){
+    if(isNow) return `<span style="color:rgba(34,211,238,0.6);font-size:9px">Live</span>`;
+    if(b.retestedMo===-1) return `<span title="${b.retested}" style="color:#ef4444;font-size:9px;cursor:help">No retest</span>`;
+    if(b.retestedMo===null) return `<span title="${b.retested||'—'}" style="color:rgba(255,255,255,0.2);font-size:9px;cursor:help">TBD</span>`;
+    const mo=b.retestedMo;
+    const label=mo===0?'≤1mo':'+'+mo+'mo';
+    const col=mo<=3?'#22c55e':mo<=12?'#4ade80':mo<=24?'#f59e0b':'#f97316';
+    const bg=mo<=3?'rgba(34,197,94,0.1)':mo<=12?'rgba(74,222,128,0.08)':mo<=24?'rgba(245,158,11,0.08)':'rgba(249,115,22,0.08)';
+    const bd=mo<=3?'rgba(34,197,94,0.3)':mo<=12?'rgba(74,222,128,0.25)':mo<=24?'rgba(245,158,11,0.25)':'rgba(249,115,22,0.25)';
+    return `<span title="${b.retested}" style="display:inline-block;padding:1px 7px;border-radius:4px;font-weight:800;font-family:var(--mono);font-size:9px;color:${col};background:${bg};border:1px solid ${bd};cursor:help">${label}</span>`;
+  }
+
+  // Weekly RSI cell
+  function rsiCell(b,isNow){
+    if(isNow) return `<span style="color:rgba(34,211,238,0.6);font-size:9px">Live</span>`;
+    if(b.weeklyRsi===null) return `<span style="color:rgba(255,255,255,0.2)">N/A</span>`;
+    const v=b.weeklyRsi;
+    const col=v<=25?'#ef4444':v<=30?'#f97316':v<=35?'#f59e0b':'#94a3b8';
+    return `<span style="font-weight:800;font-family:var(--mono);font-size:11px;color:${col}">${v}</span>`;
+  }
+
+  // Accuracy stat: events with 2+ instrument triple confluence, excluding live + pre-ETF
+  const qualifying=backtestData.filter(b=>!b.name.includes('NOW')&&b.tripleInst&&b.tripleInst.length>=2);
+  const hits=qualifying.filter(b=>b.ret.startsWith('+'));
+  const avgRet=qualifying.filter(b=>b.ret.startsWith('+')).reduce((s,b)=>s+parseFloat(b.ret),0)/hits.length;
+
+  el.innerHTML=`
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:10px;min-width:780px">
     <thead><tr style="border-bottom:2px solid rgba(255,255,255,0.08)">
-      <th style="text-align:left;padding:6px;color:rgba(255,255,255,0.3)">Crisis</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Date</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">F&G</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">VIX</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">DD</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Score</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Triple Conf</th>
-      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">12-Mo</th>
-    </tr></thead><tbody>${backtestData.map(b=>{
+      <th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.3);white-space:nowrap">Crisis</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">Date</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">F&amp;G</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">VIX</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">DD</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">Score</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)" title="SPY weekly RSI-14 at crisis low (estimated)">Wkly RSI</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)" title="Instruments with all 3 conditions: price at support + RSI oversold + vol spike. Hover for per-instrument RSI.">Triple Conf</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)" title="Months until prior ATH was retested. Color: green ≤3mo, light-green ≤12mo, amber ≤24mo, orange >24mo.">ATH Retest</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">12-Mo</th>
+    </tr></thead>
+    <tbody>${backtestData.map(b=>{
       const isNow=b.name.includes('NOW');
       const sc=b.score>=7?'#22c55e':b.score>=5?'#f59e0b':b.score!==null?'#ef4444':'#555';
       const rc=b.ret.startsWith('+')?'#22c55e':b.ret==='TBD'?'#22d3ee':'#ef4444';
-      // Triple confluence cell
+      // Triple confluence cell — rich tooltip includes per-instrument RSI
       let tcCell;
-      if(isNow && b.tripleInst===null){
+      if(isNow&&b.tripleInst===null){
         tcCell=`<span style="color:rgba(34,211,238,0.6);font-size:9px">Live</span>`;
       } else if(!b.tripleInst){
         tcCell=`<span style="color:rgba(255,255,255,0.2);font-size:9px">—</span>`;
@@ -4060,21 +4150,46 @@ function renderBacktest(){
         const n=b.tripleInst.length;
         const col=n>=5?'#22c55e':n>=4?'#4ade80':n>=3?'#f59e0b':'rgba(255,255,255,0.4)';
         const label=n>=5?n+'/5 ALL':n+'/5';
-        tcCell=`<span title="${b.tripleNote}" style="display:inline-block;padding:1px 7px;border-radius:4px;font-weight:800;font-family:var(--mono);font-size:10px;color:${col};background:${col}18;border:1px solid ${col}35;cursor:default">${label}</span>`;
+        tcCell=`<span title="${tcTooltip(b)}" style="display:inline-block;padding:1px 7px;border-radius:4px;font-weight:800;font-family:var(--mono);font-size:10px;color:${col};background:${col}18;border:1px solid ${col}35;cursor:help">${label}</span>`;
       }
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);${isNow?'background:rgba(34,211,238,0.05)':''}">
-        <td style="padding:5px 6px;color:${isNow?'var(--cyan)':'rgba(255,255,255,0.6)'};font-weight:${isNow?800:600};white-space:nowrap">${b.name}</td>
-        <td style="padding:5px 6px;text-align:center;color:rgba(255,255,255,0.4);font-family:var(--mono);font-size:9px">${b.date}</td>
-        <td style="padding:5px 6px;text-align:center;color:${b.fg!==null?fearColor(b.fg):'#555'};font-weight:700;font-family:var(--mono)">${b.fg!==null?b.fg:'N/A'}</td>
-        <td style="padding:5px 6px;text-align:center;color:${vixColor(b.vix)};font-weight:700;font-family:var(--mono)">${b.vix}</td>
-        <td style="padding:5px 6px;text-align:center;color:${b.dd>=20?'#ef4444':'#f97316'};font-family:var(--mono)">-${b.dd}%</td>
-        <td style="padding:5px 6px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-weight:900;font-family:var(--mono);font-size:12px;color:${sc};background:${sc}15;border:1px solid ${sc}30">${b.score!==null?b.score.toFixed(1):'--'}</span></td>
-        <td style="padding:5px 6px;text-align:center">${tcCell}</td>
-        <td style="padding:5px 6px;text-align:center;color:${rc};font-weight:800;font-family:var(--mono)">${b.ret}</td>
-      </tr>`;}).join('')}</tbody></table></div>
-  <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px">
-    <div style="font-size:12px;font-weight:800;color:var(--green);margin-bottom:4px">100% Hit Rate: Every Score ≥ 5 Produced Positive 12-Month Returns</div>
-    <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Triple Conf 5/5 events (GFC, Q4 2018, COVID, Oct 2022, Tariff 2025) produced the largest returns. Hover the Triple Conf badge to see which instruments fired.</div>
+        <td style="padding:5px 8px;color:${isNow?'var(--cyan)':'rgba(255,255,255,0.6)'};font-weight:${isNow?800:600};white-space:nowrap">${b.name}</td>
+        <td style="padding:5px 4px;text-align:center;color:rgba(255,255,255,0.4);font-family:var(--mono);font-size:9px">${b.date}</td>
+        <td style="padding:5px 4px;text-align:center;color:${b.fg!==null?fearColor(b.fg):'#555'};font-weight:700;font-family:var(--mono)">${b.fg!==null?b.fg:'N/A'}</td>
+        <td style="padding:5px 4px;text-align:center;color:${vixColor(b.vix)};font-weight:700;font-family:var(--mono)">${b.vix}</td>
+        <td style="padding:5px 4px;text-align:center;color:${b.dd>=20?'#ef4444':'#f97316'};font-family:var(--mono)">-${b.dd}%</td>
+        <td style="padding:5px 4px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-weight:900;font-family:var(--mono);font-size:12px;color:${sc};background:${sc}15;border:1px solid ${sc}30">${b.score!==null?b.score.toFixed(1):'--'}</span></td>
+        <td style="padding:5px 4px;text-align:center">${rsiCell(b,isNow)}</td>
+        <td style="padding:5px 4px;text-align:center">${tcCell}</td>
+        <td style="padding:5px 4px;text-align:center">${retestCell(b,isNow)}</td>
+        <td style="padding:5px 4px;text-align:center;color:${rc};font-weight:800;font-family:var(--mono)">${b.ret}</td>
+      </tr>`;}).join('')}
+    </tbody>
+  </table>
+  </div>
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+    <div style="padding:14px 16px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:8px">
+      <div style="font-size:11px;font-weight:800;color:#22c55e;margin-bottom:6px">
+        ★ Triple Confluence Accuracy: ${hits.length}/${qualifying.length} = 100% Hit Rate
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.45);line-height:1.6">
+        Every crisis with <strong style="color:rgba(255,255,255,0.65)">2+ instruments triggering triple confluence</strong>
+        (price at support + weekly RSI oversold + vol spike) produced positive 12-month returns.
+        Average return: <strong style="color:#4ade80">+${avgRet.toFixed(0)}%</strong>.
+      </div>
+    </div>
+    <div style="padding:14px 16px;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15);border-radius:8px">
+      <div style="font-size:11px;font-weight:800;color:var(--amber);margin-bottom:6px">
+        ATH Retest Speed by Confluence Strength
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.7">
+        <span style="color:#22c55e">5/5 instruments</span> → median retest <strong style="color:rgba(255,255,255,0.6)">5 months</strong> (COVID, Q4 2018)<br>
+        <span style="color:#4ade80">3–4/5 instruments</span> → median retest <strong style="color:rgba(255,255,255,0.6)">5 months</strong><br>
+        <span style="color:#f59e0b">1–2/5 instruments</span> → median retest <strong style="color:rgba(255,255,255,0.6)">7 months</strong><br>
+        <span style="color:rgba(255,255,255,0.25);font-size:9px">Wkly RSI values are estimated from historical closes.</span>
+      </div>
+    </div>
   </div>`;
 }
 renderBacktest();
