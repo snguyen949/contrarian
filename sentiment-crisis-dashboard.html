@@ -805,6 +805,14 @@
       <div class="chart-scroll" id="svg-chart"></div>
     </div>
 
+    <!-- Cross-Instrument Retest Matrix -->
+    <div class="panel" style="border-color:rgba(34,211,238,0.15)">
+      <div class="panel-title" style="color:var(--cyan)">Cross-Instrument Retest Matrix</div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:14px">Futures (ES1!, NQ1!) often hit their structural equivalents even when SPY doesn't reach the projected zone — driven by different bid/ask dynamics, overnight gaps, and margin liquidations. When 2+ instruments confirm a structural level, conviction rises materially.</p>
+      <div id="retest-matrix-verdict" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;text-align:center"></div>
+      <div id="retest-matrix-content"><div style="font-size:10px;color:rgba(255,255,255,0.2)">Click Refresh to populate with live data.</div></div>
+    </div>
+
     <!-- Evidence -->
     <div class="panel">
       <div class="panel-title">Retest Evidence — Price Is Not Coincidence</div>
@@ -1171,6 +1179,8 @@ const pulseState = {
   rsiSPY:null, rsiQQQ:null, rsiIWM:null, rsiES:null, rsiNQ:null,
   // Multi-instrument weekly RSI(14)
   weeklyRsiSPY:null, weeklyRsiQQQ:null, weeklyRsiIWM:null, weeklyRsiES:null, weeklyRsiNQ:null,
+  // 1-month close minimums (for cross-instrument retest matrix)
+  spyMonthLow:null, qqqMonthLow:null, iwmMonthLow:null, esMonthLow:null, nqMonthLow:null,
 };
 
 // Thresholds for contrarian scoring
@@ -1779,6 +1789,13 @@ async function fetchAllData(){
   if(typeof esData!=='undefined'&&esData.ok&&esData.allCloses.length>=15) pulseState.rsiES=calcRSI(esData.allCloses);
   if(typeof nqData!=='undefined'&&nqData.ok&&nqData.allCloses.length>=15) pulseState.rsiNQ=calcRSI(nqData.allCloses);
 
+  // Store 1-month close minimums for cross-instrument retest matrix
+  if(spyData.ok&&spyData.allCloses.length>0) pulseState.spyMonthLow=Math.min(...spyData.allCloses);
+  if(qqqData.ok&&qqqData.allCloses.length>0) pulseState.qqqMonthLow=Math.min(...qqqData.allCloses);
+  if(iwmData.ok&&iwmData.allCloses.length>0) pulseState.iwmMonthLow=Math.min(...iwmData.allCloses);
+  if(typeof esData!=='undefined'&&esData.ok&&esData.allCloses.length>0) pulseState.esMonthLow=Math.min(...esData.allCloses);
+  if(typeof nqData!=='undefined'&&nqData.ok&&nqData.allCloses.length>0) pulseState.nqMonthLow=Math.min(...nqData.allCloses);
+
   // Fetch weekly closes for weekly RSI — 6mo gives ~26 weekly bars, plenty for RSI(14)
   status.textContent='Fetching weekly RSI data...';
   const [spyW,qqqW,iwmW,esW,nqW]=await Promise.all([
@@ -2152,6 +2169,9 @@ function propagateData(){
 
   // Update RSI confluence panel
   if(typeof renderRSIConfluence==='function') renderRSIConfluence();
+
+  // Update cross-instrument retest matrix
+  if(typeof renderRetestMatrix==='function') renderRetestMatrix();
 
   // Update accumulation zone NOW marker
   if(pulseState.spyPrice) {
@@ -2776,6 +2796,86 @@ document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
 }).join('');
 
 // ===== SVG CHART =====
+// ===== CROSS-INSTRUMENT RETEST MATRIX =====
+function renderRetestMatrix(){
+  const p=pulseState;
+  const contentEl=document.getElementById('retest-matrix-content');
+  const verdictEl=document.getElementById('retest-matrix-verdict');
+  if(!contentEl||!verdictEl) return;
+
+  const MATRIX_INSTS=[
+    {key:'SPY',  label:'SPY',  color:'#22d3ee', lowKey:'spyMonthLow', priceKey:'spyPrice',  futures:false,
+     supports:[{level:480,name:'Jan 2022 ATH'},{level:565,name:'Mid-2024 ATH'},{level:590,name:'Mid-2024 ATH upper'},{level:610,name:'Sep 2024 ATH zone'}]},
+    {key:'QQQ',  label:'QQQ',  color:'#a855f7', lowKey:'qqqMonthLow', priceKey:'qqqPrice',  futures:false,
+     supports:[{level:350,name:'2022 ATH zone'},{level:402,name:'Apr 2025 structural low'},{level:430,name:'Pre-2022 ATH zone'},{level:480,name:'Late-2024 support'}]},
+    {key:'IWM',  label:'IWM',  color:'#3b82f6', lowKey:'iwmMonthLow', priceKey:'iwmPrice',  futures:false,
+     supports:[{level:171,name:'Nov 2021 ATH zone'},{level:188,name:'2023 resistance zone'},{level:195,name:'2024 support'}]},
+    {key:'ES=F', label:'ES1!', color:'#22c55e', lowKey:'esMonthLow',  priceKey:'esPrice',   futures:true,
+     supports:[{level:4818,name:'Jan 2022 ATH zone'},{level:5050,name:'Sep 2024 ATH zone'},{level:5264,name:'Pre-tariff ATH zone'}]},
+    {key:'NQ=F', label:'NQ1!', color:'#f59e0b', lowKey:'nqMonthLow',  priceKey:'nqPrice',   futures:true,
+     supports:[{level:15000,name:'2023 ATH zone'},{level:17383,name:'2024 structural support'},{level:19200,name:'2024 support zone'}]},
+  ];
+
+  let retestCount=0, dataCount=0;
+
+  const rows=MATRIX_INSTS.map(inst=>{
+    const low=p[inst.lowKey];
+    if(!low){
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+        <td style="padding:7px 8px;font-weight:700;color:${inst.color}">${inst.label}</td>
+        <td colspan="4" style="padding:7px 8px;font-size:10px;color:rgba(255,255,255,0.2)">— Click Refresh to load —</td>
+      </tr>`;
+    }
+    dataCount++;
+    let nearest=null, nearestDist=Infinity;
+    for(const s of inst.supports){
+      const d=Math.abs(low-s.level)/low*100;
+      if(d<nearestDist){ nearestDist=d; nearest=s; }
+    }
+    if(!nearest) return '';
+    const pctAway=(low-nearest.level)/low*100;
+    const pctAwayAbs=Math.abs(pctAway);
+    const retested=pctAwayAbs<=3.0;
+    if(retested) retestCount++;
+    const lowStr=inst.futures?Math.round(low).toLocaleString():'$'+low.toFixed(0);
+    const lvlStr=inst.futures?nearest.level.toLocaleString():'$'+nearest.level;
+    const statusText=retested?'✓ RETESTED':'○ NOT YET';
+    const statusColor=retested?'#22c55e':'rgba(255,255,255,0.35)';
+    const distColor=pctAwayAbs<=1?'#22c55e':pctAwayAbs<=3?'#f59e0b':pctAwayAbs<=8?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.3)';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+      <td style="padding:7px 8px;font-weight:700;color:${inst.color}">${inst.label}</td>
+      <td style="padding:7px 8px;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.7)">${lowStr} low</td>
+      <td style="padding:7px 8px;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.5)">${lvlStr}<br><span style="font-size:9px;color:rgba(255,255,255,0.25)">${nearest.name}</span></td>
+      <td style="padding:7px 8px;font-family:var(--mono);font-size:11px;color:${distColor}">${pctAway>=0?'+':''}${pctAway.toFixed(1)}%<br><span style="font-size:9px;color:${distColor};opacity:0.7">${pctAway<0?'below support':'above support'}</span></td>
+      <td style="padding:7px 8px;font-weight:700;font-size:11px;color:${statusColor};white-space:nowrap">${statusText}</td>
+    </tr>`;
+  }).join('');
+
+  contentEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.08)">
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Instrument</th>
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">1-Month Low</th>
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Nearest Support</th>
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Distance</th>
+      <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Status</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">1-Month Low = minimum closing price over past 30 days · Retested = within 3% of structural level · Futures may confirm level when ETF doesn't reach its nominal equivalent</div>`;
+
+  if(dataCount===0){ verdictEl.style.display='none'; return; }
+  let verdict='', verdictBg='', verdictBorder='', verdictColor='';
+  if(retestCount>=4){ verdict='FULL STRUCTURAL CONFLUENCE — highest conviction'; verdictBg='rgba(34,197,94,0.12)'; verdictBorder='rgba(34,197,94,0.35)'; verdictColor='#22c55e'; }
+  else if(retestCount>=3){ verdict='STRONG CONFLUENCE — high conviction, look for entry'; verdictBg='rgba(34,197,94,0.08)'; verdictBorder='rgba(34,197,94,0.25)'; verdictColor='#22c55e'; }
+  else if(retestCount>=2){ verdict='PARTIAL CONFLUENCE — needs sentiment confirmation before entry'; verdictBg='rgba(245,158,11,0.08)'; verdictBorder='rgba(245,158,11,0.25)'; verdictColor='#f59e0b'; }
+  else if(retestCount>=1){ verdict='WEAK — wait for more instruments to test structural support'; verdictBg='rgba(239,68,68,0.06)'; verdictBorder='rgba(239,68,68,0.15)'; verdictColor='rgba(255,255,255,0.4)'; }
+  else { verdict='NO CONFLUENCE — no instrument has retested structural support yet'; verdictBg='rgba(255,255,255,0.03)'; verdictBorder='rgba(255,255,255,0.08)'; verdictColor='rgba(255,255,255,0.3)'; }
+  verdictEl.style.display='block';
+  verdictEl.style.background=verdictBg;
+  verdictEl.style.border='1px solid '+verdictBorder;
+  verdictEl.innerHTML=`<div style="font-size:13px;font-weight:800;color:${verdictColor};margin-bottom:4px">${retestCount}/${dataCount} instruments retested structural support</div><div style="font-size:10px;color:rgba(255,255,255,0.5);font-style:italic">${verdict}</div>`;
+}
+
 function renderSvgChart(){
   const livePrice=pulseState.spyPrice||656;
   const pts = [
@@ -2814,8 +2914,27 @@ function renderSvgChart(){
     <rect x="${sx(2025.3)-32}" y="${sy(495)}" width="64" height="14" rx="3" fill="#3b82f6" opacity="0.2"/>
     <text x="${sx(2025.3)}" y="${sy(495)+10}" fill="#3b82f6" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">RETEST ✓</text>`;
 
+  // Compute cross-instrument retest badge row for the projected zone
+  const BADGE_DEFS=[
+    {id:'SPY',  lowKey:'spyMonthLow', lvl:590,   col:'#22d3ee'},
+    {id:'QQQ',  lowKey:'qqqMonthLow', lvl:402,   col:'#a855f7'},
+    {id:'IWM',  lowKey:'iwmMonthLow', lvl:188,   col:'#3b82f6'},
+    {id:'ES1!', lowKey:'esMonthLow',  lvl:5050,  col:'#22c55e'},
+    {id:'NQ1!', lowKey:'nqMonthLow',  lvl:17383, col:'#f59e0b'},
+  ];
+  const badgeY=Math.round(sy(590))+13;
+  const badgesSvg=BADGE_DEFS.map((b,i)=>{
+    const low=pulseState[b.lowKey];
+    const rt=low&&Math.abs(low-b.lvl)/low*100<=3.0;
+    const bx=pL+8+i*36;
+    const hasData=low!=null;
+    return `<rect x="${bx}" y="${badgeY-9}" width="32" height="12" rx="2" fill="${b.col}" opacity="${rt?0.2:0.04}" stroke="${b.col}" stroke-width="0.5" stroke-opacity="${rt?0.5:0.12}"/>`+
+      `<text x="${bx+16}" y="${badgeY}" fill="${b.col}" opacity="${rt?1:hasData?0.3:0.2}" font-size="7" text-anchor="middle" font-family="JetBrains Mono" font-weight="${rt?700:400}">${b.id}${rt?' ✓':''}</text>`;
+  }).join('');
+
   const projZone=`<rect x="${pL}" y="${sy(610)}" width="${cW}" height="${sy(565)-sy(610)}" fill="#f59e0b" opacity="0.06" rx="4"/>
-    <text x="${pL+8}" y="${sy(590)}" fill="#f59e0b" font-size="9" font-weight="700" opacity="0.6" font-family="JetBrains Mono">PROJECTED RETEST ZONE $565–610</text>`;
+    <text x="${pL+8}" y="${sy(590)}" fill="#f59e0b" font-size="9" font-weight="700" opacity="0.6" font-family="JetBrains Mono">PROJECTED RETEST ZONE $565–610</text>
+    ${badgesSvg}`;
 
   const buyLabels=[{x:2016,y:200},{x:2020.1,y:245},{x:2022.8,y:375},{x:2025.4,y:508}].map(b=>
     `<rect x="${sx(b.x)-14}" y="${sy(b.y)-7}" width="28" height="14" rx="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
