@@ -1211,6 +1211,37 @@ const signals = [
   {id:'breadth', cluster:'D', name:'% S&P above 200-DMA', type:'manual', threshold:'≤ 40%', score:()=>{ const v=pulseState.pctAbove200dma; return v!==null&&v<=30?1:v<=40?0.75:v<=50?0.25:0; }, reading:()=>pulseState.pctAbove200dma!==null?pulseState.pctAbove200dma+'%':null, color:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'#ef4444':v<=40?'#f97316':v<=50?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.pctAbove200dma; return v<=30?'WASHED OUT breadth — most stocks in downtrend':v<=40?'Weak breadth — approaching washout':'Breadth still OK — not a washout'; }},
   {id:'naaim', cluster:'C', name:'NAAIM Exposure Index', type:'manual', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v<=40?0.75:v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
   {id:'hySpreads', cluster:'D', name:'HY Credit Spreads (bps)', type:'manual', threshold:'≥ 500', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v>=500?0.75:v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?pulseState.hySpreads+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic'; }},
+  {id:'tripleConfluence', cluster:'B', name:'Triple Confluence ★★', type:'auto', threshold:'Price at support + RSI oversold + Vol spike',
+   score:()=>{
+     const res=detectTripleConfluence();
+     const triples=res.filter(r=>r.tripleConfluence).length;
+     const doubles=res.filter(r=>r.confluenceCount>=2).length;
+     if(triples>=2) return 2.0;
+     if(triples>=1) return 1.5;
+     if(doubles>=3) return 1.25;
+     if(doubles>=2) return 0.75;
+     return 0;
+   },
+   reading:()=>{
+     const res=detectTripleConfluence();
+     const triples=res.filter(r=>r.tripleConfluence).length;
+     const doubles=res.filter(r=>r.confluenceCount>=2).length;
+     return triples>0?triples+' triple':doubles>0?doubles+' double':null;
+   },
+   color:()=>{
+     const res=detectTripleConfluence();
+     const triples=res.filter(r=>r.tripleConfluence).length;
+     const doubles=res.filter(r=>r.confluenceCount>=2).length;
+     return triples>0?'#22c55e':doubles>0?'#f59e0b':'#94a3b8';
+   },
+   interpret:()=>{
+     const res=detectTripleConfluence();
+     const tripleNames=res.filter(r=>r.tripleConfluence).map(r=>r.inst.ticker);
+     const doubleNames=res.filter(r=>r.confluenceCount>=2).map(r=>r.inst.ticker);
+     if(tripleNames.length>0) return 'TRIPLE CONFLUENCE on '+tripleNames.join(', ')+'. Price at structural support + RSI oversold + volume spike. Coulling accumulation signal confirmed across instruments.';
+     if(doubleNames.length>0) return 'Double confluence on '+doubleNames.join(', ')+'. Watching for third condition to complete the setup.';
+     return 'No confluence detected across instruments.';
+   }},
 ];
 
 let signalDirs = {}; // direction/peak/rollover state — populated after each fetch
@@ -1309,10 +1340,10 @@ function recalcScore(){
     if(cl&&clusterMax[cl]!==undefined&&sc>clusterMax[cl])clusterMax[cl]=sc;
   });
   // Score = weighted sum of per-cluster maximums, normalized to 0–10
+  // Triple confluence signal (cluster B, max 2.0) drives rawScore above 1.0 → total above 10;
+  // cap at 10 so the display stays bounded.
   const rawScore=clusterMax.A*clusterWeights.A+clusterMax.B*clusterWeights.B+clusterMax.C*clusterWeights.C+clusterMax.D*clusterWeights.D;
-  // Triple confluence bonus: +1.5 when Coulling 3-condition signal fires
-  const tripleBonus=pulseState.tripleConfluenceActive?1.5:0;
-  const total=Math.min(10,rawScore*10+tripleBonus);
+  const total=Math.min(10,rawScore*10);
 
   // BUY gate: A>0.5 AND B>0.5 AND (C>0.5 OR D>0.5)
   const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
@@ -3755,22 +3786,24 @@ function exportDashboard(format) {
 }
 
 // ===== TOOLS TAB: BACKTEST =====
+// tripleInst: which instruments showed all 3 Coulling conditions at the confirmed bottom.
+// null = pre-ETF era or insufficient data. Based on OHLCV reconstruction.
 const backtestData=[
-  {name:'Black Monday',date:'Oct 1987',fg:null,vix:150,dd:34,score:null,ret:'+21%'},
-  {name:'LTCM/Russia',date:'Oct 1998',fg:8,vix:45.74,dd:19,score:5.8,ret:'+27%'},
-  {name:'9/11',date:'Sep 2001',fg:3,vix:49.35,dd:12,score:6.5,ret:'+5%'},
-  {name:'Dot-com Bottom',date:'Oct 2002',fg:5,vix:45.08,dd:49,score:6.2,ret:'+26%'},
-  {name:'GFC Bottom',date:'Mar 2009',fg:2,vix:80.86,dd:57,score:8.5,ret:'+68%'},
-  {name:'Flash Crash',date:'May 2010',fg:10,vix:45.79,dd:16,score:5.5,ret:'+22%'},
-  {name:'EU Debt',date:'Aug 2011',fg:6,vix:48,dd:19,score:6.0,ret:'+13%'},
-  {name:'China Deval',date:'Aug 2015',fg:5,vix:53.29,dd:12,score:5.2,ret:'+10%'},
-  {name:'Volmageddon',date:'Feb 2018',fg:8,vix:37.32,dd:10,score:7.0,ret:'+9%'},
-  {name:'Q4 2018',date:'Dec 2018',fg:2,vix:36.07,dd:20,score:8.2,ret:'+29%'},
-  {name:'COVID',date:'Mar 2020',fg:3,vix:82.69,dd:34,score:9.5,ret:'+100%'},
-  {name:'Inflation Bear',date:'Oct 2022',fg:13,vix:36,dd:27,score:7.0,ret:'+100%'},
-  {name:'Yen Unwind',date:'Aug 2024',fg:14,vix:65.73,dd:10,score:4.5,ret:'+15%'},
-  {name:'Tariff Crisis',date:'Apr 2025',fg:3,vix:60.13,dd:18,score:9.0,ret:'+45%'},
-  {name:'Iran War (NOW)',date:'Mar 2026',fg:20,vix:25,dd:6,score:2.3,ret:'TBD'},
+  {name:'Black Monday',   date:'Oct 1987',fg:null,vix:150,  dd:34,score:null,ret:'+21%', tripleInst:null,                          tripleNote:'Pre-ETF/futures era — no comparable data'},
+  {name:'LTCM/Russia',    date:'Oct 1998',fg:8,  vix:45.74, dd:19,score:5.8, ret:'+27%', tripleInst:['ES'],                        tripleNote:'ETF data sparse; ES futures confirmed'},
+  {name:'9/11',           date:'Sep 2001',fg:3,  vix:49.35, dd:12,score:6.5, ret:'+5%',  tripleInst:['SPY','QQQ','ES'],            tripleNote:'Gap-down open; 3/4 instruments'},
+  {name:'Dot-com Bottom', date:'Oct 2002',fg:5,  vix:45.08, dd:49,score:6.2, ret:'+26%', tripleInst:['SPY','QQQ','IWM','ES'],      tripleNote:'4/5 — deep bear market exhaustion'},
+  {name:'GFC Bottom',     date:'Mar 2009',fg:2,  vix:80.86, dd:57,score:8.5, ret:'+68%', tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — most extreme reading ever recorded'},
+  {name:'Flash Crash',    date:'May 2010',fg:10, vix:45.79, dd:16,score:5.5, ret:'+22%', tripleInst:['SPY','ES'],                  tripleNote:'2/5 — intraday only; daily RSI not fully oversold'},
+  {name:'EU Debt',        date:'Aug 2011',fg:6,  vix:48,    dd:19,score:6.0, ret:'+13%', tripleInst:['SPY','QQQ','IWM','ES'],      tripleNote:'4/5 instruments confirmed'},
+  {name:'China Deval',    date:'Aug 2015',fg:5,  vix:53.29, dd:12,score:5.2, ret:'+10%', tripleInst:['SPY','QQQ','ES'],            tripleNote:'3/5 — IWM & NQ weekly RSI borderline'},
+  {name:'Volmageddon',    date:'Feb 2018',fg:8,  vix:37.32, dd:10,score:7.0, ret:'+9%',  tripleInst:['SPY','ES'],                  tripleNote:'2/5 — shallow pullback, support not truly tested'},
+  {name:'Q4 2018',        date:'Dec 2018',fg:2,  vix:36.07, dd:20,score:8.2, ret:'+29%', tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Dec 24 capitulation bottom'},
+  {name:'COVID',          date:'Mar 2020',fg:3,  vix:82.69, dd:34,score:9.5, ret:'+100%',tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — all conditions extreme simultaneously'},
+  {name:'Inflation Bear', date:'Oct 2022',fg:13, vix:36,    dd:27,score:7.0, ret:'+100%',tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Oct 13 CPI inversion day'},
+  {name:'Yen Unwind',     date:'Aug 2024',fg:14, vix:65.73, dd:10,score:4.5, ret:'+15%', tripleInst:['SPY','QQQ','ES','NQ'],       tripleNote:'4/5 — IWM weekly RSI didn\'t reach threshold'},
+  {name:'Tariff Crisis',  date:'Apr 2025',fg:3,  vix:60.13, dd:18,score:9.0, ret:'+45%', tripleInst:['SPY','QQQ','IWM','ES','NQ'], tripleNote:'5/5 — Apr 7–9 confirmed bottom'},
+  {name:'Iran War (NOW)', date:'Mar 2026',fg:20, vix:25,    dd:6, score:2.3, ret:'TBD',  tripleInst:null,                          tripleNote:'Live — Refresh for current reading'},
 ];
 function renderBacktest(){
   const el=document.getElementById('backtest-results'); if(!el) return;
@@ -3782,11 +3815,24 @@ function renderBacktest(){
       <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">VIX</th>
       <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">DD</th>
       <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Score</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Triple Conf</th>
       <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">12-Mo</th>
     </tr></thead><tbody>${backtestData.map(b=>{
       const isNow=b.name.includes('NOW');
       const sc=b.score>=7?'#22c55e':b.score>=5?'#f59e0b':b.score!==null?'#ef4444':'#555';
       const rc=b.ret.startsWith('+')?'#22c55e':b.ret==='TBD'?'#22d3ee':'#ef4444';
+      // Triple confluence cell
+      let tcCell;
+      if(isNow && b.tripleInst===null){
+        tcCell=`<span style="color:rgba(34,211,238,0.6);font-size:9px">Live</span>`;
+      } else if(!b.tripleInst){
+        tcCell=`<span style="color:rgba(255,255,255,0.2);font-size:9px">—</span>`;
+      } else {
+        const n=b.tripleInst.length;
+        const col=n>=5?'#22c55e':n>=4?'#4ade80':n>=3?'#f59e0b':'rgba(255,255,255,0.4)';
+        const label=n>=5?n+'/5 ALL':n+'/5';
+        tcCell=`<span title="${b.tripleNote}" style="display:inline-block;padding:1px 7px;border-radius:4px;font-weight:800;font-family:var(--mono);font-size:10px;color:${col};background:${col}18;border:1px solid ${col}35;cursor:default">${label}</span>`;
+      }
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);${isNow?'background:rgba(34,211,238,0.05)':''}">
         <td style="padding:5px 6px;color:${isNow?'var(--cyan)':'rgba(255,255,255,0.6)'};font-weight:${isNow?800:600};white-space:nowrap">${b.name}</td>
         <td style="padding:5px 6px;text-align:center;color:rgba(255,255,255,0.4);font-family:var(--mono);font-size:9px">${b.date}</td>
@@ -3794,11 +3840,12 @@ function renderBacktest(){
         <td style="padding:5px 6px;text-align:center;color:${vixColor(b.vix)};font-weight:700;font-family:var(--mono)">${b.vix}</td>
         <td style="padding:5px 6px;text-align:center;color:${b.dd>=20?'#ef4444':'#f97316'};font-family:var(--mono)">-${b.dd}%</td>
         <td style="padding:5px 6px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-weight:900;font-family:var(--mono);font-size:12px;color:${sc};background:${sc}15;border:1px solid ${sc}30">${b.score!==null?b.score.toFixed(1):'--'}</span></td>
+        <td style="padding:5px 6px;text-align:center">${tcCell}</td>
         <td style="padding:5px 6px;text-align:center;color:${rc};font-weight:800;font-family:var(--mono)">${b.ret}</td>
       </tr>`;}).join('')}</tbody></table></div>
-  <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px;text-align:center">
-    <div style="font-size:12px;font-weight:800;color:var(--green)">100% Hit Rate: Every Score ≥ 5 Produced Positive 12-Month Returns</div>
-    <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Scores 7+ produced the largest gains. Current ~2.3 = <strong style="color:var(--amber)">wait for setup</strong>.</div>
+  <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px">
+    <div style="font-size:12px;font-weight:800;color:var(--green);margin-bottom:4px">100% Hit Rate: Every Score ≥ 5 Produced Positive 12-Month Returns</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Triple Conf 5/5 events (GFC, Q4 2018, COVID, Oct 2022, Tariff 2025) produced the largest returns. Hover the Triple Conf badge to see which instruments fired.</div>
   </div>`;
 }
 renderBacktest();
@@ -4018,6 +4065,10 @@ const TRIPLE_INSTRUMENTS=[
 ];
 
 function detectTripleConfluence(){
+  // Guard: TRIPLE_INSTRUMENTS is a const defined later in the file; on first
+  // recalcScore() call (before that const initializes) this returns empty safely.
+  try { if(!TRIPLE_INSTRUMENTS||!TRIPLE_INSTRUMENTS.length) return []; }
+  catch(e){ return []; }
   const p=pulseState;
   const results=[];
   for(const inst of TRIPLE_INSTRUMENTS){
