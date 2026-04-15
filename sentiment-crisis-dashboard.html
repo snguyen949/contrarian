@@ -615,6 +615,9 @@
       </div>
     </div>
 
+    <!-- CONVICTION METER — first visible panel after score on mobile -->
+    <div id="conviction-meter" class="panel" style="display:none;border-width:2px;transition:border-color 0.3s,background 0.3s"></div>
+
     <!-- Live metric cards grid -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:24px" id="pulse-cards"></div>
 
@@ -1359,9 +1362,9 @@ function recalcScore(){
   const clusterEl=document.getElementById('cluster-status');
   scoreEl.textContent=total.toFixed(1);
   activeEl.textContent=active;
-  // Show triple confluence bonus chip near score
+  // Hide legacy triple bonus chip (score now handled via tripleConfluence signal in cluster B)
   const bonusEl=document.getElementById('triple-bonus-chip');
-  if(bonusEl) { bonusEl.style.display=tripleBonus>0?'inline-block':'none'; }
+  if(bonusEl) { bonusEl.style.display='none'; }
   if(clusterEl){
     clusterEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;`+
       ['A','B','C','D'].map(c=>`<span class="cluster-badge cluster-${c}" style="${clusterMax[c]>0.5?'':'opacity:0.3'}">${c}</span>`).join('');
@@ -1443,6 +1446,7 @@ function recalcScore(){
     </div>`;
 
   renderPulseCards();
+  renderConvictionMeter(total);
 }
 
 // ===== DIRECTION-AWARE SIGNAL DETECTION =====
@@ -2122,6 +2126,176 @@ const RSI_INSTRUMENTS=[
   {key:'ES=F', rsiKey:'rsiES',   wRsiKey:'weeklyRsiES',   support:4700, supportLabel:'~4,700 (prior ATH 2021)', color:'#22c55e'},
   {key:'NQ=F', rsiKey:'rsiNQ',   wRsiKey:'weeklyRsiNQ',   support:16200,supportLabel:'~16,200 (prior ATH 2021)',color:'#ec4899'},
 ];
+
+// ===== CONVICTION METER =====
+function renderConvictionMeter(total) {
+  const el = document.getElementById('conviction-meter');
+  if (!el) return;
+
+  const p = pulseState;
+
+  // Confluence metrics
+  let res = [];
+  try { res = detectTripleConfluence(); } catch(e) {}
+  const tripleCount = res.filter(r => r.tripleConfluence).length;
+  const doubleCount = res.filter(r => r.confluenceCount >= 2).length;
+
+  // Verdict
+  let verdict, verdictColor, verdictBg, verdictBorder, verdictDesc;
+  if (total >= 7 || tripleCount >= 2) {
+    verdict = 'STRONG BUY';
+    verdictColor = '#22c55e';
+    verdictBg = 'rgba(34,197,94,0.07)';
+    verdictBorder = 'rgba(34,197,94,0.45)';
+    verdictDesc = 'Multiple clusters aligned. Coulling accumulation conditions confirmed.';
+  } else if (total >= 5 && doubleCount >= 3) {
+    verdict = 'SCALE IN';
+    verdictColor = '#4ade80';
+    verdictBg = 'rgba(74,222,128,0.05)';
+    verdictBorder = 'rgba(74,222,128,0.35)';
+    verdictDesc = 'Score and confluence both strong. Begin scaling cautiously.';
+  } else if (total >= 4 || doubleCount >= 2) {
+    verdict = 'WATCH';
+    verdictColor = '#f59e0b';
+    verdictBg = 'rgba(245,158,11,0.05)';
+    verdictBorder = 'rgba(245,158,11,0.3)';
+    verdictDesc = 'Conditions building. More signals needed before acting.';
+  } else {
+    verdict = 'WAIT';
+    verdictColor = '#94a3b8';
+    verdictBg = 'rgba(148,163,184,0.03)';
+    verdictBorder = 'rgba(148,163,184,0.15)';
+    verdictDesc = 'Early or no signals. Stay in cash, monitor for escalation.';
+  }
+
+  // Conviction bar: 60% from score, 40% from confluence
+  const confluenceScore = Math.min(1, tripleCount / 5 + doubleCount * 0.1);
+  const convBar = Math.min(100, (total / 10 * 60) + (confluenceScore * 40));
+
+  // Cluster weights (must match recalcScore)
+  const clusterWeights = {A:0.20, B:0.35, C:0.25, D:0.20};
+  const sigMaxScores = {
+    cnnFG:1.0, vix:1.0, cryptoFG:1.0, aaii:1.0,
+    putcall:1.0, spyVolSpike:1.0, spyDrawdown:1.0,
+    breadth:1.0, naaim:1.0, hySpreads:1.0, tripleConfluence:2.0
+  };
+
+  // Categorize signals
+  const firingSignals = signals.filter(s => { try { return s.score() > 0; } catch(e) { return false; } });
+  const missingSignals = signals.filter(s => {
+    try { if (s.score() > 0) return false; } catch(e) { return false; }
+    switch (s.id) {
+      case 'cnnFG':         return p.cnnFG !== null;
+      case 'vix':           return p.vix !== null;
+      case 'cryptoFG':      return p.cryptoFG !== null;
+      case 'aaii':          return p.aaiiBear !== null;
+      case 'putcall':       return p.putCallRatio !== null;
+      case 'spyVolSpike':   return p.spyVol !== null && p.spy20dAvgVol !== null;
+      case 'spyDrawdown':   return p.spyPctFromATH !== null;
+      case 'breadth':       return p.pctAbove200dma !== null;
+      case 'naaim':         return p.naaimExposure !== null;
+      case 'hySpreads':     return p.hySpreads !== null;
+      case 'tripleConfluence': return p.spyPrice !== null;
+      default: return false;
+    }
+  });
+
+  // Next catalyst: unfired signal with highest score potential
+  let nextCatalyst = null;
+  let nextPotential = 0;
+  signals.forEach(s => {
+    try { if (s.score() > 0) return; } catch(e) { return; }
+    const pot = (sigMaxScores[s.id] || 1.0) * (clusterWeights[s.cluster] || 0.25);
+    if (pot > nextPotential) { nextPotential = pot; nextCatalyst = s; }
+  });
+
+  // Entry parameters for SCALE IN / STRONG BUY
+  let entryHtml = '';
+  if (verdict === 'SCALE IN' || verdict === 'STRONG BUY') {
+    const spyPrice = p.spyPrice;
+    if (spyPrice) {
+      const supports = [480, 565, 590, 610, 630, 650];
+      const nearestSupport = supports.reduce((best, s) => Math.abs(s - spyPrice) < Math.abs(best - spyPrice) ? s : best);
+      const stopPrice = (nearestSupport * 0.97).toFixed(2);
+      const entry = spyPrice.toFixed(2);
+      const t1 = 698; const t2 = 720;
+      const risk = parseFloat(entry) - parseFloat(stopPrice);
+      const rr1 = risk > 0 ? ((t1 - parseFloat(entry)) / risk).toFixed(1) : null;
+      const rr2 = risk > 0 ? ((t2 - parseFloat(entry)) / risk).toFixed(1) : null;
+      entryHtml = `
+        <div style="margin-top:14px;padding:12px 16px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.18);border-radius:8px">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Entry Parameters (SPY)</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px">
+            <div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Entry</div>
+              <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:#22c55e">$${entry}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.2)">Current price</div>
+            </div>
+            <div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Stop Loss</div>
+              <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:#ef4444">$${stopPrice}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.2)">−3% of $${nearestSupport} support</div>
+            </div>
+            <div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Target 1</div>
+              <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:#f59e0b">$${t1}</div>
+              ${rr1 ? `<div style="font-size:8px;color:rgba(255,255,255,0.2)">R:R = 1:${rr1}</div>` : ''}
+            </div>
+            <div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Target 2</div>
+              <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:#f59e0b">$${t2}</div>
+              ${rr2 ? `<div style="font-size:8px;color:rgba(255,255,255,0.2)">R:R = 1:${rr2}</div>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
+  // Apply card styling
+  el.style.display = 'block';
+  el.style.background = verdictBg;
+  el.style.borderColor = verdictBorder;
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div style="flex:1;min-width:180px">
+        <div class="panel-title" style="color:${verdictColor};margin-bottom:4px">⚡ Conviction Meter</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);line-height:1.5">${verdictDesc}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:30px;font-weight:900;font-family:var(--mono);color:${verdictColor};letter-spacing:2px;line-height:1">${verdict}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;margin-top:2px">CURRENT VERDICT</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1.5px">Conviction</div>
+        <div style="font-size:13px;font-weight:800;font-family:var(--mono);color:${verdictColor}">${convBar.toFixed(0)}%</div>
+      </div>
+      <div style="height:10px;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden">
+        <div style="width:${convBar}%;height:100%;border-radius:5px;background:linear-gradient(90deg,${verdictColor}70,${verdictColor});transition:width 0.8s ease"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(255,255,255,0.18);margin-top:3px">
+        <span>WAIT</span><span>WATCH</span><span>SCALE IN</span><span>STRONG BUY</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${nextCatalyst ? '12px' : '0'}">
+      ${firingSignals.map(s => `<span style="padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#22c55e">✓ ${s.name.replace(' ★★','')}</span>`).join('')}
+      ${missingSignals.map(s => `<span style="padding:3px 10px;border-radius:20px;font-size:9px;font-weight:600;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);color:#64748b">○ ${s.name.replace(' ★★','')}</span>`).join('')}
+    </div>
+
+    ${nextCatalyst ? `
+    <div style="padding:10px 14px;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15);border-radius:8px">
+      <div style="font-size:9px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px">Next Catalyst to Watch</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.6)"><strong style="color:rgba(255,255,255,0.8)">${nextCatalyst.name.replace(' ★★','')}</strong> — <span style="color:rgba(255,255,255,0.4)">${nextCatalyst.threshold}</span></div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px">Potential: +${(nextPotential * 10).toFixed(1)} pts when triggered</div>
+    </div>` : ''}
+
+    ${entryHtml}
+  `;
+}
 
 function renderRSIConfluence(){
   const p=pulseState;
