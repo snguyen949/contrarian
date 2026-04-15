@@ -601,6 +601,7 @@
           <div id="contrarian-score" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--amber);line-height:1">--</div>
           <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">/ 10</div>
           <div id="score-label" style="font-size:11px;font-weight:700;color:var(--amber);margin-top:4px">WAITING FOR DATA</div>
+          <div id="triple-bonus-chip" style="display:none;margin-top:6px;padding:2px 10px;border-radius:20px;font-size:9px;font-weight:700;color:#22c55e;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.1);letter-spacing:0.5px">+1.5 TRIPLE CONFLUENCE</div>
           <div id="cluster-status" style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">-- / 4 clusters active</div>
         </div>
         <div style="width:200px">
@@ -1039,6 +1040,16 @@
       <span id="tc-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Fetches 3-month OHLCV for SPY, QQQ, IWM, ES1!, NQ1! — computes RSI-14, structural support proximity, volume spikes</span>
     </div>
 
+    <!-- Triple Confluence Alert Banner (fires when all 3 Coulling conditions align) -->
+    <div id="triple-confluence-alert" style="display:none;padding:16px 20px;border-radius:10px;margin-bottom:20px"></div>
+
+    <!-- Triple Confluence Detector -->
+    <div class="panel" style="border-color:rgba(34,197,94,0.2);margin-bottom:24px">
+      <div class="panel-title" style="color:var(--green)">Triple Confluence Detector — Coulling Framework</div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:14px">Fires when all three Coulling conditions align on any instrument: <strong style="color:rgba(255,255,255,0.5)">① price at structural support (≤3%)</strong> + <strong style="color:rgba(255,255,255,0.5)">② RSI oversold (daily&lt;35 or weekly&lt;40)</strong> + <strong style="color:rgba(255,255,255,0.5)">③ volume spike (&gt;1.5× 20-day avg)</strong>. High volume at support = institutional accumulation. RSI oversold = retail panic. Structural support = where smart money has buy orders.</p>
+      <div id="triple-confluence-panel"><div style="font-size:10px;color:rgba(255,255,255,0.2)">Click "Load Confluence Data" or refresh the main data to populate.</div></div>
+    </div>
+
     <!-- Confluence Score Banner -->
     <div class="panel" style="background:linear-gradient(135deg,rgba(34,211,238,0.06),rgba(168,85,247,0.04));border-color:rgba(34,211,238,0.15);margin-bottom:24px">
       <div class="panel-title" style="color:var(--cyan)">Multi-Instrument Technical Confluence Score</div>
@@ -1181,6 +1192,11 @@ const pulseState = {
   weeklyRsiSPY:null, weeklyRsiQQQ:null, weeklyRsiIWM:null, weeklyRsiES:null, weeklyRsiNQ:null,
   // 1-month close minimums (for cross-instrument retest matrix)
   spyMonthLow:null, qqqMonthLow:null, iwmMonthLow:null, esMonthLow:null, nqMonthLow:null,
+  // Volume for triple confluence detector
+  qqqVol:null, qqq20dAvgVol:null, iwmVol:null, iwm20dAvgVol:null,
+  esVol:null, es20dAvgVol:null, nqVol:null, nq20dAvgVol:null,
+  // Triple confluence state (set by detectTripleConfluence)
+  tripleConfluenceActive:false, tripleConfluenceStrength:'none',
 };
 
 // Thresholds for contrarian scoring
@@ -1294,7 +1310,9 @@ function recalcScore(){
   });
   // Score = weighted sum of per-cluster maximums, normalized to 0–10
   const rawScore=clusterMax.A*clusterWeights.A+clusterMax.B*clusterWeights.B+clusterMax.C*clusterWeights.C+clusterMax.D*clusterWeights.D;
-  const total=rawScore*10;
+  // Triple confluence bonus: +1.5 when Coulling 3-condition signal fires
+  const tripleBonus=pulseState.tripleConfluenceActive?1.5:0;
+  const total=Math.min(10,rawScore*10+tripleBonus);
 
   // BUY gate: A>0.5 AND B>0.5 AND (C>0.5 OR D>0.5)
   const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
@@ -1308,6 +1326,9 @@ function recalcScore(){
   const clusterEl=document.getElementById('cluster-status');
   scoreEl.textContent=total.toFixed(1);
   activeEl.textContent=active;
+  // Show triple confluence bonus chip near score
+  const bonusEl=document.getElementById('triple-bonus-chip');
+  if(bonusEl) { bonusEl.style.display=tripleBonus>0?'inline-block':'none'; }
   if(clusterEl){
     clusterEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;`+
       ['A','B','C','D'].map(c=>`<span class="cluster-badge cluster-${c}" style="${clusterMax[c]>0.5?'':'opacity:0.3'}">${c}</span>`).join('');
@@ -1564,6 +1585,8 @@ async function fetchAllData(){
     pulseState.qqqPrice=qqqData.price;
     pulseState.qqqDate=qqqData.dateStr;
     pulseState.qqqChange=qqqData.prevClose?((qqqData.price-qqqData.prevClose)/qqqData.prevClose*100):null;
+    pulseState.qqqVol=qqqData.volume;
+    pulseState.qqq20dAvgVol=qqqData.avg20Vol;
     log.push({src:'QQQ',val:'$'+qqqData.price.toFixed(2),date:qqqData.dateStr,ok:true});
   }else{ log.push({src:'QQQ',val:'All proxies failed',date:'--',ok:false}); }
 
@@ -1574,6 +1597,8 @@ async function fetchAllData(){
     pulseState.iwmPrice=iwmData.price;
     pulseState.iwmDate=iwmData.dateStr;
     pulseState.iwmChange=iwmData.prevClose?((iwmData.price-iwmData.prevClose)/iwmData.prevClose*100):null;
+    pulseState.iwmVol=iwmData.volume;
+    pulseState.iwm20dAvgVol=iwmData.avg20Vol;
     log.push({src:'IWM',val:'$'+iwmData.price.toFixed(2),date:iwmData.dateStr,ok:true});
   }else{ log.push({src:'IWM',val:'All proxies failed',date:'--',ok:false}); }
 
@@ -1584,6 +1609,8 @@ async function fetchAllData(){
     pulseState.esPrice=esData.price;
     pulseState.esDate=esData.dateStr;
     pulseState.esChange=esData.prevClose?((esData.price-esData.prevClose)/esData.prevClose*100):null;
+    pulseState.esVol=esData.volume;
+    pulseState.es20dAvgVol=esData.avg20Vol;
     log.push({src:'ES1!',val:'$'+Math.round(esData.price).toLocaleString(),date:esData.dateStr,ok:true});
   }else{ log.push({src:'ES1!',val:'All proxies failed',date:'--',ok:false}); }
 
@@ -1594,6 +1621,8 @@ async function fetchAllData(){
     pulseState.nqPrice=nqData.price;
     pulseState.nqDate=nqData.dateStr;
     pulseState.nqChange=nqData.prevClose?((nqData.price-nqData.prevClose)/nqData.prevClose*100):null;
+    pulseState.nqVol=nqData.volume;
+    pulseState.nq20dAvgVol=nqData.avg20Vol;
     log.push({src:'NQ1!',val:'$'+Math.round(nqData.price).toLocaleString(),date:nqData.dateStr,ok:true});
   }else{ log.push({src:'NQ1!',val:'All proxies failed',date:'--',ok:false}); }
 
@@ -2172,6 +2201,11 @@ function propagateData(){
 
   // Update cross-instrument retest matrix
   if(typeof renderRetestMatrix==='function') renderRetestMatrix();
+
+  // Update triple confluence detector and apply score bonus
+  if(typeof renderTripleConfluence==='function') renderTripleConfluence();
+  // Re-run score to pick up tripleConfluenceActive flag set by detectTripleConfluence
+  recalcScore();
 
   // Update accumulation zone NOW marker
   if(pulseState.spyPrice) {
@@ -3964,7 +3998,124 @@ async function fetchTechnicalConfluence() {
   renderTechnicalConfluence();
 }
 
+// ===== TRIPLE CONFLUENCE DETECTOR (Coulling Framework) =====
+const TRIPLE_INSTRUMENTS=[
+  {key:'SPY',  ticker:'SPY',  label:'SPY (S&P ETF)',      color:'#22d3ee', futures:false,
+   priceKey:'spyPrice', rsiKey:'rsiSPY', weeklyRsiKey:'weeklyRsiSPY', volKey:'spyVol', avgVolKey:'spy20dAvgVol',
+   levels:[{price:480,name:'Jan 2022 ATH'},{price:565,name:'Mid-2024 ATH'},{price:590,name:'Mid-2024 ATH upper'},{price:610,name:'Sep 2024 ATH zone'}]},
+  {key:'QQQ',  ticker:'QQQ',  label:'QQQ (Nasdaq ETF)',   color:'#a855f7', futures:false,
+   priceKey:'qqqPrice', rsiKey:'rsiQQQ', weeklyRsiKey:'weeklyRsiQQQ', volKey:'qqqVol', avgVolKey:'qqq20dAvgVol',
+   levels:[{price:350,name:'2022 ATH zone'},{price:402,name:'Apr 2025 structural low'},{price:430,name:'Pre-2022 ATH zone'},{price:480,name:'Late-2024 support'}]},
+  {key:'IWM',  ticker:'IWM',  label:'IWM (Russell 2000)', color:'#3b82f6', futures:false,
+   priceKey:'iwmPrice', rsiKey:'rsiIWM', weeklyRsiKey:'weeklyRsiIWM', volKey:'iwmVol', avgVolKey:'iwm20dAvgVol',
+   levels:[{price:171,name:'Nov 2021 ATH zone'},{price:188,name:'2023 resistance zone'},{price:195,name:'2024 support'}]},
+  {key:'ES',   ticker:'ES=F', label:'ES1! (S&P Futures)', color:'#22c55e', futures:true,
+   priceKey:'esPrice',  rsiKey:'rsiES',  weeklyRsiKey:'weeklyRsiES',  volKey:'esVol',  avgVolKey:'es20dAvgVol',
+   levels:[{price:4818,name:'Jan 2022 ATH zone'},{price:5050,name:'Sep 2024 ATH zone'},{price:5264,name:'Pre-tariff ATH zone'}]},
+  {key:'NQ',   ticker:'NQ=F', label:'NQ1! (Nasdaq Futures)',color:'#f59e0b', futures:true,
+   priceKey:'nqPrice',  rsiKey:'rsiNQ',  weeklyRsiKey:'weeklyRsiNQ',  volKey:'nqVol',  avgVolKey:'nq20dAvgVol',
+   levels:[{price:15000,name:'2023 ATH zone'},{price:17383,name:'2024 structural support'},{price:19200,name:'2024 support zone'}]},
+];
+
+function detectTripleConfluence(){
+  const p=pulseState;
+  const results=[];
+  for(const inst of TRIPLE_INSTRUMENTS){
+    const price=p[inst.priceKey];
+    if(!price) continue;
+    const rsi=p[inst.rsiKey];
+    const weeklyRsi=p[inst.weeklyRsiKey];
+    const vol=p[inst.volKey];
+    const avgVol=p[inst.avgVolKey];
+    // Find nearest structural level (above or below — closest counts)
+    let nearest=null, nearestDist=Infinity;
+    for(const lvl of inst.levels){
+      const d=Math.abs(price-lvl.price)/price*100;
+      if(d<nearestDist){ nearestDist=d; nearest=lvl; }
+    }
+    const distToSupport=nearest?(price-nearest.price)/price*100:null; // positive = above support
+    // Conditions
+    const atSupport=distToSupport!==null&&distToSupport>=-1&&distToSupport<3; // within 3% above support (allow 1% below for overshoot)
+    const rsiOversold=(rsi!==null&&rsi!==undefined&&rsi<35)||(weeklyRsi!==null&&weeklyRsi!==undefined&&weeklyRsi<40);
+    const volSpike=vol!=null&&avgVol!=null&&avgVol>0&&(vol/avgVol)>1.5;
+    const confluenceCount=[atSupport,rsiOversold,volSpike].filter(Boolean).length;
+    results.push({inst,price,rsi,weeklyRsi,vol,avgVol,nearest,distToSupport,atSupport,rsiOversold,volSpike,confluenceCount,tripleConfluence:confluenceCount===3});
+  }
+  // Update pulseState for score bonus
+  const tripleHits=results.filter(r=>r.tripleConfluence).length;
+  const doubleHits=results.filter(r=>r.confluenceCount>=2).length;
+  pulseState.tripleConfluenceActive=tripleHits>=1||doubleHits>=3;
+  pulseState.tripleConfluenceStrength=tripleHits>=1?'triple':doubleHits>=3?'cross-double':'none';
+  return results;
+}
+
+function renderTripleConfluence(){
+  const panelEl=document.getElementById('triple-confluence-panel');
+  const alertEl=document.getElementById('triple-confluence-alert');
+  if(!panelEl) return;
+
+  const results=detectTripleConfluence();
+  if(results.length===0){
+    panelEl.innerHTML='<div style="font-size:10px;color:rgba(255,255,255,0.2)">Click Refresh to load instrument data.</div>';
+    return;
+  }
+
+  const tripleHits=results.filter(r=>r.tripleConfluence);
+  const doubleHits=results.filter(r=>r.confluenceCount>=2);
+  const hasTriple=tripleHits.length>=1;
+  const hasCrossDouble=doubleHits.length>=3;
+  const isTriggered=hasTriple||hasCrossDouble;
+
+  // Alert banner
+  if(alertEl){
+    if(hasTriple){
+      alertEl.style.display='block';
+      alertEl.style.background='rgba(34,197,94,0.1)';
+      alertEl.style.border='1px solid rgba(34,197,94,0.35)';
+      alertEl.innerHTML=`<div style="font-size:14px;font-weight:800;color:#22c55e;margin-bottom:6px">🟢🟢🟢 TRIPLE CONFLUENCE — ${tripleHits.map(r=>r.inst.ticker).join(' + ')}</div><div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5">All 3 Coulling conditions firing simultaneously: structural support + RSI oversold + volume spike.<br>Contrarian score +1.5 applied. Strongest systematic buy signal.</div>`;
+    } else if(hasCrossDouble){
+      alertEl.style.display='block';
+      alertEl.style.background='rgba(245,158,11,0.08)';
+      alertEl.style.border='1px solid rgba(245,158,11,0.25)';
+      alertEl.innerHTML=`<div style="font-size:14px;font-weight:800;color:#f59e0b;margin-bottom:6px">🟢🟢⚪ CROSS-INSTRUMENT DOUBLE CONFLUENCE — ${doubleHits.length}/5 instruments</div><div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5">${doubleHits.length}+ instruments showing double confluence. Treated as equivalent to single triple (broad-based signal).<br>Contrarian score +1.5 applied.</div>`;
+    } else {
+      alertEl.style.display='none';
+    }
+  }
+
+  // Traffic-light rows
+  const rows=results.map(r=>{
+    const lights=[r.atSupport,r.rsiOversold,r.volSpike].map(c=>c?'🟢':'⚪').join('');
+    const label=r.confluenceCount===3?'STRONGEST BUY SIGNAL':r.confluenceCount===2?'STRONG — watch for third':r.confluenceCount===1?'DEVELOPING':'NO SIGNAL';
+    const labelColor=r.confluenceCount===3?'#22c55e':r.confluenceCount===2?'#f59e0b':r.confluenceCount===1?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.2)';
+    const priceStr=r.inst.futures?Math.round(r.price).toLocaleString():'$'+r.price.toFixed(2);
+    const rsiStr=r.rsi!=null?r.rsi.toFixed(1):'—';
+    const wrsiStr=r.weeklyRsi!=null?r.weeklyRsi.toFixed(1):'—';
+    const volRatio=r.vol!=null&&r.avgVol!=null&&r.avgVol>0?(r.vol/r.avgVol).toFixed(2)+'×':'—';
+    const distStr=r.distToSupport!=null?(r.distToSupport>=0?'+':'')+r.distToSupport.toFixed(1)+'%':'—';
+    const nearestStr=r.nearest?(r.inst.futures?r.nearest.price.toLocaleString():'$'+r.nearest.price)+' '+r.nearest.name:'—';
+    // Condition detail chips
+    const chip=(ok,label)=>`<span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:${ok?'rgba(34,197,94,0.12)':'rgba(255,255,255,0.04)'};border:1px solid ${ok?'rgba(34,197,94,0.3)':'rgba(255,255,255,0.08)'};color:${ok?'#22c55e':'rgba(255,255,255,0.25)'}">${ok?'✓':'○'} ${label}</span>`;
+    return `<div style="padding:10px 12px;border-radius:8px;border:1px solid ${r.confluenceCount===3?'rgba(34,197,94,0.25)':r.confluenceCount===2?'rgba(245,158,11,0.15)':'rgba(255,255,255,0.04)'};background:${r.confluenceCount===3?'rgba(34,197,94,0.05)':'rgba(255,255,255,0.01)'};margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:800;color:${r.inst.color};font-family:var(--mono);min-width:40px">${r.inst.ticker}</span>
+        <span style="font-size:18px;letter-spacing:2px">${lights}</span>
+        <span style="font-size:10px;font-weight:700;color:${labelColor}">${label}</span>
+        <span style="margin-left:auto;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.4)">${priceStr}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        ${chip(r.atSupport,'Support '+distStr+' ('+nearestStr+')')}
+        ${chip(r.rsiOversold,'RSI D:'+rsiStr+' W:'+wrsiStr)}
+        ${chip(r.volSpike,'Vol '+volRatio)}
+      </div>
+    </div>`;
+  }).join('');
+
+  panelEl.innerHTML=rows+`<div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">🟢 = condition met &nbsp;⚪ = not yet &nbsp;· &nbsp;Support: within 3% above (−1% overshoot allowed) &nbsp;· &nbsp;RSI: daily&lt;35 or weekly&lt;40 &nbsp;· &nbsp;Vol: &gt;1.5× 20-day avg</div>`;
+}
+
 function renderTechnicalConfluence() {
+  renderTripleConfluence();
   _renderTCBanner();
   _renderTCInstruments();
   _renderTCHistory();
