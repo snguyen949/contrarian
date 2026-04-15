@@ -1080,12 +1080,13 @@
         <span id="conflict-phase-name" style="font-size:12px;color:rgba(255,255,255,0.5)"></span>
         <button onclick="fetchHeadlines()" style="margin-left:auto;padding:5px 12px;border:1px solid rgba(168,85,247,0.3);border-radius:6px;background:rgba(168,85,247,0.1);color:#a855f7;font-size:9px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:0.5px">🔍 SCAN HEADLINES</button>
       </div>
+      <div id="conflict-vote-summary" style="font-size:9px;color:rgba(255,255,255,0.25);padding:4px 2px;min-height:16px">Awaiting headline scan…</div>
     </div>
 
     <!-- Live headline signals -->
     <div class="panel" style="border-color:rgba(168,85,247,0.15)">
-      <div class="panel-title" style="color:#a855f7">Live Headlines — Conflict Phase Detection <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(Google News + Reddit + Finnhub + NewsAPI)</span></div>
-      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;line-height:1.5">Headlines are keyword-matched to both Kobeissi conflict AND tariff steps. Fetches from Google News RSS (free), Reddit (free), Finnhub (if key), NewsAPI (if key). Click <strong style="color:#a855f7">Scan Headlines</strong> or <strong style="color:var(--cyan)">Refresh All Data</strong>.</p>
+      <div class="panel-title" style="color:#a855f7">Live Headlines — Conflict Phase Detection <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(Google News + Reuters + Reddit + Finnhub + NewsAPI)</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;line-height:1.5">Each headline votes independently for a conflict step. The step with the most weighted votes wins. Fallback: Polymarket ceasefire odds → price data. Sources: Google News RSS (5 parallel queries), Reuters RSS, Reddit, Finnhub (if key), NewsAPI (if key). Updates automatically every 5 min.</p>
       <div id="conflict-headlines" style="max-height:300px;overflow-y:auto">
         <div style="font-size:10px;color:rgba(255,255,255,0.15)">Click "Scan Headlines" to fetch latest news and auto-detect conflict phase.</div>
       </div>
@@ -1927,7 +1928,7 @@ async function yahooChart(ticker,range='1mo',interval='1d'){
     for(const host of yHosts){
       const baseUrl=`https://${host}/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
       try{
-        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),8000);
+        const r=await fetchWithTimeout(PROXIES[pi](baseUrl),12000);
         if(!r.ok) continue;
         const d=await r.json();
         if(!d.chart||!d.chart.result) continue;
@@ -4666,11 +4667,11 @@ const conflictSteps=[
   {step:6,name:"Markets Price Prolonged Conflict",desc:"Oil above $85, equities hit new weekly lows, rush to sidelines accelerates. Positioning changes structurally.",marker:"Brent >$85, equities erase gains, gold/silver sell off (cash hoarding), VIX elevated",market:"Dow -1,100 pts. Oil $90+. Silver -20% in 24hrs. Defensive flows.",smartMoney:"SMART MONEY begins scanning for entry. Sentiment polarity extreme.",timing:"Week 1–2",iranStatus:"COMPLETE",iranDate:"Mar 3–20, 2026"},
   {step:7,name:"Conditional De-Escalation",desc:"After sufficient risk premia expansion, Trump introduces calibrated de-escalation. NOT a retreat — conditional.",marker:"Language shifts to 'negotiations possible if...' Talks, frameworks mentioned quietly.",market:"VIX plateaus. Oil stops making new highs. Equity selling exhausts.",smartMoney:"THIS IS THE BUY ZONE. Smart money enters while headlines still negative.",timing:"Highly variable — days to months",iranStatus:"COMPLETE",iranDate:"Mar 20–22, 2026"},
   {step:8,name:"Market & Political Feedback",desc:"Financial markets become part of negotiation. Oil >$90 conflicts with Trump's policy priorities (low gas, low inflation, peace).",marker:"Brent >$90 sustained, CPI estimates rising, gas prices +10%, consumer sentiment falling",market:"Market stress forces Trump's hand. Bond market is the ultimate tell.",smartMoney:"Conviction builds. Adding to positions on each dip.",timing:"Overlaps with Step 7",iranStatus:"COMPLETE",iranDate:"Mar 14–22, 2026"},
-  {step:9,name:"The Deal & Narrative Framing",desc:"Resolution framed as strategic victory. 'Maximum pressure produced concessions.' 5-day pause = deal framing window.",marker:"Ceasefire tied to nuclear concessions, or Iranian govt collapse declared 'mission success'",market:"Headline shock — but initially met with skepticism. Smart money already positioned.",smartMoney:"Already long. Holding through volatility.",timing:"After Step 7–8 catalysts",iranStatus:"",iranDate:""},
+  {step:9,name:"The Deal & Narrative Framing",desc:"2-week ceasefire agreed Apr 8 via Pakistan. Vance + Kushner + Witkoff in Islamabad Apr 11. Iran's 10-point plan called 'workable basis' by Trump. Nuclear enrichment rights remain the core sticking point. Ceasefire has cracks (Lebanon issue). Smart money already positioned — holding.",marker:"Ceasefire Apr 8. US-Iran direct talks in Islamabad. Iran's 10-point plan on table. Fragile but active negotiations.",market:"Ceasefire agreed but fragile. Markets skeptical — watching nuclear sticking point. Smart money already in.",smartMoney:"Already long. Holding through volatility. Step 10 triggers on final deal or nuclear concession.",timing:"Apr 8–ongoing",iranStatus:"ACTIVE",iranDate:"Apr 8–12, 2026"},
   {step:10,name:"Violent Repricing & Victory Lap",desc:"Positions unwind abruptly. Markets reprice not on improving fundamentals, but on collapsing worst-case probabilities.",marker:"Oil crashes, VIX implodes, equities gap up violently. Record single-day gains.",market:"SPY gaps +3–5%. Oil drops 15–20%. VIX crashes to teens. New ATH within weeks.",smartMoney:"Taking profits on the rip. Rotating into next opportunity.",timing:"Days after deal announcement",iranStatus:"",iranDate:""},
 ];
 
-let currentConflictStep=9; // Default — peace talks announced 3/23
+let currentConflictStep=9; // Active — 2-week ceasefire Apr 8, Islamabad talks Apr 11
 let headlineSignals = []; // Populated by news scan
 let allFetchedHeadlines = []; // Raw headline objects for display
 
@@ -4679,8 +4680,8 @@ let allFetchedHeadlines = []; // Raw headline objects for display
 
 // Keywords that map to conflict cycle phases (checked highest → lowest)
 const conflictKeywords = {
-  10: {must:['deal signed','peace deal','agreement reached','war ended','war over','ceasefire signed'],boost:['new ath','record high','oil crash','vix crash','surge','rally']},
-  9:  {must:['peace talks','talks','negotiations','productive','winding down','pause strike','postpone','5-day','five day','ceasefire talk','diplomacy','de-escalat'],boost:['ceasefire','kushner','witkoff','hopeful','progress','deal']},
+  10: {must:['final deal','peace deal signed','agreement reached','war ended','war over','nuclear deal signed','full ceasefire signed','deal announced'],boost:['new ath','record high','oil crash','vix crash','surge','rally','victory']},
+  9:  {must:['peace talks','islamabad','pakistan talks','vance iran','witkoff iran','kushner iran','10-point','ten point','workable','ceasefire agreed','ceasefire holds','two-week ceasefire','2-week ceasefire','negotiations','winding down','diplomacy','de-escalat','ceasefire talk'],boost:['ceasefire','kushner','witkoff','vance','hopeful','progress','deal','optimistic','nuclear talks','framework']},
   8:  {must:['oil crisis','energy crisis','gas price','inflation spike','recession fear','worst since','market feedback','economic impact'],boost:['forcing','pressure','unsustainable','stagflat']},
   7:  {must:['de-escalat','conditional','possible negotiat','open to talks','framework','wind down'],boost:['plateau','stabiliz','exhaust','moderate']},
   6:  {must:['prolonged','no end','escalat','strait closed','new low','worst week','oil surge'],boost:['panic','sell-off','selloff','crash','plunge']},
@@ -4689,8 +4690,8 @@ const conflictKeywords = {
 
 // Keywords for tariff cycle phases
 const tariffKeywords = {
-  12: {must:['tariff deal','trade deal','tariff removed','tariff dropped','tariff paused','trade agreement'],boost:['new ath','rally','surge','record']},
-  8:  {must:['tariff discussion','tariff talk','trade talk','productive trade','negotiat tariff'],boost:['progress','framework','hopeful','optimis']},
+  12: {must:['tariff deal','trade deal','tariff removed','tariff dropped','tariff paused','trade agreement','tariff truce extended','tariff truce'],boost:['new ath','rally','surge','record','trump xi','summit']},
+  8:  {must:['tariff discussion','tariff talk','trade talk','productive trade','negotiat tariff','section 301','trade investigation','trade probe','trump xi meeting'],boost:['progress','framework','hopeful','optimis','renegotiat']},
   5:  {must:['tariff impact','tariff selloff','futures gap','market drop tariff','tariff fear'],boost:['gap down','plunge','crash','panic']},
   2:  {must:['new tariff','tariff announce','tariff hike','tariff increase','tariff threat','liberation day'],boost:['25%','50%','100%','reciprocal','retaliat']},
   1:  {must:['tariff signal','tariff hint','looking at tariff','trade war','tariff warning'],boost:['truth social','cryptic','big announcement']},
@@ -4707,39 +4708,81 @@ function matchKeywords(text, keywordMap) {
   return null;
 }
 
+// Per-headline vote storage (populated by detectConflictPhase)
+let _conflictVotes={}, _conflictConfidence=0, _conflictSource='';
+let _tariffVotes={}, _tariffConfidence=0;
+
 function detectConflictPhase(){
   const p=pulseState;
-  // Priority 1: headline signals
-  if(headlineSignals.length > 0) {
-    const allText = headlineSignals.map(h=>h.toLowerCase()).join(' ');
-    const headlineStep = matchKeywords(allText, conflictKeywords);
-    if(headlineStep) return headlineStep;
+  _conflictVotes={}; _conflictConfidence=0; _conflictSource='';
+
+  // === 1. PER-HEADLINE VOTING ===
+  if(headlineSignals.length>0){
+    headlineSignals.forEach(headline=>{
+      const step=matchKeywords(headline.toLowerCase(),conflictKeywords);
+      if(step) _conflictVotes[step]=(_conflictVotes[step]||0)+1;
+    });
+    if(Object.keys(_conflictVotes).length>0){
+      // Weight higher (de-escalation) steps slightly more to prevent noise downgrade
+      const scored=Object.entries(_conflictVotes).map(([step,count])=>({
+        step:parseInt(step), score:count*(parseInt(step)>=9?1.5:parseInt(step)>=7?1.2:1)
+      })).sort((a,b)=>b.score-a.score);
+      const winner=scored[0];
+      const totalVotes=Object.values(_conflictVotes).reduce((a,b)=>a+b,0);
+      _conflictConfidence=Math.round((winner.score/scored.reduce((a,s)=>a+s.score,0))*100);
+      _conflictSource=headlineSignals.length+' headlines';
+      return winner.step;
+    }
   }
-  // Priority 2: price-based fallback
-  if(p.spyPrice&&p.spyPrice>=695&&p.vix&&p.vix<18) return 10;
-  if(p.spyPrice&&p.spyPrice>=685&&p.vix&&p.vix<22) return 9;
-  if(p.oilPrice&&p.oilPrice>=90&&p.tnx&&p.tnx>=4.5) return 8;
-  if(p.vix&&p.vix>=25&&p.vix<35&&p.spyPctFromATH&&p.spyPctFromATH>=5&&p.spyPctFromATH<=12) return 7;
-  if(p.oilPrice&&p.oilPrice>=80&&p.vix&&p.vix>=22) return 6;
-  if(p.vix&&p.vix>=20&&p.vix<25&&p.spyPctFromATH&&p.spyPctFromATH>=2) return 5;
-  if(p.vix&&p.vix>=18&&p.spyPctFromATH&&p.spyPctFromATH>=1) return 4;
-  return 3;
+
+  // === 2. POLYMARKET CEASEFIRE ODDS FALLBACK ===
+  if(p.polyIranCeasefire&&p.polyIranCeasefire.pct!==undefined){
+    const pct=p.polyIranCeasefire.pct;
+    _conflictSource='Polymarket ceasefire odds ('+pct+'%)';
+    if(pct>=85){_conflictConfidence=85;return 10;}
+    if(pct>=55){_conflictConfidence=Math.round(pct);return 9;}
+    if(pct>=35){_conflictConfidence=Math.round(pct);return 7;}
+    if(pct>=20){_conflictConfidence=Math.round(pct);return 6;}
+    _conflictConfidence=Math.round(100-pct); return 5;
+  }
+
+  // === 3. PRICE-BASED FALLBACK ===
+  _conflictSource='Price data (no headlines)';
+  if(p.spyPrice>=695&&p.vix<18){_conflictConfidence=70;return 10;}
+  if(p.spyPrice>=685&&p.vix<22){_conflictConfidence=65;return 9;}
+  if(p.oilPrice>=90&&p.tnx>=4.5){_conflictConfidence=60;return 8;}
+  if(p.vix>=25&&p.vix<35&&p.spyPctFromATH>=5&&p.spyPctFromATH<=12){_conflictConfidence=55;return 7;}
+  if(p.oilPrice>=80&&p.vix>=22){_conflictConfidence=50;return 6;}
+  if(p.vix>=20&&p.vix<25&&p.spyPctFromATH>=2){_conflictConfidence=50;return 5;}
+  if(p.vix>=18&&p.spyPctFromATH>=1){_conflictConfidence=45;return 4;}
+  // Keep current step if no signals override
+  _conflictConfidence=40; return currentConflictStep;
 }
 
 function detectTariffPhase(){
   const p=pulseState;
-  // Check headlines for tariff signals
-  if(headlineSignals.length > 0) {
-    const allText = headlineSignals.map(h=>h.toLowerCase()).join(' ');
-    const hasTariff = allText.includes('tariff') || allText.includes('trade war') || allText.includes('trade deal');
-    if(hasTariff) {
-      const step = matchKeywords(allText, tariffKeywords);
-      if(step) return step;
+  _tariffVotes={};_tariffConfidence=0;
+  if(headlineSignals.length>0){
+    const hasTariffContext=headlineSignals.some(h=>{
+      const t=h.toLowerCase();
+      return t.includes('tariff')||t.includes('trade war')||t.includes('trade deal')||t.includes('section 301');
+    });
+    if(hasTariffContext){
+      headlineSignals.forEach(headline=>{
+        const step=matchKeywords(headline.toLowerCase(),tariffKeywords);
+        if(step) _tariffVotes[step]=(_tariffVotes[step]||0)+1;
+      });
+      if(Object.keys(_tariffVotes).length>0){
+        const scored=Object.entries(_tariffVotes).map(([step,count])=>({
+          step:parseInt(step),score:count*(parseInt(step)>=12?1.5:parseInt(step)>=8?1.2:1)
+        })).sort((a,b)=>b.score-a.score);
+        _tariffConfidence=Math.round((scored[0].score/scored.reduce((a,s)=>a+s.score,0))*100);
+        return scored[0].step;
+      }
     }
   }
-  // If conflict is dominant (VIX ≥22), tariff cycle is dormant
   if(p.vix&&p.vix>=22) return 0;
-  return 0;
+  return currentTariffStep||0;
 }
 
 // ===== MULTI-SOURCE HEADLINE FETCHER =====
@@ -4795,30 +4838,53 @@ async function fetchHeadlines(){
   let allHeadlines = [];
   const errors = [];
 
-  // Source 1: Google News RSS (most reliable free source)
-  const gnQueries = ['iran+war','iran+trump+deal','iran+ceasefire','oil+price+iran','tariff+trade+war'];
-  for(const q of gnQueries) {
-    try {
-      const gnUrl = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
-      const resp = await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(gnUrl), 6000);
-      if(resp.ok) {
-        const xml = await resp.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xml, 'text/xml');
-        const items = doc.querySelectorAll('item');
-        items.forEach(item => {
-          const title = item.querySelector('title')?.textContent || '';
-          const link = item.querySelector('link')?.textContent || '';
-          const pubDate = item.querySelector('pubDate')?.textContent || '';
-          const source = item.querySelector('source')?.textContent || '';
-          if(title) allHeadlines.push({
-            title, url:link, created:new Date(pubDate).getTime()/1000||Date.now()/1000,
-            domain:source||'Google News', score:0, src:'gnews'
-          });
-        });
-      }
-    } catch(e) { errors.push('Google News: '+q); }
+  // Helper: parse RSS XML → headline array
+  function parseRSS(xml, srcLabel){
+    try{
+      const doc=new DOMParser().parseFromString(xml,'text/xml');
+      return [...doc.querySelectorAll('item')].map(item=>({
+        title:(item.querySelector('title')?.textContent||'').replace(/<!\[CDATA\[|\]\]>/g,'').trim(),
+        url:item.querySelector('link')?.textContent||'',
+        created:new Date(item.querySelector('pubDate')?.textContent||Date.now()).getTime()/1000,
+        domain:item.querySelector('source')?.textContent||srcLabel,
+        score:0,src:'gnews'
+      })).filter(h=>h.title.length>10);
+    }catch(e){return [];}
   }
+
+  // Source 1: Google News RSS — all queries IN PARALLEL
+  const gnQueries=[
+    {q:'iran+ceasefire+islamabad',label:'GNews/Iran-ceasefire'},
+    {q:'iran+trump+nuclear+deal',label:'GNews/Iran-nuclear'},
+    {q:'iran+talks+vance+witkoff',label:'GNews/Iran-talks'},
+    {q:'tariff+china+trade+deal+2026',label:'GNews/Tariff-China'},
+    {q:'section+301+tariff+eu+india',label:'GNews/Tariff-301'},
+  ];
+  const gnResults=await Promise.allSettled(gnQueries.map(({q})=>
+    fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(
+      `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`),7000)
+    .then(r=>r.ok?r.text():Promise.reject())
+  ));
+  gnResults.forEach((r,i)=>{
+    if(r.status==='fulfilled') allHeadlines.push(...parseRSS(r.value,gnQueries[i].label));
+    else errors.push(gnQueries[i].label);
+  });
+
+  // Source 2: Reuters RSS (via corsproxy)
+  const reutersFeeds=[
+    {url:'https://feeds.reuters.com/reuters/topNews',label:'Reuters/Top'},
+    {url:'https://feeds.reuters.com/reuters/businessNews',label:'Reuters/Business'},
+  ];
+  const reutersResults=await Promise.allSettled(reutersFeeds.map(({url})=>
+    fetchWithTimeout('https://corsproxy.io/?'+encodeURIComponent(url),6000).then(r=>r.ok?r.text():Promise.reject())
+  ));
+  reutersResults.forEach((r,i)=>{
+    if(r.status==='fulfilled'){
+      const items=parseRSS(r.value,reutersFeeds[i].label);
+      items.forEach(h=>{h.src='reuters';});
+      allHeadlines.push(...items);
+    } else errors.push(reutersFeeds[i].label);
+  });
 
   // Source 2: Reddit r/worldnews + r/stocks (free JSON)
   const redditUrls = [
@@ -5005,6 +5071,21 @@ function renderConflictSteps(){
   const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('conflict-phase').textContent='Step '+currentConflictStep+' of 10';
   document.getElementById('conflict-phase-name').textContent='— '+conflictSteps[currentConflictStep-1].name;
+
+  // Show vote distribution + confidence under the phase header
+  const voteEl=document.getElementById('conflict-vote-summary');
+  if(voteEl){
+    const voteEntries=Object.entries(_conflictVotes).sort((a,b)=>b[1]-a[1]);
+    const voteBar=voteEntries.map(([step,count])=>{
+      const col=parseInt(step)>=9?'#22c55e':parseInt(step)>=7?'#22d3ee':parseInt(step)>=5?'#f97316':'#94a3b8';
+      const pct=Math.round(count/headlineSignals.length*100);
+      return `<span style="font-size:9px;font-family:monospace;color:${col}">C${step}:${count}(${pct}%)</span>`;
+    }).join(' · ');
+    const confCol=_conflictConfidence>=70?'#22c55e':_conflictConfidence>=50?'#f59e0b':'#94a3b8';
+    voteEl.innerHTML=voteEntries.length>0
+      ?`<span style="color:rgba(255,255,255,0.3)">Signal: </span>${voteBar} <span style="color:${confCol};font-weight:700;margin-left:6px">${_conflictConfidence}% confidence</span> <span style="color:rgba(255,255,255,0.2)">via ${_conflictSource}</span>`
+      :`<span style="color:rgba(255,255,255,0.25)">Awaiting headline scan… using ${_conflictSource||'default'}</span>`;
+  }
   document.getElementById('conflict-steps').innerHTML=conflictSteps.map(s=>{
     const isCurrent=s.step===currentConflictStep;
     const isPast=s.step<currentConflictStep;
@@ -5059,11 +5140,11 @@ const tariffSteps=[
   {step:9,name:"Futures Gap Up",desc:"Sunday 6PM: Futures open sharply higher on deal optimism. But gains fade into Monday open.",marker:"ES futures +1–2% at Sunday open, then fade by Mon 9:30AM",market:"Gap up that partially fills. Still volatile. Testing conviction.",timing:"Sunday 6PM (week 2)",buy:"Hold — don't chase"},
   {step:10,name:"Administration Reassurance",desc:"Monday: Treasury Secretary/officials appear on TV to reassure markets. 'Progress toward a deal.'",marker:"Bessent, Lutnick on CNBC/Fox Business. Optimistic tone.",market:"Stabilization. VIX starts declining. Bond yields normalize.",timing:"Mon (week 2)",buy:"Confidence building"},
   {step:11,name:"Slow Drip of Progress",desc:"2–4 weeks of various admin officials teasing progress. Market grinds higher on hope.",marker:"'Framework in place,' 'details being finalized,' advisor quotes",market:"Grinding higher. Shorts covering slowly. FOMO building.",timing:"Weeks 2–4",buy:"Hold long positions"},
-  {step:12,name:"Deal Announced → New ATH",desc:"Trade deal announced. Markets hit new record highs. Violent repricing as defensive positions unwind.",marker:"Official deal announcement. Trump victory lap. Photo ops.",market:"SPY gaps +2–4%. VIX crushed. New ATH within days.",timing:"Day tariff was supposed to go live",buy:"Take profits on the rip"},
-  {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Volatility is the feature, not the bug.",marker:"New country/sector targeted. 'We're looking at [X] very strongly.'",market:"Markets initially ignore, then the cycle restarts.",timing:"Weeks to months later",buy:"Reload cash. Wait for Step 5–7."},
+  {step:12,name:"Deal Announced → New ATH",desc:"US-China 10% tariff truce extended through Nov 10, 2026. Trump-Xi summit rescheduled for mid-May. Markets repriced on deal. New Section 301 investigations launched (Bangladesh, Cambodia, EU, India — 9 other countries) — next cycle already beginning for new targets.",marker:"US-China tariff truce locked. Trump-Xi summit mid-May. Section 301 probes on EU, India, others starting April 2026.",market:"SPY recovered from tariff lows. VIX compressed. New ATH attempts. Watch Section 301 targets for next cycle.",timing:"Now — Nov 2026 truce, new probes for next targets",buy:"Hold longs. Watch for Step 1 signals on EU/India."},
+  {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Section 301 probes on EU, India, Bangladesh, Cambodia + 9 others — public hearing Apr 28. Watch for new tariff announcements after hearing.",marker:"New country/sector targeted. USTR Section 301 public hearing April 28. 'Looking at EU very strongly.'",market:"Markets initially ignore, then the cycle restarts. Watch Friday sessions in late April–May.",timing:"April–May 2026 for new targets",buy:"Reload cash. Wait for Step 5–7 on new targets."},
 ];
 
-let currentTariffStep=0; // 0 = dormant — auto-detected by headline engine above
+let currentTariffStep=12; // US-China truce through Nov 2026; new Section 301 probes starting
 
 function renderTariffSteps(){
   currentTariffStep=detectTariffPhase();
