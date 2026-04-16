@@ -6057,26 +6057,131 @@ renderPatternMatcher();
 // ===== BOTTOM CONFIRMATION ENGINE =====
 // ===== BOTTOM CONFIRMATION ENGINE =====
 
-function classifyBottomType() {
-  const p = pulseState;
-  if (!p.vix || !p.spyPctFromATH) return null;
-  const vix = p.vix, dd = Math.abs(p.spyPctFromATH);
-  const volRatio = (p.spyVol && p.spy20dAvgVol) ? p.spyVol / p.spy20dAvgVol : null;
-  const fg = p.cnnFG;
+// classifyBottomType — empirical classifier covering all 6 observed bottom archetypes.
+// Validated against 13 historical patterns (1987–2026).
+// conditions: {vix, drawdown, volMultiple, fng, hyCreditSpread, drawdownMonths, geopoliticalCatalyst, interventionAnnounced}
+// Returns: {type, confidence (1–4), description, warning} or null if insufficient data.
+function classifyBottomType(conditions) {
+  if (!conditions) return null;
+  const { vix, drawdown, volMultiple, fng, hyCreditSpread, drawdownMonths, geopoliticalCatalyst } = conditions;
+  if (!vix || !drawdown) return null;
+  const dd = Math.abs(drawdown);
   const vixDdRatio = vix / Math.max(dd, 1);
-  // MECHANICAL: VIX disproportionately high vs drawdown (ratio > 3.5)
-  if (vixDdRatio >= 3.5 && vix >= 35) return 'mechanical';
-  // CAPITULATION: VIX >= 40, vol >= 2x, extreme fear (F&G <= 14)
-  if (vix >= 40 && (volRatio === null || volRatio >= 2.0) && (fg === null || fg <= 14)) return 'capitulation';
-  // CREDIT CONTAGION: HY spreads very wide
-  if (p.hySpreads != null && p.hySpreads >= 500) return 'credit_contagion';
-  // FUNDAMENTAL BEAR: Deep drawdown (>25%), low VIX relative to DD
-  if (dd >= 25 && vix < 40) return 'fundamental_bear';
-  // STEALTH: Low VIX (<32), modest drawdown (<12%)
-  if (vix < 32 && dd < 12) return 'stealth';
-  // GEOPOLITICAL: Everything else with meaningful vol + drawdown
-  if (vix >= 25 && dd >= 5) return 'geopolitical';
+
+  // P1: CREDIT CONTAGION — financial system stress (highest priority)
+  if (hyCreditSpread != null && hyCreditSpread >= 500) {
+    const allSig = hyCreditSpread >= 700 && vix >= 50;
+    const mostSig = hyCreditSpread >= 600 || (vix >= 40 && dd >= 15);
+    return {
+      type: 'credit_contagion',
+      confidence: allSig ? 4 : mostSig ? 3 : 2,
+      description: 'Credit markets seizing — HY spreads ≥500bp. Requires Fed/Treasury intervention. Bear market rallies trap buyers; real bottom only on policy announcement.',
+      warning: hyCreditSpread >= 800 ? 'SYSTEMIC RISK: Spreads indicate financial system stress. Wait for Fed/Treasury intervention before buying.' : null
+    };
+  }
+
+  // P2: DEEP FUNDAMENTAL BEAR — structural selloff without panic vol (check before mechanical/capitulation)
+  // Distinguisher: GFC (dd≥35 + vol≥3x) = capitulation bottom within bear; Dot-com (dd≥35 + vol<3x) = structural grind
+  if (dd >= 35 && volMultiple !== null && volMultiple < 3.0) {
+    const allSig = dd >= 45;
+    const mostSig = dd >= 35;
+    return {
+      type: 'fundamental_bear',
+      confidence: allSig ? 4 : mostSig ? 3 : 2,
+      description: 'Deep structural drawdown without panic-vol spike — earnings/multiple compression grinding lower. Time-based recovery; DCA beats lump-sum. False bottoms common.',
+      warning: 'NO V-SHAPE: Avoid lump-sum. Dollar-cost average over 6–18 months. Multiple retests typical.'
+    };
+  }
+
+  // P3: MECHANICAL — VIX spike disproportionate to drawdown (ratio ≥ 2.75), but NOT extreme capitulation
+  // Guard: if VIX ≥ 55 + vol ≥ 3× + F&G ≤ 5, it's true panic/capitulation, not mechanical
+  if (vixDdRatio >= 2.75 && vix >= 35) {
+    const isExtremeCapitulation = vix >= 55 && (volMultiple !== null && volMultiple >= 3.0) && (fng !== null && fng <= 5);
+    if (!isExtremeCapitulation) {
+      const allSig = vixDdRatio >= 5.0 && vix >= 45 && (fng === null || fng <= 20) && (volMultiple === null || volMultiple >= 2.5);
+      const mostSig = vixDdRatio >= 3.5 || (vix >= 40 && (volMultiple === null || volMultiple >= 2.0));
+      return {
+        type: 'mechanical',
+        confidence: allSig ? 4 : mostSig ? 3 : 2,
+        description: 'VIX spike >> drawdown magnitude. Liquidity/positioning shock, not fundamentals. Self-correcting once forced selling exhausts — recovery historically within days to weeks.',
+        warning: null
+      };
+    }
+  }
+
+  // P4: CAPITULATION — extreme fear + vol spike (also catches low-VIX panic via F&G ≤ 5)
+  const capVixOk = vix >= 40 || (vix >= 30 && fng !== null && fng <= 5);
+  if (capVixOk && (volMultiple === null || volMultiple >= 2.0) && (fng === null || fng <= 20)) {
+    const allSig = vix >= 55 && (volMultiple === null || volMultiple >= 3.0) && (fng === null || fng <= 10);
+    const mostSig = vix >= 45 || (volMultiple !== null && volMultiple >= 2.5) || (fng !== null && fng <= 7);
+    return {
+      type: 'capitulation',
+      confidence: allSig ? 4 : mostSig ? 3 : 2,
+      description: 'Extreme fear with massive volume — V-shape bounce archetype. Sentiment at or near washout. Institutional buyers typically step in within 1–3 sessions.',
+      warning: (fng !== null && fng > 20) ? 'F&G not yet at capitulation levels — watch for second vol spike before all-in' : null
+    };
+  }
+
+  // P5: FUNDAMENTAL BEAR (moderate drawdown 25–35%)
+  if (dd >= 25 && vix < 50) {
+    const allSig = dd >= 30 && (drawdownMonths === null || drawdownMonths >= 6);
+    const mostSig = dd >= 28;
+    return {
+      type: 'fundamental_bear',
+      confidence: allSig ? 4 : mostSig ? 3 : 2,
+      description: 'Deep drawdown with moderate VIX — earnings/growth deterioration driving decline. Multiple compression still in progress. Time-based recovery; DCA beats lump-sum.',
+      warning: 'NO V-SHAPE: Avoid lump-sum. Dollar-cost average over 6–18 months. False bottoms common.'
+    };
+  }
+
+  // P6: STEALTH — low vol, limited drawdown (check before geopolitical to catch iran-type quiet bottoms)
+  if (vix < 32 && dd < 12) {
+    return {
+      type: 'stealth',
+      confidence: 2,
+      description: 'Low vol, modest drawdown — structural rotation or quiet sector unwind. Catalyst needed for reversal. Confirmed by cross-instrument structural confluence, not by sentiment.',
+      warning: null
+    };
+  }
+
+  // P7: GEOPOLITICAL — exogenous shock with identifiable catalyst
+  if (vix >= 25 && dd >= 5 && (geopoliticalCatalyst || (vix >= 30 && vixDdRatio >= 2.0))) {
+    const allSig = geopoliticalCatalyst && vix >= 35 && volMultiple !== null && volMultiple >= 1.5;
+    const mostSig = vix >= 30 || (geopoliticalCatalyst && dd >= 10);
+    return {
+      type: 'geopolitical',
+      confidence: allSig ? 4 : mostSig ? 3 : 2,
+      description: 'Exogenous shock with identifiable event driver. W-bottom or rapid recovery once geopolitical uncertainty resolves. Time horizon: days to weeks.',
+      warning: null
+    };
+  }
+
+  // P8: STEALTH (fallback — wider threshold)
+  if (vix < 32 && dd < 20) {
+    return {
+      type: 'stealth',
+      confidence: 2,
+      description: 'Low vol, modest drawdown — structural rotation or sector unwind. Catalyst needed for reversal. Monitor: stealth selloffs can morph into fundamental bears.',
+      warning: dd >= 12 ? 'Watch for acceleration: stealth corrections at 12%+ can deepen quickly if catalyst emerges' : null
+    };
+  }
+
   return null;
+}
+
+// Build the conditions object from pulseState for use with classifyBottomType()
+function buildClassifyConditions() {
+  const p = pulseState;
+  return {
+    vix: p.vix,
+    drawdown: p.spyPctFromATH,
+    volMultiple: (p.spyVol && p.spy20dAvgVol) ? p.spyVol / p.spy20dAvgVol : null,
+    fng: p.cnnFG,
+    hyCreditSpread: p.hySpreads,
+    drawdownMonths: null,        // not tracked live
+    geopoliticalCatalyst: null,  // not auto-detected
+    interventionAnnounced: null  // not auto-detected
+  };
 }
 
 // localStorage helpers for spike-day tracker
@@ -6137,40 +6242,101 @@ function renderBottomConfirmation() {
   const el = document.getElementById('bottom-confirm-panel');
   if (!el) return;
   const p = pulseState;
-  const type = classifyBottomType();
+
+  // Build conditions from live state and classify
+  const conditions = buildClassifyConditions();
+  const result = classifyBottomType(conditions);
+  const type = result ? result.type : null;
   const typeColor = type ? (BP_TYPE_COLORS[type] || '#94a3b8') : '#94a3b8';
   const typeLabel = type ? (BP_TYPE_LABELS[type] || type) : 'Unclassified';
 
-  // Type classifier section
-  let classifierHTML = `
-    <div style="margin-bottom:14px">
-      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Live Bottom Type</div>`;
-  if (!type) {
-    classifierHTML += `<div style="font-size:13px;color:rgba(255,255,255,0.35)">Insufficient data to classify</div>`;
+  // Confidence tier labels
+  const CONF_LABELS = { 4: 'HIGH CONFIDENCE', 3: 'MODERATE–HIGH', 2: 'MODERATE', 1: 'LOW' };
+  const CONF_COLORS = { 4: '#22c55e', 3: '#86efac', 2: '#fbbf24', 1: '#94a3b8' };
+
+  // Per-type trade guidance
+  const TRADE_GUIDANCE = {
+    mechanical: {
+      buyThreshold: 'Day +1 green close above spike-day level',
+      strongBuy: 'VIX >45 + Vol >2.5× avg + Day +1 green',
+      tradeRec: 'Buy aggressively on Day +1 green close. Size up if vol >2.5× average. Target: full recovery in 4–8 weeks.',
+    },
+    capitulation: {
+      buyThreshold: 'VIX ≥40 + F&G ≤15',
+      strongBuy: 'VIX ≥50 + Vol ≥3× avg + F&G ≤10',
+      tradeRec: 'Buy in 3 tranches over 3–5 sessions. Full position once VIX starts declining. Target: 30–70% recovery in 3–12 months.',
+    },
+    credit_contagion: {
+      buyThreshold: 'HY spreads <500bp + Fed/Treasury intervention announced',
+      strongBuy: 'HY spreads <400bp + QE/bailout confirmed',
+      tradeRec: 'Wait for intervention before buying. Accumulate over 2–4 weeks after. Expect bear market rallies before final bottom.',
+    },
+    fundamental_bear: {
+      buyThreshold: 'Drawdown ≥30% + forward PE <16',
+      strongBuy: 'Drawdown ≥40% + forward PE <14',
+      tradeRec: 'DCA over 6–18 months. Buy 10% tranches; reset on each additional −5%. No lump-sum — false bottoms common.',
+    },
+    geopolitical: {
+      buyThreshold: 'VIX declining <30 + catalyst event identified',
+      strongBuy: 'Resolution/ceasefire announced or VIX <25',
+      tradeRec: 'Scale in on catalyst clarity. W-bottoms common — may retest before recovery. Time horizon: weeks.',
+    },
+    stealth: {
+      buyThreshold: 'Daily RSI ≤35 + weekly RSI ≤40',
+      strongBuy: 'RSI upturn + volume expansion (momentum confirmation)',
+      tradeRec: 'Small initial position. Add on momentum confirmation. Risk: can morph into fundamental bear.',
+    },
+  };
+
+  // Historical precedents from bottomPatterns by type
+  const precedentsByType = {};
+  for (const [key, bp] of Object.entries(bottomPatterns)) {
+    if (!precedentsByType[bp.type]) precedentsByType[bp.type] = [];
+    precedentsByType[bp.type].push(bp);
+  }
+
+  // Classifier section
+  let classifierHTML = `<div style="margin-bottom:16px">
+    <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Detected Bottom Type</div>`;
+
+  if (!result || !type) {
+    classifierHTML += `<div style="font-size:12px;color:rgba(255,255,255,0.35);padding:8px 0">Insufficient data to classify — need VIX + SPY drawdown.</div>`;
   } else {
-    const typeDesc = {
-      mechanical: 'VIX spike >> drawdown magnitude. Self-correcting — policy clarity resolves quickly.',
-      capitulation: 'Extreme fear, massive vol, VIX ≥40. V-shape bounce archetype.',
-      credit_contagion: 'Credit markets seizing. Requires central bank intervention to bottom.',
-      fundamental_bear: 'Deep drawdown with moderate VIX — earnings/growth deterioration driving decline.',
-      geopolitical: 'Exogenous shock with clear event driver. W-bottom or rapid recovery.',
-      stealth: 'Low vol, modest drawdown. Structural shift, catalyst needed for reversal.'
-    }[type] || '';
-    const signals = {
-      mechanical: ['VIX/DD ratio ≥3.5', 'VIX ≥35', 'Drawdown modest vs vol spike'],
-      capitulation: ['VIX ≥40', 'Vol ≥2× average', 'F&G extreme fear (≤14)'],
-      credit_contagion: ['HY spreads ≥500bp', 'Credit markets stressed', 'Intervention required'],
-      fundamental_bear: ['Drawdown ≥25%', 'VIX <40 (not panic)', 'Earnings-driven'],
-      geopolitical: ['VIX ≥25', 'Clear event catalyst', 'Drawdown 5–25%'],
-      stealth: ['VIX <32', 'Drawdown <12%', 'Low public attention']
-    }[type] || [];
+    const confLabel = CONF_LABELS[result.confidence] || 'MODERATE';
+    const confColor = CONF_COLORS[result.confidence] || '#94a3b8';
+    const guidance = TRADE_GUIDANCE[type] || {};
+    const precs = precedentsByType[type] || [];
+    const precCount = precs.length;
+    const confTierLabel = precCount >= 4 ? 'HIGH (4+ examples)' : precCount >= 2 ? `MODERATE (${precCount} examples)` : `LOW (${precCount} example)`;
+
+    // Historical precedents display
+    const precHTML = precs.slice(0, 4).map(bp => {
+      const ret = bp.twelveMonthReturn;
+      const retStr = ret !== null && ret !== undefined ? `<span style="color:${ret>=0?'#4ade80':'#f87171'};font-weight:700">${ret>=0?'+':''}${ret}%</span>` : `<span style="color:#94a3b8">TBD</span>`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0">
+        <span style="font-size:10px;color:rgba(255,255,255,0.6)">${bp.name} <span style="color:rgba(255,255,255,0.3)">(${bp.date ? bp.date.slice(-4) : '?'})</span></span>
+        <span style="font-size:10px">${retStr} <span style="color:rgba(255,255,255,0.3);font-size:9px">12mo</span></span>
+      </div>`;
+    }).join('');
+
     classifierHTML += `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="background:${typeColor}22;color:${typeColor};border:1px solid ${typeColor}44;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">${typeLabel.toUpperCase()}</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="background:${typeColor}22;color:${typeColor};border:1px solid ${typeColor}55;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;letter-spacing:0.5px">${typeLabel.toUpperCase()}</span>
+        <span style="font-size:9px;color:${confColor};font-weight:700;background:${confColor}18;padding:2px 8px;border-radius:8px;border:1px solid ${confColor}30">${confLabel}</span>
       </div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:8px;line-height:1.5">${typeDesc}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${signals.map(s=>`<span style="font-size:9px;background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;color:rgba(255,255,255,0.55)">${s}</span>`).join('')}
+      <div style="font-size:10px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:10px">${result.description}</div>
+      ${result.warning ? `<div style="font-size:9px;color:#fbbf24;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);padding:5px 10px;border-radius:6px;margin-bottom:10px;line-height:1.4">⚠ ${result.warning}</div>` : ''}
+      <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:10px">
+        <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Historical Precedents — confidence: ${confTierLabel}</div>
+        ${precHTML || `<div style="font-size:10px;color:rgba(255,255,255,0.3)">No precedents on record</div>`}
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:10px">
+        <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Trade Recommendation</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.65);line-height:1.5;margin-bottom:6px">${guidance.tradeRec || '—'}</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div style="font-size:9px"><span style="color:rgba(255,255,255,0.3);width:80px;display:inline-block">Buy</span><span style="color:#fbbf24">${guidance.buyThreshold || '—'}</span></div>
+          <div style="font-size:9px"><span style="color:rgba(255,255,255,0.3);width:80px;display:inline-block">Strong Buy</span><span style="color:#22c55e">${guidance.strongBuy || '—'}</span></div>
+        </div>
       </div>`;
   }
   classifierHTML += `</div>`;
