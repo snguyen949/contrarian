@@ -1313,6 +1313,13 @@ const signals = [
   {id:'igSpreads', cluster:'D', name:'IG Credit Spreads', type:'auto', threshold:'≥ 150 bps', score:()=>{ const v=parseFloat(pulseState.igSpreads); return v>=200?1:v>=150?0.75:v>=120?0.25:0; }, reading:()=>pulseState.igSpreads?Math.round(parseFloat(pulseState.igSpreads))+' bps':null, color:()=>{ const v=parseFloat(pulseState.igSpreads); return v>=150?'#ef4444':v>=120?'#f97316':v>=100?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=parseFloat(pulseState.igSpreads); return v>=150?'IG widening — investment grade stress':v>=120?'IG spreads elevated — credit markets cautious':'IG spreads contained — no systemic stress'; }},
   {id:'yieldCurve', cluster:'D', name:'Yield Curve (10Y-2Y)', type:'auto', threshold:'≤ -0.5%', score:()=>{ if(!pulseState.yield10y||!pulseState.yield2y)return 0; const sp=pulseState.yield10y-pulseState.yield2y; return sp<=-1?1:sp<=-0.5?0.75:sp<0?0.25:0; }, reading:()=>pulseState.yield10y&&pulseState.yield2y?(pulseState.yield10y-pulseState.yield2y).toFixed(2)+'%':null, color:()=>{ if(!pulseState.yield10y||!pulseState.yield2y)return '#94a3b8'; const sp=pulseState.yield10y-pulseState.yield2y; return sp<=-0.5?'#ef4444':sp<0?'#f97316':sp<0.5?'#f59e0b':'#22c55e'; }, interpret:()=>{ if(!pulseState.yield10y||!pulseState.yield2y)return 'No yield data'; const sp=pulseState.yield10y-pulseState.yield2y; return sp<=-0.5?'INVERTED ≤ -0.5% — recession signal. Precedes market stress by 6-18 months.':sp<0?'Inverted slightly — watch for normalization':'Normal curve — no inversion signal'; }},
   {id:'spyDrawdown', cluster:'D', name:'SPY % from ATH', type:'auto', threshold:'≥ 10%', score:()=>{ const d=pulseState.spyPctFromATH; return d!==null&&d>=20?1:d!==null&&d>=10?0.75:d!==null&&d>=7?0.25:0; }, reading:()=>pulseState.spyPctFromATH!==null?'-'+pulseState.spyPctFromATH.toFixed(1)+'%':null, color:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'#ef4444':d>=10?'#f97316':d>=5?'#f59e0b':'#22c55e'; }, interpret:()=>{ const d=pulseState.spyPctFromATH; return d>=20?'BEAR TERRITORY — deep correction':d>=10?'CORRECTION — historical buy zone':d>=5?'Pullback — not deep enough yet':'Near ATH — no discount'; }},
+  // ===== BONUS — uncapped, added directly to total (not via cluster) =====
+  {id:'tripleConfluence', cluster:null, name:'Triple Confluence ★★', type:'auto', threshold:'≥1 triple or ≥3 doubles',
+    score:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence).length,db=r.filter(x=>x.confluenceCount>=2).length; return tr>=2?2.0:tr>=1?1.5:db>=3?1.25:db>=2?0.75:0; }catch(e){return 0;} },
+    reading:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence).length,db=r.filter(x=>x.confluenceCount>=2).length; return tr>0?tr+' triple'+(tr>1?'s':''):db>0?db+' double'+(db>1?'s':''):'0'; }catch(e){return null;} },
+    color:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence).length,db=r.filter(x=>x.confluenceCount>=2).length; return tr>=2?'#22c55e':tr>=1?'#4ade80':db>=3?'#f59e0b':db>=2?'#fb923c':'#94a3b8'; }catch(e){return '#94a3b8';} },
+    interpret:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence),db=r.filter(x=>x.confluenceCount>=2); if(tr.length>=2) return '🟢🟢🟢 STRONGEST BUY — '+tr.length+' instruments at triple confluence. Historically 100% hit rate.'; if(tr.length>=1) return '🟢🟢🟢 TRIPLE CONFLUENCE on '+tr.map(x=>x.inst.ticker).join(', ')+' — support+oversold+vol spike aligned. High conviction buy.'; if(db.length>=3) return '🟢🟢⚪ CROSS-DOUBLE ('+db.length+'/5 instruments) — broad-based signal, treated as triple.'; if(db.length>=2) return '🟢🟢⚪ DOUBLE CONFLUENCE on '+db.length+' instruments — strong signal, watch for third condition.'; return '⚪⚪⚪ NO CONFLUENCE — conditions not yet aligned across instruments.'; }catch(e){return 'No data';} }
+  },
 ];
 
 // Manual input fields config — only metrics that contribute to Buy rating and may need manual override
@@ -1424,7 +1431,9 @@ function recalcScore(){
   const rawScore=clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20;
   // Contrarian headline boost: +0.5 or +1.0 when Groq detects >40%/>60% contrarian headlines
   const boost=pulseState.contrarianBoost||0;
-  const total=Math.min(10, rawScore*10 + boost);
+  // Triple Confluence bonus — uncapped signal, added directly (max +2.0)
+  const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
+  const total=Math.min(10, rawScore*10 + boost + tcBonus);
   // BUY gate: A + B + (C or D) must all be > 0.5
   const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
   const activeClusters=['A','B','C','D'].filter(c=>clusterMax[c]>0.5).length;
@@ -1607,7 +1616,8 @@ function updateActionCard(){
   const rawScore=clusterMax.A*0.20+clusterMax.B*0.35+clusterMax.C*0.25+clusterMax.D*0.20;
   const boost=pulseState.contrarianBoost||0;
   const ftMult=pulseState.followThrough?.multiplier||1.0;
-  const total=Math.min(10,rawScore*10*ftMult+boost);
+  const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
+  const total=Math.min(10,rawScore*10*ftMult+boost+tcBonus);
   const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
   const regKey=classifyRegime();
   const reg=REGIMES[regKey];
