@@ -764,6 +764,8 @@
           </div>
         </div>
       </div>
+      <!-- Bottom State Machine: SCANNING → POTENTIAL → CONFIRMING → CONFIRMED -->
+      <div id="bottom-state-panel" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)"></div>
     </div>
 
     <!-- Live metric cards grid -->
@@ -3628,11 +3630,12 @@ function propagateData(){
   updateHeroBanner();
   updateActionCard();
 
-  // RSI confluence + Triple Confluence + Bottom Confirmation Engine
+  // RSI confluence + Triple Confluence + Bottom Confirmation Engine + State Machine
   if(typeof renderRSIConfluence==='function') renderRSIConfluence();
   if(typeof renderTripleConfluence==='function') renderTripleConfluence();
   if(typeof renderPatternMatcher==='function') renderPatternMatcher();
   if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
+  if(typeof renderBottomState==='function') renderBottomState();
 }
 
 // Restore saved API keys from localStorage
@@ -6437,6 +6440,176 @@ function renderBottomConfirmation() {
   el.innerHTML = classifierHTML + trackerHTML + vixMeterHTML;
 }
 
+// ===== BOTTOM STATE MACHINE (4-state, localStorage-persisted) =====
+// State 0 SCANNING → 1 POTENTIAL_BOTTOM → 2 CONFIRMING → 3 CONFIRMED_BOTTOM
+const BS_KEY = 'btf-bottom-state';
+const BS_STATES = { SCANNING: 0, POTENTIAL: 1, CONFIRMING: 2, CONFIRMED: 3 };
+const BS_LABELS = ['SCANNING', 'POTENTIAL', 'CONFIRMING', '✅ CONFIRMED'];
+const SPY_ATH_REF = 698; // matches SPY_ATH in fetchAllData
+
+const bottomStateManager = {
+  load() {
+    try { return JSON.parse(localStorage.getItem(BS_KEY)) || { state: 0, day0: null, days: [] }; }
+    catch { return { state: 0, day0: null, days: [] }; }
+  },
+  save(data) { try { localStorage.setItem(BS_KEY, JSON.stringify(data)); } catch(e){} },
+  reset() { this.save({ state: 0, day0: null, days: [] }); },
+
+  // current: {spyPrice, spyLow, vix, volume, minRsi, fng, drawdown, spyATH}
+  evaluate(current) {
+    const s = this.load();
+    const today = new Date().toISOString().split('T')[0];
+    const lastEntry = s.days.length > 0 ? s.days[s.days.length-1] : null;
+
+    // Skip if already recorded today (idempotent within a day)
+    if (lastEntry && lastEntry.date === today && s.state !== 0) return s;
+
+    // State 0 → State 1: detect potential bottom
+    if (s.state === 0) {
+      let atSupport = 0;
+      try { atSupport = (typeof detectTripleConfluence === 'function') ? detectTripleConfluence().filter(r=>r.atSupport).length : 0; } catch(e){}
+      if (current.drawdown != null && current.drawdown > 5 && atSupport >= 2 && current.minRsi != null && current.minRsi < 35) {
+        const type = (typeof classifyBottomType === 'function' && typeof buildClassifyConditions === 'function')
+          ? (classifyBottomType(buildClassifyConditions()) || {}).type || null
+          : null;
+        s.state = BS_STATES.POTENTIAL;
+        s.day0 = {
+          date: today,
+          spyPrice: current.spyPrice,
+          spyLow: current.spyLow != null ? current.spyLow : current.spyPrice,
+          vix: current.vix,
+          volume: current.volume,
+          rsi: current.minRsi,
+          fng: current.fng,
+          type
+        };
+        s.days = [{ day: 0, date: today, close: current.spyPrice, low: s.day0.spyLow, volume: current.volume, vix: current.vix, chgPct: 0 }];
+      }
+      this.save(s);
+      return s;
+    }
+
+    // State 1+: record today's bar (one per calendar day)
+    if (!lastEntry || lastEntry.date !== today) {
+      const ref = lastEntry ? lastEntry.close : s.day0.spyPrice;
+      const chgPct = ref ? ((current.spyPrice - ref) / ref) * 100 : 0;
+      s.days.push({
+        day: s.days.length,
+        date: today,
+        close: current.spyPrice,
+        low: current.spyLow != null ? current.spyLow : current.spyPrice,
+        volume: current.volume,
+        vix: current.vix,
+        chgPct
+      });
+    }
+
+    // Invalidation: price breaks below day0 low by > 2%
+    if (s.state !== BS_STATES.CONFIRMED && current.spyLow != null && s.day0 && current.spyLow < s.day0.spyLow * 0.98) {
+      s.state = 0; s.day0 = null; s.days = [];
+      this.save(s);
+      return s;
+    }
+
+    // State 1 → 2: Day 1 closes green
+    if (s.state === BS_STATES.POTENTIAL) {
+      const last = s.days[s.days.length-1];
+      if (last && last.day >= 1 && last.chgPct > 0) {
+        s.state = BS_STATES.CONFIRMING;
+      }
+    }
+    // State 2 → 3: all confirmation checks pass
+    else if (s.state === BS_STATES.CONFIRMING && s.days.length >= 4 && s.day0) {
+      const day3 = s.days[3];
+      const day3HeldAboveLow = day3.close > s.day0.spyLow;
+      const vixDecline = (s.day0.vix && current.vix) ? ((s.day0.vix - current.vix) / s.day0.vix) * 100 : 0;
+      const greenDays = s.days.filter(d => d.chgPct > 0).length;
+      if (day3HeldAboveLow && vixDecline >= 15 && greenDays >= 1) {
+        s.state = BS_STATES.CONFIRMED;
+        s.confirmedDate = today;
+        s.confirmedPrice = current.spyPrice;
+      }
+    }
+    // State 3 → 0: SPY makes new ATH → reset
+    else if (s.state === BS_STATES.CONFIRMED) {
+      const ath = current.spyATH || SPY_ATH_REF;
+      if (current.spyPrice >= ath) { s.state = 0; s.day0 = null; s.days = []; s.confirmedDate = null; s.confirmedPrice = null; }
+    }
+
+    this.save(s);
+    return s;
+  }
+};
+
+function renderBottomState() {
+  const el = document.getElementById('bottom-state-panel');
+  if (!el) return;
+  const p = pulseState;
+  // Build current snapshot from pulseState
+  const rsiList = [p.rsiSPY, p.rsiQQQ, p.rsiIWM, p.rsiES, p.rsiNQ].filter(v=>v!=null);
+  const current = {
+    spyPrice: p.spyPrice,
+    spyLow: p.spyPrice, // chart endpoint gives closes only; use close as low proxy
+    vix: p.vix,
+    volume: p.spyVol,
+    minRsi: rsiList.length ? Math.min.apply(null, rsiList) : null,
+    fng: p.cnnFG,
+    drawdown: p.spyPctFromATH,
+    spyATH: SPY_ATH_REF
+  };
+  let s;
+  try { s = bottomStateManager.evaluate(current); }
+  catch(e) { console.error('[bottomStateManager]', e); s = bottomStateManager.load(); }
+
+  // Build progress bar
+  const stageLabels = ['SCANNING', 'POTENTIAL', 'CONFIRMING', '✅ CONFIRMED'];
+  const stageColors = ['#94a3b8', '#f59e0b', '#22d3ee', '#22c55e'];
+  const active = s.state;
+  const confirmingDay = (active === 2 && s.days) ? Math.min(s.days.length-1, 5) : null;
+
+  const stepsHTML = stageLabels.map((lbl, i) => {
+    const isActive = i === active;
+    const isDone = i < active;
+    const color = isActive ? stageColors[i] : isDone ? stageColors[i] : 'rgba(255,255,255,0.25)';
+    const bg = isActive ? stageColors[i]+'22' : isDone ? stageColors[i]+'12' : 'rgba(255,255,255,0.03)';
+    const border = isActive ? stageColors[i]+'66' : isDone ? stageColors[i]+'33' : 'rgba(255,255,255,0.08)';
+    const suffix = (isActive && i === 2 && confirmingDay !== null) ? ' Day '+confirmingDay+'/5' : '';
+    return `<div style="flex:1;padding:6px 10px;background:${bg};border:1px solid ${border};border-radius:6px;text-align:center;font-size:10px;font-weight:700;color:${color};letter-spacing:0.5px">${lbl}${suffix}</div>`;
+  }).join('<div style="color:rgba(255,255,255,0.2);font-size:10px;align-self:center;padding:0 4px">→</div>');
+
+  let detailHTML = '';
+  if (active === BS_STATES.POTENTIAL || active === BS_STATES.CONFIRMING) {
+    if (s.day0) {
+      const typeLabel = s.day0.type ? (BP_TYPE_LABELS[s.day0.type] || s.day0.type) : 'Unclassified';
+      const typeColor = s.day0.type ? (BP_TYPE_COLORS[s.day0.type] || '#94a3b8') : '#94a3b8';
+      detailHTML = `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:rgba(255,255,255,0.55)">
+        <span>Day 0: <strong style="color:rgba(255,255,255,0.85)">${s.day0.date}</strong></span>
+        <span>Price: <strong style="color:rgba(255,255,255,0.85)">$${s.day0.spyPrice?.toFixed(2) || '--'}</strong></span>
+        <span>VIX: <strong style="color:rgba(255,255,255,0.85)">${s.day0.vix?.toFixed(1) || '--'}</strong></span>
+        <span>RSI: <strong style="color:rgba(255,255,255,0.85)">${s.day0.rsi?.toFixed(1) || '--'}</strong></span>
+        <span>Type: <strong style="color:${typeColor}">${typeLabel}</strong></span>
+      </div>`;
+    }
+  } else if (active === BS_STATES.CONFIRMED) {
+    const gain = (s.confirmedPrice && p.spyPrice) ? ((p.spyPrice - s.confirmedPrice) / s.confirmedPrice * 100) : 0;
+    const daysSince = s.confirmedDate ? Math.floor((Date.now() - new Date(s.confirmedDate).getTime()) / 86400000) : 0;
+    detailHTML = `<div style="margin-top:10px;padding:8px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:6px;font-size:11px;color:#22c55e;font-weight:700">
+      BOTTOM CONFIRMED on ${s.confirmedDate || '--'} at $${s.confirmedPrice?.toFixed(2) || '--'}
+      <span style="color:rgba(255,255,255,0.5);font-weight:400;margin-left:10px">· ${daysSince}d since · ${gain>=0?'+':''}${gain.toFixed(1)}% from confirmation</span>
+    </div>`;
+  }
+
+  const resetBtn = active !== 0 ? `<button onclick="bottomStateManager.reset();renderBottomState()" style="font-size:9px;background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.25);padding:2px 8px;border-radius:6px;cursor:pointer;margin-left:auto">Reset</button>` : '';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Bottom State Machine</div>
+      ${resetBtn}
+    </div>
+    <div style="display:flex;align-items:stretch;gap:0">${stepsHTML}</div>
+    ${detailHTML}`;
+}
+
 // ===== TECHNICAL CONFLUENCE DETECTION =====
 // Simple RSI(14) — averages gains/losses over last `period` bars
 function calcRSI(closes, period=14) {
@@ -6607,6 +6780,7 @@ function renderTripleConfluence(){
 renderBottomPatterns();
 renderPatternMatcher();
 if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
+if(typeof renderBottomState==='function') renderBottomState();
 if(typeof renderTripleConfluence==='function') renderTripleConfluence();
 if(typeof renderRSIConfluence==='function') renderRSIConfluence();
 
