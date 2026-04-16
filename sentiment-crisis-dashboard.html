@@ -2137,11 +2137,11 @@ function renderNewsPanel(articles){
 
 // ===== RSI CONFLUENCE PANEL =====
 const RSI_INSTRUMENTS=[
-  {key:'SPY', rsiKey:'rsiSPY',  wRsiKey:'weeklyRsiSPY',  support:480,  supportLabel:'$480 (prior ATH 2021)',    color:'#3b82f6'},
-  {key:'QQQ', rsiKey:'rsiQQQ',  wRsiKey:'weeklyRsiQQQ',  support:395,  supportLabel:'$395 (prior ATH 2021)',    color:'#8b5cf6'},
-  {key:'IWM', rsiKey:'rsiIWM',  wRsiKey:'weeklyRsiIWM',  support:170,  supportLabel:'$170 (prior ATH 2021)',    color:'#f59e0b'},
-  {key:'ES=F', rsiKey:'rsiES',   wRsiKey:'weeklyRsiES',   support:4700, supportLabel:'~4,700 (prior ATH 2021)', color:'#22c55e'},
-  {key:'NQ=F', rsiKey:'rsiNQ',   wRsiKey:'weeklyRsiNQ',   support:16200,supportLabel:'~16,200 (prior ATH 2021)',color:'#ec4899'},
+  {key:'SPY', priceKey:'spyPrice', rsiKey:'rsiSPY',  wRsiKey:'weeklyRsiSPY',  support:480,  supportLabel:'$480 (prior ATH 2021)',    color:'#3b82f6'},
+  {key:'QQQ', priceKey:'qqqPrice', rsiKey:'rsiQQQ',  wRsiKey:'weeklyRsiQQQ',  support:395,  supportLabel:'$395 (prior ATH 2021)',    color:'#8b5cf6'},
+  {key:'IWM', priceKey:'iwmPrice', rsiKey:'rsiIWM',  wRsiKey:'weeklyRsiIWM',  support:170,  supportLabel:'$170 (prior ATH 2021)',    color:'#f59e0b'},
+  {key:'ES=F', priceKey:'esPrice', rsiKey:'rsiES',   wRsiKey:'weeklyRsiES',   support:4700, supportLabel:'~4,700 (prior ATH 2021)', color:'#22c55e'},
+  {key:'NQ=F', priceKey:'nqPrice', rsiKey:'rsiNQ',   wRsiKey:'weeklyRsiNQ',   support:16200,supportLabel:'~16,200 (prior ATH 2021)',color:'#ec4899'},
 ];
 
 // ===== CONVICTION METER =====
@@ -2353,21 +2353,24 @@ function renderRSIConfluence(){
   const rows=RSI_INSTRUMENTS.map(inst=>{
     const dr=p[inst.rsiKey];
     const wr=p[inst.wRsiKey];
+    const price=p[inst.priceKey];
     const drStr=dr!=null?dr.toFixed(1):'—';
     const wrStr=wr!=null?wr.toFixed(1):'—';
     const drColor=dr!=null?(dr<30?'#22c55e':dr<40?'#f59e0b':'rgba(255,255,255,0.5)'):'rgba(255,255,255,0.2)';
     const wrColor=wr!=null?(wr<35?'#22c55e':wr<45?'#f59e0b':'rgba(255,255,255,0.5)'):'rgba(255,255,255,0.2)';
-    // Rough at-support check using current prices
-    let atSupport=false;
-    if(inst.key==='SPY'&&p.spyPrice) atSupport=p.spyPrice<=inst.support*1.03;
-    if(inst.key==='ES=F'&&p.esPrice) atSupport=p.esPrice<=inst.support*1.03;
-    if(inst.key==='NQ=F'&&p.nqPrice) atSupport=p.nqPrice<=inst.support*1.03;
+    // Distance from support (positive = above, negative = below/at)
+    const distPct=price!=null?((price-inst.support)/inst.support*100):null;
+    const atSupport=distPct!=null&&distPct>=-1&&distPct<3;
+    const distStr=distPct!=null?(distPct>=0?'+':'')+distPct.toFixed(1)+'%':'—';
+    const distColor=atSupport?'#22c55e':distPct!=null&&distPct<8?'#f59e0b':'rgba(255,255,255,0.3)';
+    const alertTag=atSupport?'<span style="color:#22c55e;font-size:9px;font-weight:700;margin-left:4px">← ALERT</span>':'';
     const supportIcon=atSupport?'<span style="color:#22c55e;font-weight:700">✓ Yes</span>':'<span style="color:rgba(255,255,255,0.25)">No</span>';
-    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${atSupport?'background:rgba(34,197,94,0.04)':''}">
       <td style="padding:6px 8px;font-weight:700;color:${inst.color}">${inst.key}</td>
       <td style="padding:6px 8px;text-align:center;font-weight:700;color:${drColor}">${drStr}</td>
       <td style="padding:6px 8px;text-align:center;font-weight:700;color:${wrColor}">${wrStr}</td>
       <td style="padding:6px 8px;text-align:center">${supportIcon}</td>
+      <td style="padding:6px 8px;text-align:center;font-family:var(--mono);font-size:10px;font-weight:700;color:${distColor}">${distStr}${alertTag}</td>
       <td style="padding:6px 8px;font-size:9px;color:rgba(255,255,255,0.3)">${inst.supportLabel}</td>
     </tr>`;
   }).join('');
@@ -2378,11 +2381,12 @@ function renderRSIConfluence(){
       <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Daily RSI</th>
       <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Weekly RSI</th>
       <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">At Support?</th>
+      <th style="padding:6px 8px;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Distance</th>
       <th style="padding:6px 8px;text-align:left;font-size:9px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:1px">Support Zone</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">Daily RSI&lt;30 = oversold · Weekly RSI&lt;35 = rare, high-conviction · At Support = within 3% of prior ATH level</div>`;
+  <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">Daily RSI&lt;30 = oversold · Weekly RSI&lt;35 = rare, high-conviction · Distance = % above support zone · ← ALERT = within 3%</div>`;
 
   // Append Weekly Supertrend status row below the RSI table
   if(p.weeklySupertrend!==null){
