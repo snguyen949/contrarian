@@ -2326,7 +2326,7 @@ async function fetchLightData(){
   const SPY_ATH=698;
 
   // Parallel: Crypto F&G, BTC, Yahoo tickers, Polymarket
-  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR]=
+  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR,_spyWR]=
     await Promise.allSettled([
       fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
       fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true').then(r=>r.json()),
@@ -2342,6 +2342,7 @@ async function fetchLightData(){
       yahooChart('%5ESKEW','5d','1d'),
       fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('iran ceasefire')),6000).then(r=>r.ok?r.json():null),
       fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('us recession 2026')),6000).then(r=>r.ok?r.json():null),
+      yahooChart('SPY','2y','1wk'),
     ]);
 
   // Process Crypto F&G
@@ -2365,6 +2366,19 @@ async function fetchLightData(){
     pulseState.spyDate=spyD.dateStr;
     pulseState.spyChange=spyD.prevClose?((spyD.price-spyD.prevClose)/spyD.prevClose*100):null;
     pulseState.spySpark=spyD.allCloses.slice(-20);
+  }
+  // Process SPY weekly (2y, 1wk) — drives weekly RSI + weekly Supertrend
+  const spyWD=_spyWR.status==='fulfilled'?_spyWR.value:{ok:false};
+  if(spyWD.ok && spyWD.allCloses && spyWD.allCloses.length >= 12){
+    const wCloses = spyWD.allCloses;
+    pulseState.weeklyRsiSPY = calcRSI(wCloses, 14);
+    const st = calcWeeklySupertrend(wCloses, 10, 3.0);
+    if (st) {
+      pulseState.weeklySupertrend = st.value;
+      pulseState.supertrendBullish = st.bullish;
+      pulseState.supertrendJustFlipped = st.justFlipped;
+      console.log('[supertrend] weekly SPY close=$'+st.currentClose.toFixed(2)+' ST=$'+st.value.toFixed(2)+' '+(st.bullish?'BULLISH':'BEARISH')+(st.justFlipped?' ⚡ JUST FLIPPED':''));
+    }
   }
   // Process VIX
   const vixD=_vixR.status==='fulfilled'?_vixR.value:{ok:false};
@@ -3759,6 +3773,14 @@ function updateShortTermSignals() {
       } else if(p.rsi14 <= 40) {
         vixSignals.push({icon:'📊',label:'RSI(14) 30–40 — Weak',desc:'SPY daily RSI at '+p.rsi14.toFixed(1)+'. Approaching oversold but not there yet.',color:'#f59e0b',active:false});
       }
+    }
+
+    // Weekly Supertrend Flip — high-conviction weekly bottom signal
+    if(p.supertrendJustFlipped === true && p.weeklySupertrend != null) {
+      vixSignals.push({icon:'⚡',label:'Weekly Supertrend Flipped Bullish — $'+p.weeklySupertrend.toFixed(2),desc:'Weekly SPY close crossed above Supertrend (ATR 10, ×3.0). Historical accuracy: every major bottom since 2018 (Yen, Tariff, Q4 2018, COVID, Iran) flipped weekly ST bullish within 1–2 weeks of the low.',color:'#22c55e',active:true});
+      activeSignals.push({name:'Weekly ST Flip', detail:'ST $'+p.weeklySupertrend.toFixed(2), strength:'strong'});
+    } else if(p.weeklySupertrend != null && p.supertrendBullish === false) {
+      vixSignals.push({icon:'📉',label:'Weekly Supertrend Bearish — $'+p.weeklySupertrend.toFixed(2),desc:'Weekly SPY close below Supertrend ($'+p.weeklySupertrend.toFixed(2)+'). Watch for a weekly close above this level — that flip has marked every major bottom since 2018.',color:'#ef4444',active:false});
     }
 
     // === LEADING INDICATORS (the real edge) ===
@@ -6427,6 +6449,37 @@ function calcRSI(closes, period=14) {
   const avgGain=gains/period, avgLoss=losses/period;
   if (avgLoss===0) return 100;
   return 100-(100/(1+avgGain/avgLoss));
+}
+
+// Weekly Supertrend (ATR 10, factor 3.0) — close-only approximation since chart endpoint
+// returns closes (not OHLC). ATR proxied by average |close[i] - close[i-1]| over atrPeriod bars.
+// Returns {value, bullish, justFlipped, currentClose} or null if insufficient bars.
+// justFlipped = previous bar was bearish AND current bar is bullish (bull flip this week).
+function calcWeeklySupertrend(closes, atrPeriod=10, factor=3.0) {
+  if (!closes || closes.length < atrPeriod+2) return null;
+  const changes = [];
+  for (let i=1; i<closes.length; i++) changes.push(Math.abs(closes[i]-closes[i-1]));
+  let supertrend = null;
+  let inUptrend = true;
+  let prevUptrend = null;
+  for (let i=atrPeriod; i<closes.length; i++) {
+    const atr = changes.slice(i-atrPeriod, i).reduce((a,b)=>a+b,0)/atrPeriod;
+    const upper = closes[i] + factor*atr;
+    const lower = closes[i] - factor*atr;
+    prevUptrend = inUptrend;
+    if (supertrend === null) {
+      supertrend = lower;
+      inUptrend = true;
+    } else if (closes[i] > supertrend) {
+      supertrend = Math.max(lower, supertrend);
+      inUptrend = true;
+    } else {
+      supertrend = Math.min(upper, supertrend);
+      inUptrend = false;
+    }
+  }
+  const justFlipped = prevUptrend === false && inUptrend === true;
+  return { value: supertrend, bullish: inUptrend, justFlipped, currentClose: closes[closes.length-1] };
 }
 
 
