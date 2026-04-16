@@ -1606,7 +1606,8 @@ function updateActionCard(){
   });
   const rawScore=clusterMax.A*0.20+clusterMax.B*0.35+clusterMax.C*0.25+clusterMax.D*0.20;
   const boost=pulseState.contrarianBoost||0;
-  const total=Math.min(10,rawScore*10+boost);
+  const ftMult=pulseState.followThrough?.multiplier||1.0;
+  const total=Math.min(10,rawScore*10*ftMult+boost);
   const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
   const regKey=classifyRegime();
   const reg=REGIMES[regKey];
@@ -5512,7 +5513,7 @@ const bottomPatterns={
     catalyst:'Fed announced unlimited liquidity Oct 20. Greenspan: "affirm readiness to serve as source of liquidity."',
     bottomShape:'V with higher-low retest forming triangle over months',
     retestConfirmed:'No ETF structure existed. Futures retested intraday lows.',
-    timeToATH:'~24 months (Sep 1989)',twelveMonthReturn:21,
+    timeToATH:'~24 months (Sep 1989)',twelveMonthReturn:21,followThroughScore:90,
     keyLesson:'Largest 1-day drop in history. Buying Day 1–2 produced +18% in one week. Fed liquidity was THE catalyst. Program trading cascade = mechanical bottom — once forced selling exhausted, the reversal was violent.',
   },
   ltcm:{
@@ -5528,7 +5529,7 @@ const bottomPatterns={
     catalyst:'Fed-orchestrated LTCM bailout + 3 emergency rate cuts (Sep–Nov 1998).',
     bottomShape:'Double bottom over 2 weeks, then V-shape on Fed action',
     retestConfirmed:'Retested Jul 1998 ATH ~$113 by Dec 1998 (+2mo)',
-    timeToATH:'~3 months',twelveMonthReturn:27,
+    timeToATH:'~3 months',twelveMonthReturn:27,followThroughScore:65,
     keyLesson:'Credit crisis bottom required Fed intervention. Slow build, not a V-shape initially. Buying within 1 week of the low produced +27% in 12 months.',
   },
   dotcomBottom:{
@@ -5544,7 +5545,7 @@ const bottomPatterns={
     catalyst:'Exhaustion of sellers after 2.5-year bear market. No single catalyst.',
     bottomShape:'Rounded base over months. NOT a V-shape. Multiple retests of the 776–800 zone.',
     retestConfirmed:'Retested 1996–1998 support zone (~780–800). Held.',
-    timeToATH:'~5 years (Oct 2007)',twelveMonthReturn:26,
+    timeToATH:'~5 years (Oct 2007)',twelveMonthReturn:26,followThroughScore:55,
     keyLesson:'FUNDAMENTAL BEARS take longest to confirm. No V-shape. Score needs to be 8+ because false bottoms are common. Buying the exact low still worked (+26% 12mo) but required patience through multiple retests.',
   },
   gfc:{
@@ -5560,7 +5561,7 @@ const bottomPatterns={
     catalyst:'Mark-to-market suspension hearing + Fed QE1 already underway since Nov 2008.',
     bottomShape:'V-shape from Mar 9, within a massive 17-month bear market',
     retestConfirmed:'Retested 1996 pre-bubble levels — the "generational low."',
-    timeToATH:'~4 years (Mar 2013)',twelveMonthReturn:68,
+    timeToATH:'~4 years (Mar 2013)',twelveMonthReturn:68,followThroughScore:88,
     keyLesson:'THE generational buying opportunity. VIX peaked at 80 in Nov 2008 — MONTHS before the Mar 2009 price bottom. KEY INSIGHT: VIX peak and price bottom can be months apart in severe bears. The final bottom came on lower VIX (52) but deeper price. Score was 8.5+.',
   },
   flashCrash:{
@@ -5576,7 +5577,7 @@ const bottomPatterns={
     catalyst:'Waddell & Reed fat-finger + HFT cascade. Self-correcting once forced selling exhausted.',
     bottomShape:'Intraday V. Actual correction took weeks to fully reverse.',
     retestConfirmed:'Retested Feb 2010 correction lows (~1,040).',
-    timeToATH:'~6 months',twelveMonthReturn:22,
+    timeToATH:'~6 months',twelveMonthReturn:22,followThroughScore:58,
     keyLesson:'MECHANICAL FLUSH. Recovered most losses same day. Buying the close on May 6 = +22% in 12 months. The pattern: VIX spike >40 with NO credit deterioration = buy the close.',
   },
   euDebt:{
@@ -5592,7 +5593,7 @@ const bottomPatterns={
     catalyst:'Fed FOMC statement promising low rates through 2013.',
     bottomShape:'Choppy W-bottom over 4 weeks — not a clean V.',
     retestConfirmed:'Retested 2010 correction lows (~1,040–1,100 zone).',
-    timeToATH:'~10 months',twelveMonthReturn:13,
+    timeToATH:'~10 months',twelveMonthReturn:13,followThroughScore:55,
     keyLesson:'GEOPOLITICAL bottom with credit-stress undertones. Initial bounce FAILED (day 2: −4.4%). Had to retest before confirming. Conviction needed to be lower — scale-in, not all-at-once.',
   },
   chinaDevalue:{
@@ -5608,7 +5609,7 @@ const bottomPatterns={
     catalyst:'PBoC intervention + rumors of coordinated central bank action.',
     bottomShape:'V-shape initially, then W-retest in late Sep before final launch',
     retestConfirmed:'Retested Oct 2014 correction lows (~1,830–1,870).',
-    timeToATH:'~6 months',twelveMonthReturn:10,
+    timeToATH:'~6 months',twelveMonthReturn:10,followThroughScore:78,
     keyLesson:'VIX spiked to 53 on only a 12% drawdown. When VIX/drawdown ratio is extreme (VIX > 4× drawdown%), it signals PANIC > REALITY = strong contrarian buy.',
   },
   volmageddon:{
@@ -5624,7 +5625,7 @@ const bottomPatterns={
     catalyst:'XIV termination event. Forced selling exhausted = mechanical bottom.',
     bottomShape:'V-shape with 2-week consolidation before new highs',
     retestConfirmed:'Retested late-Jan 2018 range lows.',
-    timeToATH:'~7 months (Sep 2018)',twelveMonthReturn:9,
+    timeToATH:'~7 months (Sep 2018)',twelveMonthReturn:9,followThroughScore:62,
     keyLesson:'MECHANICAL FLUSH from volatility product implosion. Credit = fine, economy = fine, earnings = fine. VIX spike was STRUCTURAL not FUNDAMENTAL. These recover fastest. Score 4+ = buy immediately.',
   },
   q4_2018:{
@@ -5640,7 +5641,7 @@ const bottomPatterns={
     catalyst:'Fed "Powell Pivot" — paused rate hikes, turned dovish Jan 2019.',
     bottomShape:'Clean V-shape. Never looked back.',
     retestConfirmed:'Retested Feb 2018 Volmageddon lows (~2,350). Held perfectly.',
-    timeToATH:'4 months (Apr 2019)',twelveMonthReturn:29,
+    timeToATH:'4 months (Apr 2019)',twelveMonthReturn:29,followThroughScore:65,
     keyLesson:'LOW-VOLUME capitulation can be stronger than high volume. Christmas Eve was forced tax-loss selling. F&G at 2 = extreme. The Powell Pivot was THE catalyst. Buying Dec 26 = +29% in 12 months.',
   },
   covid:{
@@ -5656,7 +5657,7 @@ const bottomPatterns={
     catalyst:'Fed unlimited QE + $2T fiscal stimulus package (CARES Act).',
     bottomShape:'Perfect V-shape. Fastest 30% drawdown AND fastest 30% recovery in history.',
     retestConfirmed:'SPY retested Feb 2020 ATH $340 by Aug 2020 (+5mo). Fastest ATH retest ever.',
-    timeToATH:'5 months (Aug 2020)',twelveMonthReturn:100,
+    timeToATH:'5 months (Aug 2020)',twelveMonthReturn:100,followThroughScore:95,
     keyLesson:'THE template for capitulation bottoms. VIX 82 + F&G 3 + record volume + Fed bazooka = generational buy. Every indicator was screaming buy. Score would have been 9.5. Buying Day 0–1 = +100% in 12 months.',
   },
   inflationBear:{
@@ -5672,7 +5673,7 @@ const bottomPatterns={
     catalyst:'Bullish CPI divergence (bad data, market rallied) + earnings better than feared.',
     bottomShape:'Rounded base over weeks. Multiple retests of 3,600 zone.',
     retestConfirmed:'SPY retested pre-COVID ATH $340 at $348 (within 2.4%). Textbook ATH retest.',
-    timeToATH:'~24 months (Jan 2025)',twelveMonthReturn:21,
+    timeToATH:'~24 months (Jan 2025)',twelveMonthReturn:21,followThroughScore:48,
     keyLesson:'STEALTH BOTTOM in a fundamental bear. No VIX spike, no volume capitulation, no single catalyst. Confirmed by CPI DIVERGENCE — market refusing to sell on bad news = sellers exhausted. Score 7.0 from sentiment alone (F&G 13, AAII bear 61%, NAAIM 25).',
   },
   yenUnwind:{
@@ -5688,7 +5689,7 @@ const bottomPatterns={
     catalyst:'BOJ walked back hawkish stance. Carry trade unwind is self-correcting.',
     bottomShape:'V-shape. Fastest VIX mean reversion in history (65 → 23 in 5 days).',
     retestConfirmed:'SPY retested Jul 2024 ATH $564 within 3 weeks.',
-    timeToATH:'3 weeks',twelveMonthReturn:15,
+    timeToATH:'3 weeks',twelveMonthReturn:15,followThroughScore:92,
     keyLesson:'FASTEST VIX mean reversion ever. When VIX spikes 200%+ in 2 days with NO credit deterioration = buy immediately. Yen carry unwind was a POSITIONING event, not fundamental. Score needed only 4.5 to buy.',
   },
   tariff:{
@@ -5704,7 +5705,7 @@ const bottomPatterns={
     catalyst:'Trump 90-day tariff pause announcement.',
     bottomShape:'V-shape with Day 3 retest. Classic "test and go" pattern.',
     retestConfirmed:'SPY $482 retested Jan 2022 ATH $480 (within 0.4%). ES retested 2022 ATH. NQ retested $17,383.',
-    timeToATH:'8 months (Jan 2026)',twelveMonthReturn:45,
+    timeToATH:'8 months (Jan 2026)',twelveMonthReturn:45,followThroughScore:72,
     keyLesson:'RECORD volume day + VIX 60 + F&G 3 = maximum capitulation. Day 3 retest (−3.5%) shook out weak hands but HELD. This is why the Day 3 check matters — if it holds above Day 0, the bottom is confirmed. Score was 9.0.',
   },
   iran:{
@@ -5720,7 +5721,7 @@ const bottomPatterns={
     catalyst:'Ceasefire announced Apr 8 (Day 9). SPY gapped +2.65%. Oil −$20 in one day.',
     bottomShape:'Slow grind up for 9 days, then catalyst-driven gap. NOT a V-shape initially.',
     retestConfirmed:'SPY missed $565–610 target (stopped at $629). BUT ES1! confirmed at $6,300 and NQ1! confirmed at $17,383 — cross-instrument confluence validated the bottom at a HIGHER price level.',
-    timeToATH:'~2 weeks to near-ATH ($694 vs ATH $698)',twelveMonthReturn:null,
+    timeToATH:'~2 weeks to near-ATH ($694 vs ATH $698)',twelveMonthReturn:null,followThroughScore:78,
     keyLesson:'THE STEALTH BOTTOM. No capitulation, no extreme VIX, no extreme F&G. Only visible through cross-instrument structural analysis. SPY alone would have said "not oversold enough." ES and NQ retesting their levels PROVED institutional buying. Traditional sentiment score: ~2.3. The structural confluence was the ONLY signal that correctly identified the bottom.',
   },
 };
@@ -5800,9 +5801,10 @@ function renderBottomPatterns(){
       <td style="padding:7px 4px;text-align:center;line-height:0">${spark(p)}</td>
       <td style="padding:7px 4px;text-align:center;color:#22c55e;font-weight:800;font-family:var(--mono);font-size:10px">+${p.fiveDayReturn}%</td>
       <td style="padding:7px 4px;text-align:center;color:${r12c};font-weight:800;font-family:var(--mono);font-size:10px">${r12}</td>
+      <td style="padding:7px 4px;text-align:center">${ftBadgeHTML(followThroughGrade(p.followThroughScore), p.followThroughScore)}</td>
       <td style="padding:7px 4px;text-align:center;color:rgba(255,255,255,0.2);font-size:10px"><span id="bp-arrow-${p.key}">▶</span></td>
     </tr>`;
-    const dr=`<tr id="bp-detail-${p.key}" style="display:none;background:rgba(0,0,0,0.25)"><td colspan="10" style="padding:16px 20px;border-bottom:2px solid rgba(255,255,255,0.06)">
+    const dr=`<tr id="bp-detail-${p.key}" style="display:none;background:rgba(0,0,0,0.25)"><td colspan="11" style="padding:16px 20px;border-bottom:2px solid rgba(255,255,255,0.06)">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:14px">
         <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Day-by-Day</div>
           <table style="width:100%;border-collapse:collapse">${days.map(d=>{
@@ -5850,6 +5852,7 @@ function renderBottomPatterns(){
       <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">5-Day Chart</th>
       <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">+5d</th>
       <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)">12-Mo</th>
+      <th style="text-align:center;padding:6px 4px;color:rgba(255,255,255,0.3)" title="Follow-Through Grade">FT</th>
       <th style="width:18px"></th>
     </tr></thead>
     <tbody id="bp-tbody">${rows}</tbody>
@@ -6440,6 +6443,40 @@ function renderBottomConfirmation() {
   el.innerHTML = classifierHTML + trackerHTML + vixMeterHTML;
 }
 
+// ===== FOLLOW-THROUGH GRADING =====
+function calcFollowThrough(dayData) {
+  if (!dayData || dayData.length < 2) return null;
+  let score = 0;
+  const greenDays = dayData.slice(1).filter((d, i) => d.close > dayData[i].close).length;
+  score += Math.min(greenDays * 5, 25);
+  if (dayData.length >= 4) score += dayData[3].close > dayData[0].low ? 25 : 0;
+  if (dayData.length >= 2 && dayData[0].vix && dayData[dayData.length-1].vix) {
+    const vixDecline = ((dayData[0].vix - dayData[dayData.length-1].vix) / dayData[0].vix) * 100;
+    score += vixDecline >= 30 ? 25 : vixDecline >= 20 ? 20 : vixDecline >= 10 ? 10 : 0;
+  }
+  if (dayData.length >= 3 && dayData[0].volume && dayData[1].volume && dayData[2].volume)
+    score += (dayData[2].volume < dayData[1].volume && dayData[1].volume < dayData[0].volume) ? 15 : 0;
+  if (dayData.length >= 4 && dayData[0].low && dayData[1].low && dayData[2].low && dayData[3].low)
+    score += (dayData[2].low > dayData[0].low && dayData[3].low > dayData[1].low) ? 10 : 0;
+  const grade = score>=85?'A':score>=75?'B+':score>=68?'B':score>=60?'B-':score>=52?'C+':score>=40?'C':'F';
+  const multiplier = score >= 80 ? 1.2 : score >= 60 ? 1.1 : score >= 40 ? 1.0 : 0.8;
+  return { score, grade, multiplier, confirmed: score >= 60,
+    label: score>=85?'STRONG FOLLOW-THROUGH — high conviction bottom':
+           score>=68?'ADEQUATE FOLLOW-THROUGH — bottom likely confirmed':
+           score>=52?'WEAK FOLLOW-THROUGH — could be dead cat bounce':
+           'NO FOLLOW-THROUGH — bottom NOT confirmed' };
+}
+function followThroughGrade(score) {
+  if (score == null) return null;
+  return score>=85?'A':score>=75?'B+':score>=68?'B':score>=60?'B-':score>=52?'C+':score>=40?'C':'F';
+}
+function ftBadgeHTML(grade, score) {
+  if (!grade) return '';
+  const colors = {A:'#22c55e','B+':'#4ade80',B:'#86efac','B-':'#f59e0b','C+':'#fb923c',C:'#f97316',F:'#ef4444'};
+  const c = colors[grade] || '#94a3b8';
+  return `<span style="display:inline-flex;align-items:center;gap:3px;background:${c}18;border:1px solid ${c}40;border-radius:5px;padding:1px 6px;font-size:9px;font-weight:800;color:${c};font-family:var(--mono)">${grade}<span style="font-weight:400;opacity:0.7">${score}</span></span>`;
+}
+
 // ===== BOTTOM STATE MACHINE (4-state, localStorage-persisted) =====
 // State 0 SCANNING → 1 POTENTIAL_BOTTOM → 2 CONFIRMING → 3 CONFIRMED_BOTTOM
 const BS_KEY = 'btf-bottom-state';
@@ -6622,7 +6659,9 @@ function renderDayGrid(s) {
   const confirmed = s.state === BS_STATES.CONFIRMED;
   const vColor = (confirmed||passCount>=4)?'#22c55e':passCount>=2?'#f59e0b':'#94a3b8';
   const verdict = confirmed?'BOTTOM CONFIRMED':passCount>=4?'BOTTOM CONFIRMED':passCount>=2?'CONFIRMING...':'WATCHING...';
-  const verdictHTML = `<div style="font-size:11px;font-weight:800;color:${vColor}">VERDICT: ${verdict} — ${passCount}/${totalWithData} checks passed</div>`;
+  const ft = days.length >= 2 ? calcFollowThrough(days.map(d => ({ close: d.close, low: d.close, vix: d.vix, volume: d.volume }))) : null;
+  const ftBadge = ft ? `<span style="margin-left:8px">${ftBadgeHTML(ft.grade, ft.score)}</span><span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:5px">${ft.label}</span>` : '';
+  const verdictHTML = `<div style="font-size:11px;font-weight:800;color:${vColor};display:flex;align-items:center;flex-wrap:wrap;gap:4px">VERDICT: ${verdict} — ${passCount}/${totalWithData} checks passed${ftBadge}</div>`;
 
   // Mobile status bar (single line)
   const checkIcons = checks.map(c=>c===null?'⏳':c?'✅':'❌').join('');
@@ -6709,6 +6748,14 @@ function renderBottomState() {
     } else {
       detailHTML = headerLine + gridHTML;
     }
+  }
+
+  if (active >= BS_STATES.CONFIRMING && s.days && s.days.length >= 2) {
+    try {
+      pulseState.followThrough = calcFollowThrough(s.days.map(d => ({ close: d.close, low: d.close, vix: d.vix, volume: d.volume })));
+    } catch(e) { pulseState.followThrough = null; }
+  } else {
+    pulseState.followThrough = null;
   }
 
   const resetBtn = active !== 0 ? `<button onclick="bottomStateManager.reset();renderBottomState()" style="font-size:9px;background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.25);padding:2px 8px;border-radius:6px;cursor:pointer;margin-left:auto">Reset</button>` : '';
