@@ -702,6 +702,13 @@
       <div id="rsi-confluence-badge" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;text-align:center;font-weight:700;letter-spacing:1px;font-size:13px"></div>
       <div id="rsi-confluence-grid"></div>
     </div>
+
+    <!-- BOTTOM CONFIRMATION ENGINE -->
+    <div class="panel" style="border-color:rgba(251,191,36,0.2)">
+      <div class="panel-title" style="color:#fbbf24">🔬 Bottom Confirmation Engine</div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:14px">Classifies current conditions against 5 bottom archetypes. Tracks Day +1/+3/+5 confirmation signals from a marked spike day. Stores spike day in browser session — click "Mark Day 0" when VIX/volume spikes.</p>
+      <div id="bottom-confirm-panel"></div>
+    </div>
   </div>
 
   <!-- ============ SENTIMENT TAB ============ -->
@@ -2449,6 +2456,8 @@ function propagateData(){
 
   // Update pattern matcher (compares live conditions against 14 historical bottoms)
   if(typeof renderPatternMatcher==='function') renderPatternMatcher();
+  // Update bottom confirmation engine
+  if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
   // Re-run score to pick up tripleConfluenceActive flag set by detectTripleConfluence
   recalcScore();
 
@@ -4710,6 +4719,200 @@ function renderPatternMatcher(){
   </div>`;
 }
 renderPatternMatcher();
+
+// ===== BOTTOM CONFIRMATION ENGINE =====
+
+function classifyBottomType() {
+  const p = pulseState;
+  if (!p.vix || !p.spyPctFromATH) return null;
+  const vix = p.vix, dd = Math.abs(p.spyPctFromATH);
+  const volRatio = (p.spyVol && p.spy20dAvgVol) ? p.spyVol / p.spy20dAvgVol : null;
+  const fg = p.cnnFG;
+  const vixDdRatio = vix / Math.max(dd, 1);
+  // MECHANICAL: VIX disproportionately high vs drawdown (ratio > 3.5)
+  if (vixDdRatio >= 3.5 && vix >= 35) return 'mechanical';
+  // CAPITULATION: VIX >= 40, vol >= 2x, extreme fear (F&G <= 14)
+  if (vix >= 40 && (volRatio === null || volRatio >= 2.0) && (fg === null || fg <= 14)) return 'capitulation';
+  // CREDIT CONTAGION: HY spreads very wide
+  if (p.hySpreads != null && p.hySpreads >= 500) return 'credit_contagion';
+  // FUNDAMENTAL BEAR: Deep drawdown (>25%), low VIX relative to DD
+  if (dd >= 25 && vix < 40) return 'fundamental_bear';
+  // STEALTH: Low VIX (<32), modest drawdown (<12%)
+  if (vix < 32 && dd < 12) return 'stealth';
+  // GEOPOLITICAL: Everything else with meaningful vol + drawdown
+  if (vix >= 25 && dd >= 5) return 'geopolitical';
+  return null;
+}
+
+// localStorage helpers for spike-day tracker
+function setSpikeDay(dateStr) {
+  try { localStorage.setItem('bce_spike_day', dateStr); } catch(e) {}
+}
+function getSpikeDay() {
+  try { return localStorage.getItem('bce_spike_day') || null; } catch(e) { return null; }
+}
+function clearSpikeDay() {
+  try { localStorage.removeItem('bce_spike_day'); } catch(e) {}
+}
+// Returns # of business days (Mon-Fri) between two Date objects (inclusive start, exclusive end)
+function businessDaysBetween(start, end) {
+  let count = 0, cur = new Date(start);
+  while (cur < end) {
+    const d = cur.getDay();
+    if (d !== 0 && d !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+function getBusinessDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const start = new Date(dateStr);
+  if (isNaN(start)) return null;
+  return businessDaysBetween(start, new Date());
+}
+
+// Returns the Day +1/+3/+5 confirmation checks given a spike date
+function getConfirmationChecks(spikeDateStr) {
+  const p = pulseState;
+  const bd = getBusinessDaysSince(spikeDateStr);
+  if (bd === null) return null;
+  const spikeDate = new Date(spikeDateStr);
+  // Day +1: SPY must be green (we can only verify if bd >= 1; use current price vs spike)
+  // We track the spike level via localStorage too
+  let spikeLevel = null;
+  try { spikeLevel = parseFloat(localStorage.getItem('bce_spike_level')) || null; } catch(e) {}
+  const currentSPY = p.spy;
+  const day1Green = (spikeLevel && currentSPY) ? currentSPY > spikeLevel : null;
+  // Day +3: SPY must hold above Day 0 low (approximate: > spikeLevel * 0.99)
+  const day3Hold = (bd >= 3 && spikeLevel && currentSPY) ? currentSPY > spikeLevel * 0.99 : (bd < 3 ? null : null);
+  // VIX decline: compare stored spike VIX to current
+  let spikeVIX = null;
+  try { spikeVIX = parseFloat(localStorage.getItem('bce_spike_vix')) || null; } catch(e) {}
+  const vixDeclinePct = (spikeVIX && p.vix) ? ((spikeVIX - p.vix) / spikeVIX * 100) : null;
+  const vixDay5Pass = (bd >= 5 && vixDeclinePct !== null) ? vixDeclinePct >= 15 : null;
+  // Volume decay: current vol vs spike vol
+  let spikeVol = null;
+  try { spikeVol = parseFloat(localStorage.getItem('bce_spike_vol')) || null; } catch(e) {}
+  const volRatioNow = (spikeVol && p.spyVol) ? p.spyVol / spikeVol : null;
+  const volDecaying = (volRatioNow !== null) ? volRatioNow < 0.8 : null;
+  return { bd, day1Green, day3Hold, vixDeclinePct, vixDay5Pass, volDecaying, spikeLevel, spikeVIX, spikeVol };
+}
+
+function renderBottomConfirmation() {
+  const el = document.getElementById('bottom-confirm-panel');
+  if (!el) return;
+  const p = pulseState;
+  const type = classifyBottomType();
+  const typeColor = type ? (BP_TYPE_COLORS[type] || '#94a3b8') : '#94a3b8';
+  const typeLabel = type ? (BP_TYPE_LABELS[type] || type) : 'Unclassified';
+
+  // Type classifier section
+  let classifierHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Live Bottom Type</div>`;
+  if (!type) {
+    classifierHTML += `<div style="font-size:13px;color:rgba(255,255,255,0.35)">Insufficient data to classify</div>`;
+  } else {
+    const typeDesc = {
+      mechanical: 'VIX spike >> drawdown magnitude. Self-correcting — policy clarity resolves quickly.',
+      capitulation: 'Extreme fear, massive vol, VIX ≥40. V-shape bounce archetype.',
+      credit_contagion: 'Credit markets seizing. Requires central bank intervention to bottom.',
+      fundamental_bear: 'Deep drawdown with moderate VIX — earnings/growth deterioration driving decline.',
+      geopolitical: 'Exogenous shock with clear event driver. W-bottom or rapid recovery.',
+      stealth: 'Low vol, modest drawdown. Structural shift, catalyst needed for reversal.'
+    }[type] || '';
+    const signals = {
+      mechanical: ['VIX/DD ratio ≥3.5', 'VIX ≥35', 'Drawdown modest vs vol spike'],
+      capitulation: ['VIX ≥40', 'Vol ≥2× average', 'F&G extreme fear (≤14)'],
+      credit_contagion: ['HY spreads ≥500bp', 'Credit markets stressed', 'Intervention required'],
+      fundamental_bear: ['Drawdown ≥25%', 'VIX <40 (not panic)', 'Earnings-driven'],
+      geopolitical: ['VIX ≥25', 'Clear event catalyst', 'Drawdown 5–25%'],
+      stealth: ['VIX <32', 'Drawdown <12%', 'Low public attention']
+    }[type] || [];
+    classifierHTML += `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="background:${typeColor}22;color:${typeColor};border:1px solid ${typeColor}44;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">${typeLabel.toUpperCase()}</span>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:8px;line-height:1.5">${typeDesc}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${signals.map(s=>`<span style="font-size:9px;background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;color:rgba(255,255,255,0.55)">${s}</span>`).join('')}
+      </div>`;
+  }
+  classifierHTML += `</div>`;
+
+  // Spike day tracker section
+  const spikeDay = getSpikeDay();
+  const checks = spikeDay ? getConfirmationChecks(spikeDay) : null;
+
+  const mkCheck = (label, pass, note, dayReq) => {
+    const na = pass === null;
+    const color = na ? '#94a3b8' : (pass ? '#22c55e' : '#ef4444');
+    const icon = na ? '–' : (pass ? '✓' : '✗');
+    const opacity = na ? '0.4' : '1';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);opacity:${opacity}">
+      <span style="color:${color};font-size:13px;width:16px;text-align:center">${icon}</span>
+      <div style="flex:1">
+        <span style="font-size:11px;color:rgba(255,255,255,0.8)">${label}</span>
+        ${note ? `<span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:6px">${note}</span>` : ''}
+      </div>
+      ${dayReq ? `<span style="font-size:9px;color:rgba(255,255,255,0.25)">Day +${dayReq}</span>` : ''}
+    </div>`;
+  };
+
+  let trackerHTML = `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Day +1/+3/+5 Tracker</div>
+        <button onclick="(function(){const d=prompt('Enter spike date (YYYY-MM-DD):',new Date().toISOString().slice(0,10));if(!d)return;setSpikeDay(d);const l=pulseState.spy;const v=pulseState.vix;const vol=pulseState.spyVol;try{if(l)localStorage.setItem('bce_spike_level',l);if(v)localStorage.setItem('bce_spike_vix',v);if(vol)localStorage.setItem('bce_spike_vol',vol);}catch(e){}renderBottomConfirmation();})()" style="font-size:9px;background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);padding:2px 8px;border-radius:8px;cursor:pointer">Set Spike Day</button>
+      </div>`;
+
+  if (!spikeDay) {
+    trackerHTML += `<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0">No spike day set. Click "Set Spike Day" when VIX spikes / bottom suspected.</div>`;
+  } else {
+    const bd = checks ? checks.bd : 0;
+    trackerHTML += `
+      <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:8px">
+        Spike: <strong style="color:rgba(255,255,255,0.8)">${spikeDay}</strong> &nbsp;|&nbsp; Business days elapsed: <strong style="color:#fbbf24">${bd}</strong>
+        &nbsp;<button onclick="clearSpikeDay();renderBottomConfirmation()" style="font-size:8px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:1px 6px;border-radius:6px;cursor:pointer">Clear</button>
+      </div>`;
+    if (checks) {
+      const { day1Green, day3Hold, vixDeclinePct, vixDay5Pass, volDecaying } = checks;
+      const vixNote = vixDeclinePct !== null ? `${vixDeclinePct > 0 ? '↓' : '↑'}${Math.abs(vixDeclinePct).toFixed(0)}% from spike` : '';
+      trackerHTML += mkCheck('Day +1 green close', day1Green, checks.spikeLevel ? `SPY spike level: $${Number(checks.spikeLevel).toFixed(2)}` : '', 1);
+      trackerHTML += mkCheck('Day +3 holds above spike low', day3Hold, '', 3);
+      trackerHTML += mkCheck('VIX declined ≥15% by Day +5', vixDay5Pass, vixNote, 5);
+      trackerHTML += mkCheck('Volume decaying from spike', volDecaying, volDecaying !== null ? (volDecaying ? 'Vol <80% of spike day' : 'Vol still elevated') : '', null);
+    }
+  }
+  trackerHTML += `</div>`;
+
+  // VIX decline meter
+  let vixNote2 = '';
+  let vixMeterHTML = '';
+  if (p.vix) {
+    const spikeVIXstored = spikeDay ? (()=>{ try { return parseFloat(localStorage.getItem('bce_spike_vix'))||null; } catch(e){return null;} })() : null;
+    const refVIX = spikeVIXstored || p.vix;
+    const declined = spikeVIXstored ? ((spikeVIXstored - p.vix) / spikeVIXstored * 100) : 0;
+    const pct = Math.min(100, Math.max(0, declined));
+    const meterColor = pct >= 30 ? '#22c55e' : pct >= 15 ? '#fbbf24' : '#ef4444';
+    vixMeterHTML = `
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">VIX Decline from Spike</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${meterColor};border-radius:3px;transition:width 0.4s"></div>
+          </div>
+          <span style="font-size:11px;color:${meterColor};font-weight:700;min-width:36px;text-align:right">${pct.toFixed(0)}%</span>
+        </div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:3px">
+          ${spikeVIXstored ? `Spike VIX: ${spikeVIXstored.toFixed(1)} → Now: ${p.vix.toFixed(1)}` : `Current VIX: ${p.vix.toFixed(1)} (set spike day to track decline)`}
+          &nbsp;| Target: ≥15% decline by Day +5
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = classifierHTML + trackerHTML + vixMeterHTML;
+}
 
 // ===== TECHNICAL CONFLUENCE DETECTION =====
 // Simple RSI(14) — averages gains/losses over last `period` bars
