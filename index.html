@@ -768,6 +768,9 @@
       <div id="bottom-state-panel" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)"></div>
     </div>
 
+    <!-- Conviction Meter — unified rating from all systems -->
+    <div id="conviction-meter-panel" style="margin-top:12px"></div>
+
     <!-- Live metric cards grid -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:24px" id="pulse-cards"></div>
 
@@ -1556,6 +1559,7 @@ function recalcScore(){
   renderPulseCards();
   updateHeroBanner();
   updateActionCard();
+  if (typeof renderConvictionMeter === 'function') renderConvictionMeter();
 }
 
 // ===== DIRECTION-AWARE SIGNAL DETECTION =====
@@ -3647,6 +3651,7 @@ function propagateData(){
   if(typeof renderPatternMatcher==='function') renderPatternMatcher();
   if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
   if(typeof renderBottomState==='function') renderBottomState();
+  if(typeof renderConvictionMeter==='function') renderConvictionMeter();
 }
 
 // Restore saved API keys from localStorage
@@ -6943,6 +6948,202 @@ function renderTripleConfluence(){
   }).join('');
 
   panelEl.innerHTML=rows+`<div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">🟢 = condition met &nbsp;⚪ = not yet &nbsp;· &nbsp;Support: within 3% above (−1% overshoot allowed) &nbsp;· &nbsp;RSI: daily&lt;35 or weekly&lt;40 &nbsp;· &nbsp;Vol: &gt;1.5× 20-day avg</div>`;
+}
+
+// ===== CONVICTION METER =====
+const CONVICTION_THRESHOLDS = {
+  capitulation:     {buy:6.0, strongBuy:7.0, avgReturn:61, confidence:'HIGH', n:4},
+  stealth:          {buy:5.0, strongBuy:7.0, avgReturn:50, confidence:'MOD',  n:2},
+  mechanical:       {buy:4.0, strongBuy:6.0, avgReturn:17, confidence:'HIGH', n:4},
+  geopolitical:     {buy:5.0, strongBuy:7.0, avgReturn:12, confidence:'MOD',  n:2},
+  fundamental_bear: {buy:8.0, strongBuy:9.0, avgReturn:26, confidence:'LOW',  n:1},
+  credit_contagion: {buy:6.0, strongBuy:7.0, avgReturn:27, confidence:'LOW',  n:1},
+};
+const CLUSTER_WEIGHTS = {A:0.20, B:0.35, C:0.25, D:0.20};
+
+function calcBuyRating() {
+  // Re-run cluster aggregation (same as recalcScore, cheap)
+  const clusterMax = {A:0, B:0, C:0, D:0};
+  signals.forEach(s => {
+    const sc = Math.min(1, s.score());
+    if (s.cluster && clusterMax[s.cluster] !== undefined && sc > clusterMax[s.cluster]) clusterMax[s.cluster] = sc;
+  });
+  const sentimentRaw = (clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20) * 10;
+
+  // Triple confluence uncapped bonus
+  const tcSig = signals.find(s => s.id === 'tripleConfluence');
+  const tcScore = tcSig ? tcSig.score() : 0;
+
+  const boost = pulseState.contrarianBoost || 0;
+  const ftMult = pulseState.followThrough?.multiplier || 1.0;
+
+  let adjustedScore = (sentimentRaw + tcScore + boost) * ftMult;
+
+  // Bottom state bonus
+  let bsBonus = 0, bsState = 0, bsDays = 0;
+  try {
+    const bsData = bottomStateManager.load();
+    bsState = bsData.state || 0;
+    bsDays = bsData.days ? Math.max(0, bsData.days.length - 1) : 0;
+    if (bsState === BS_STATES.CONFIRMED) bsBonus = 2.0;
+    else if (bsState === BS_STATES.CONFIRMING && bsDays >= 3) bsBonus = 1.0;
+  } catch(e) {}
+  adjustedScore += bsBonus;
+
+  // Detected bottom type for threshold lookup
+  let detectedType = null;
+  try {
+    const result = classifyBottomType(buildClassifyConditions());
+    if (result) detectedType = result.type;
+  } catch(e) {}
+  const thr = CONVICTION_THRESHOLDS[detectedType] || {buy:7.0, strongBuy:8.5, confidence:'—', n:0, avgReturn:null};
+
+  const finalRating = Math.max(0, Math.min(10, adjustedScore));
+  const conviction = Math.min(100, Math.round(finalRating / 10 * 60 + tcScore / 2.0 * 40));
+
+  return { finalRating, conviction, sentimentRaw, tcScore, ftMult, bsBonus, bsState, bsDays, boost, detectedType, thr, clusterMax };
+}
+
+function renderConvictionMeter() {
+  const el = document.getElementById('conviction-meter-panel');
+  if (!el) return;
+  let rating;
+  try { rating = calcBuyRating(); } catch(e) { return; }
+  const { finalRating, conviction, sentimentRaw, tcScore, ftMult, bsBonus, bsState, bsDays, boost, detectedType, thr } = rating;
+
+  const isStrongBuy = finalRating >= thr.strongBuy;
+  const isBuy = finalRating >= thr.buy;
+  const verdict = isStrongBuy ? 'STRONG BUY' : isBuy ? 'BUY' : finalRating >= thr.buy * 0.7 ? 'WATCH' : 'WAIT';
+  const verdictColor = isStrongBuy ? '#22c55e' : isBuy ? '#4ade80' : finalRating >= thr.buy * 0.7 ? '#f59e0b' : '#94a3b8';
+
+  const typeLabel = BP_TYPE_LABELS[detectedType] || 'Unknown';
+  const typeColor = BP_TYPE_COLORS[detectedType] || '#94a3b8';
+  const bsLbls = ['SCANNING', 'POTENTIAL', 'CONFIRMING', '✅ CONFIRMED'];
+  const bsClrs = ['#94a3b8', '#f59e0b', '#22d3ee', '#22c55e'];
+  const bsDetail = bsState === 2 ? ' Day ' + bsDays + '/5' : bsState === 3 ? ' — confirmed' : '';
+
+  // Closest historical match (by VIX + drawdown + RSI similarity, type bonus)
+  let closestMatch = null, closestSim = 0;
+  try {
+    const vix = pulseState.vix || 0, dd = pulseState.spyPctFromATH || 0, rsi = pulseState.rsiSPY || 50;
+    Object.values(bottomPatterns).forEach(bp => {
+      if (!bp.day0) return;
+      const dv = Math.abs((vix - (bp.day0.vix || 50)) / 50);
+      const dd2 = Math.abs((dd - (bp.drawdownPct || 10)) / 30);
+      const dr = Math.abs((rsi - (bp.day0.rsi || 50)) / 50);
+      const typeBonus = bp.type === detectedType ? 0.15 : 0;
+      const sim = Math.max(0, 1 - (dv + dd2 + dr) / 3) + typeBonus;
+      if (sim > closestSim) { closestSim = sim; closestMatch = bp; }
+    });
+  } catch(e) {}
+  const simPct = Math.min(99, Math.round(closestSim * 100));
+
+  // Triple confluence
+  let tcResults = [];
+  try { tcResults = detectTripleConfluence(); } catch(e) {}
+  const confirmedInst = tcResults.filter(x => x.confluenceCount >= 2).length;
+
+  // Follow-through
+  const ft = pulseState.followThrough;
+  const ftStr = ft ? ft.grade + ' (' + ft.score + '/100) → ' + ftMult + '×' : 'none (×1.0)';
+
+  // Firing / missing (exclude tripleConfluence — it shows separately)
+  const firingS = signals.filter(s => s.id !== 'tripleConfluence' && s.score() >= 0.5);
+  const missingS = signals
+    .filter(s => s.id !== 'tripleConfluence' && s.cluster && s.score() < 0.5)
+    .sort((a, b) => (CLUSTER_WEIGHTS[b.cluster] || 0) - (CLUSTER_WEIGHTS[a.cluster] || 0));
+
+  // Historical success for this type
+  let histPos = 0, histTotal = 0;
+  try {
+    Object.values(bottomPatterns).forEach(bp => {
+      if (bp.type === detectedType && bp.twelveMonthReturn !== null) {
+        histTotal++;
+        if (bp.twelveMonthReturn > 0) histPos++;
+      }
+    });
+  } catch(e) {}
+
+  // Breakdown line
+  const bkd = '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'
+    + '<span>Sentiment <span style="font-family:var(--mono);color:rgba(255,255,255,0.65)">' + sentimentRaw.toFixed(1) + '</span></span>'
+    + '<span style="opacity:0.3">+</span>'
+    + '<span>Confluence <span style="font-family:var(--mono);color:rgba(255,255,255,0.65)">' + tcScore.toFixed(2) + '</span></span>'
+    + (boost > 0 ? '<span style="opacity:0.3">+</span><span>AI <span style="font-family:var(--mono);color:#a855f7">' + boost.toFixed(1) + '</span></span>' : '')
+    + '<span style="opacity:0.3">×</span>'
+    + '<span>FT <span style="font-family:var(--mono);color:rgba(255,255,255,0.65)">' + ftMult + '×</span></span>'
+    + (bsBonus > 0 ? '<span style="opacity:0.3">+</span><span>State <span style="font-family:var(--mono);color:#22c55e">+' + bsBonus.toFixed(1) + '</span></span>' : '')
+    + '<span style="opacity:0.3">→</span>'
+    + '<span style="font-weight:800;color:' + verdictColor + '">' + finalRating.toFixed(1) + '</span>'
+    + '</div>';
+
+  // Entry parameters (only when BUY or STRONG BUY)
+  let entryHTML = '';
+  if (isBuy && pulseState.spyPrice) {
+    let nearestSup = null;
+    try { const spyR = tcResults.find(x => x.inst.ticker === 'SPY'); if (spyR && spyR.nearest) nearestSup = spyR.nearest.price; } catch(e) {}
+    const entry = pulseState.spyPrice;
+    const stop = nearestSup ? +(nearestSup * 0.97).toFixed(2) : null;
+    const t1 = SPY_ATH_REF;
+    const t2 = +(SPY_ATH_REF * 1.03).toFixed(2);
+    const risk = stop ? +(entry - stop).toFixed(2) : null;
+    const rr1 = risk && risk > 0 ? ((t1 - entry) / risk).toFixed(1) : null;
+    const rr2 = risk && risk > 0 ? ((t2 - entry) / risk).toFixed(1) : null;
+    const stopCell = stop
+      ? '<div><div style="color:rgba(255,255,255,0.35);margin-bottom:2px">Stop (−3% supp.)</div><div style="font-weight:700;font-family:var(--mono);color:#ef4444">$' + stop + '</div></div>'
+      : '';
+    entryHTML = '<div style="margin-top:10px;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px">'
+      + '<div style="font-size:9px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Entry Parameters</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;font-size:10px">'
+      + '<div><div style="color:rgba(255,255,255,0.35);margin-bottom:2px">Entry</div><div style="font-weight:700;font-family:var(--mono);color:#fff">$' + entry.toFixed(2) + '</div></div>'
+      + stopCell
+      + '<div><div style="color:rgba(255,255,255,0.35);margin-bottom:2px">Target 1 (ATH)</div><div style="font-weight:700;font-family:var(--mono);color:#4ade80">$' + t1 + (rr1 ? ' · ' + rr1 + ':1' : '') + '</div></div>'
+      + '<div><div style="color:rgba(255,255,255,0.35);margin-bottom:2px">Target 2 (+3%)</div><div style="font-weight:700;font-family:var(--mono);color:#22c55e">$' + t2 + (rr2 ? ' · ' + rr2 + ':1' : '') + '</div></div>'
+      + '</div></div>';
+  }
+
+  // Next catalyst — highest-weight missing signal
+  let nextCatHTML = '';
+  if (missingS.length > 0) {
+    const top = missingS[0];
+    let rv = top.reading(); if (typeof rv === 'number') rv = rv.toFixed(2);
+    const rvStr = rv !== null ? ' (now ' + rv + ')' : '';
+    nextCatHTML = '<div style="margin-top:8px;padding:7px 10px;background:rgba(168,85,247,0.05);border-left:2px solid rgba(168,85,247,0.35);border-radius:0 4px 4px 0;font-size:10px;color:rgba(255,255,255,0.45)">'
+      + '<strong style="color:#a855f7">NEXT CATALYST:</strong> Would need <strong>' + top.name + '</strong> ' + (top.threshold || 'to trigger') + rvStr
+      + '</div>';
+  }
+
+  // Summary rows
+  const summaryRows = [
+    detectedType ? '<div style="padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px"><span style="color:rgba(255,255,255,0.35)">Bottom Type:</span> <strong style="color:' + typeColor + '">' + typeLabel + '</strong> <span style="font-size:8px;opacity:0.5">' + thr.confidence + '</span></div>' : '',
+    closestMatch ? '<div style="padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px"><span style="color:rgba(255,255,255,0.35)">Closest Match:</span> <strong style="color:rgba(255,255,255,0.65)">' + closestMatch.name + '</strong> (' + simPct + '%)' + (closestMatch.twelveMonthReturn !== null ? ' → <span style="color:#22c55e">+' + closestMatch.twelveMonthReturn + '% 12mo</span>' : '') + '</div>' : '',
+    '<div style="padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px"><span style="color:rgba(255,255,255,0.35)">Follow-Through:</span> <strong style="color:rgba(255,255,255,0.65)">' + ftStr + '</strong></div>',
+    '<div style="padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px"><span style="color:rgba(255,255,255,0.35)">Cross-Instrument:</span> <strong style="color:rgba(255,255,255,0.65)">' + confirmedInst + '/5 confirmed</strong></div>',
+    '<div style="padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px"><span style="color:rgba(255,255,255,0.35)">State:</span> <strong style="color:' + (bsClrs[bsState] || '#94a3b8') + '">' + (bsLbls[bsState] || 'SCANNING') + bsDetail + '</strong></div>',
+    histTotal > 0 ? '<div style="padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px"><span style="color:rgba(255,255,255,0.35)">Historical (type):</span> <strong style="color:' + (histPos / histTotal >= 0.75 ? '#22c55e' : '#f59e0b') + '">' + histPos + '/' + histTotal + ' positive 12mo</strong></div>' : '',
+  ].filter(Boolean).join('');
+
+  // Firing / missing signal text
+  const fmtReading = s => { let rv = s.reading(); if (typeof rv === 'number') rv = rv.toFixed(2); return '<strong style="color:rgba(255,255,255,0.7)">' + s.name + '</strong>' + (rv !== null ? ' ' + rv : ''); };
+  const fmtMissing = s => { let rv = s.reading(); if (typeof rv === 'number') rv = rv.toFixed(2); return '<strong style="color:rgba(255,255,255,0.5)">' + s.name + '</strong>' + (rv !== null ? ' (' + rv + ')' : ''); };
+
+  el.innerHTML = '<div style="background:linear-gradient(135deg,rgba(34,197,94,0.04),rgba(168,85,247,0.03));border:1px solid ' + verdictColor + '30;border-radius:12px;padding:16px 20px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
+    + '<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);margin-bottom:4px">Conviction Meter</div>'
+    + '<div style="font-size:20px;font-weight:800;font-family:var(--mono);color:' + verdictColor + '">' + finalRating.toFixed(1) + '<span style="font-size:11px;color:rgba(255,255,255,0.25)">/10</span>&nbsp;<span style="font-size:14px">' + verdict + '</span></div></div>'
+    + '<div style="text-align:right;font-size:9px;color:rgba(255,255,255,0.3);line-height:1.7">'
+    + '<div>buy≥' + thr.buy + ' / strong≥' + thr.strongBuy + (detectedType ? ' (' + typeLabel + ')' : '') + '</div>'
+    + '<div>Avg 12mo: ' + (thr.avgReturn !== null ? '+' + thr.avgReturn + '%' : '—') + ' (n=' + thr.n + ')</div></div></div>'
+    + '<div style="margin-bottom:12px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.3);margin-bottom:3px"><span>Conviction</span><span style="color:' + verdictColor + ';font-weight:700">' + conviction + '%</span></div>'
+    + '<div style="height:9px;background:rgba(255,255,255,0.06);border-radius:5px;overflow:hidden"><div style="height:100%;width:' + conviction + '%;background:linear-gradient(90deg,' + verdictColor + '88,' + verdictColor + ');border-radius:5px;transition:width 0.8s ease"></div></div></div>'
+    + bkd
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:5px;margin-bottom:10px">' + summaryRows + '</div>'
+    + (firingS.length ? '<div style="margin-bottom:7px"><div style="font-size:9px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">✅ FIRING</div><div style="font-size:10px;color:rgba(255,255,255,0.5);line-height:1.8">' + firingS.map(fmtReading).join(' &nbsp;·&nbsp; ') + '</div></div>' : '')
+    + (missingS.length ? '<div style="margin-bottom:7px"><div style="font-size:9px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">❌ MISSING</div><div style="font-size:10px;color:rgba(255,255,255,0.35);line-height:1.8">' + missingS.slice(0, 5).map(fmtMissing).join(' &nbsp;·&nbsp; ') + '</div></div>' : '')
+    + nextCatHTML
+    + entryHTML
+    + '</div>';
 }
 
 // Initial renders
