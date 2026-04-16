@@ -1036,6 +1036,8 @@
       <div class="panel-title" style="color:#a855f7">📚 Bottom Pattern Database — Forensic Record</div>
       <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">Day-by-day forensic record of every major market bottom from Black Monday 1987 to the present. Click any row to expand the full breakdown, catalyst, volume profile, and key lesson.</p>
       <p style="font-size:9px;color:rgba(255,255,255,0.2);margin-bottom:14px">Empirically derived rules power the pattern matcher and conviction score weights. Type filter narrows by bottom archetype.</p>
+      <!-- Pattern Matcher — live comparison against all 14 bottoms -->
+      <div id="pattern-matcher-results" style="margin-bottom:20px"></div>
       <div id="bottom-patterns-results"></div>
     </div>
   </div>
@@ -2444,6 +2446,9 @@ function propagateData(){
 
   // Update triple confluence detector and apply score bonus
   if(typeof renderTripleConfluence==='function') renderTripleConfluence();
+
+  // Update pattern matcher (compares live conditions against 14 historical bottoms)
+  if(typeof renderPatternMatcher==='function') renderPatternMatcher();
   // Re-run score to pick up tripleConfluenceActive flag set by detectTripleConfluence
   recalcScore();
 
@@ -4592,6 +4597,119 @@ function renderBottomPatterns(){
   </div>`;
 }
 renderBottomPatterns();
+
+// ===== PATTERN MATCHER =====
+// Compares current pulseState against all 14 historical bottoms.
+// Similarity is a weighted average of per-dimension closeness (0–1 each).
+function matchCurrentToPatterns(){
+  const p=pulseState;
+  function dim(cur,hist,range,w){
+    if(cur==null||hist==null) return {s:0,w:0};
+    return {s:Math.max(0,1-Math.abs(cur-hist)/range)*w, w};
+  }
+  return Object.entries(bottomPatterns).map(([key,bp])=>{
+    const dims=[
+      dim(p.vix,           bp.day0.vix,  30, 0.30),
+      dim(p.rsiSPY,        bp.day0.rsi,  20, 0.25),
+      dim(p.spyPctFromATH, bp.drawdownPct,20,0.25),
+      dim(p.cnnFG,         bp.day0.fng,  30, 0.20),
+    ];
+    const tot=dims.reduce((s,d)=>s+d.s,0);
+    const wt =dims.reduce((s,d)=>s+d.w,0);
+    return {key, bp, similarity: wt>0?tot/wt:0};
+  }).sort((a,b)=>b.similarity-a.similarity);
+}
+
+function renderPatternMatcher(){
+  const el=document.getElementById('pattern-matcher-results');if(!el)return;
+  const p=pulseState;
+  const hasData=p.vix!==null||p.rsiSPY!==null||p.spyPctFromATH!==null;
+  if(!hasData){
+    el.innerHTML=`<div style="padding:12px 0 4px;font-size:10px;color:rgba(255,255,255,0.2)">Refresh live data to compare current conditions against all 14 historical bottoms.</div>`;
+    return;
+  }
+
+  const matches=matchCurrentToPatterns();
+  const top=matches[0];
+
+  // Best match per type
+  const byType={};
+  matches.forEach(m=>{
+    if(!byType[m.bp.type]||m.similarity>byType[m.bp.type].similarity) byType[m.bp.type]=m;
+  });
+
+  // Probability-weighted expected 12-month return
+  const withRet=matches.filter(m=>m.bp.twelveMonthReturn!==null);
+  const simSum=withRet.reduce((s,m)=>s+m.similarity,0);
+  const expRet=simSum>0?withRet.reduce((s,m)=>s+m.similarity*m.bp.twelveMonthReturn,0)/simSum:null;
+
+  // What to expect per type
+  const typeHints={
+    capitulation:   'expect V-shape bounce, +10–15% in 5 days',
+    mechanical:     'expect VIX to halve in 5 days, fast recovery',
+    credit_contagion:'expect multi-week base, Fed intervention needed',
+    fundamental_bear:'expect slow grind, months to confirm bottom',
+    geopolitical:   'expect choppy W-bottom, scale-in approach',
+    stealth:        'expect slow grind up, catalyst needed to confirm',
+  };
+
+  // Type row HTML
+  const typeRows=Object.entries(byType)
+    .sort((a,b)=>b[1].similarity-a[1].similarity)
+    .map(([type,m])=>{
+      const col=BP_TYPE_COLORS[type]||'#94a3b8';
+      const pct=Math.round(m.similarity*100);
+      const barW=Math.max(4,pct);
+      const hint=typeHints[type]||'';
+      const ret5=m.bp.fiveDayReturn;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="width:88px;flex-shrink:0;font-size:8px;font-weight:700;color:${col};text-transform:uppercase;letter-spacing:0.5px">${BP_TYPE_LABELS[type]||type}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.75)">${m.bp.name}</span>
+            <span style="font-family:var(--mono);font-size:9px;font-weight:800;color:${col}">${pct}%</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.25)">— if this, ${hint}</span>
+          </div>
+          <div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden">
+            <div style="width:${barW}%;height:100%;background:${col};border-radius:2px;opacity:0.8;transition:width 0.6s ease"></div>
+          </div>
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;font-weight:800;color:#22c55e;white-space:nowrap;flex-shrink:0">+${ret5}%</span>
+      </div>`;
+    }).join('');
+
+  // Overall top match
+  const topPct=Math.round(top.similarity*100);
+  const topCol=BP_TYPE_COLORS[top.bp.type]||'#94a3b8';
+
+  el.innerHTML=`
+  <div style="padding:14px 16px;background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.2);border-radius:8px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🔍 Current Market vs History</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4)">Comparing VIX <strong style="color:rgba(255,255,255,0.65)">${p.vix?.toFixed(1)??'--'}</strong> · RSI <strong style="color:rgba(255,255,255,0.65)">${p.rsiSPY?.toFixed(0)??'--'}</strong> · DD <strong style="color:rgba(255,255,255,0.65)">${p.spyPctFromATH!=null?'-'+p.spyPctFromATH.toFixed(1)+'%':'--'}</strong> · F&amp;G <strong style="color:rgba(255,255,255,0.65)">${p.cnnFG??'--'}</strong> against 14 historical bottoms</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Top overall match</div>
+        <div style="font-size:16px;font-weight:900;font-family:var(--mono);color:${topCol}">${topPct}%</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.5)">${top.bp.name}</div>
+      </div>
+    </div>
+
+    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Closest Match by Type — 5-day expected return →</div>
+    ${typeRows}
+
+    ${expRet!==null?`
+    <div style="margin-top:14px;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:9px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Probability-Weighted Expected 12-Month Return</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.35)">Σ(similarity × return) / Σ(similarity) across ${withRet.length} patterns with known outcomes</div>
+      </div>
+      <div style="font-size:28px;font-weight:900;font-family:var(--mono);color:#22c55e">+${expRet.toFixed(0)}%</div>
+    </div>`:''}
+  </div>`;
+}
+renderPatternMatcher();
 
 // ===== TECHNICAL CONFLUENCE DETECTION =====
 // Simple RSI(14) — averages gains/losses over last `period` bars
