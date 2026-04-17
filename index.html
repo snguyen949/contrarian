@@ -963,6 +963,17 @@
       <div id="evidence-table"></div>
     </div>
 
+    <!-- Iran Lesson insight card -->
+    <div class="panel" style="background:rgba(168,85,247,0.06);border-color:rgba(168,85,247,0.2)">
+      <div id="iran-lesson-card"></div>
+    </div>
+
+    <!-- Cross-Instrument Retest Matrix -->
+    <div class="panel">
+      <div class="panel-title">Cross-Instrument Retest Matrix — SPY vs Futures</div>
+      <div id="cross-instrument-matrix"></div>
+    </div>
+
     <!-- Why it works -->
     <div class="panel" style="background:rgba(168,85,247,0.04);border-color:rgba(168,85,247,0.12)">
       <div class="panel-title" style="color:var(--purple)">Why Former ATH = Support (Market Structure)</div>
@@ -3652,6 +3663,7 @@ function propagateData(){
   if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
   if(typeof renderBottomState==='function') renderBottomState();
   if(typeof renderConvictionMeter==='function') renderConvictionMeter();
+  if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix();
 }
 
 // Restore saved API keys from localStorage
@@ -4330,6 +4342,91 @@ document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
 }).join('');
 
 // ===== SVG CHART =====
+// ===== ATH RETEST TAB — CROSS-INSTRUMENT ADDITIONS =====
+function renderIranLesson(){
+  const el=document.getElementById('iran-lesson-card');
+  if(!el) return;
+  el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+    <div style="font-size:26px;flex-shrink:0;margin-top:2px">💡</div>
+    <div>
+      <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">THE IRAN LESSON — Cross-Instrument Confirmation</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:10px">
+        Don't wait for the exact SPY level. When 2+ correlated instruments (ES, NQ, QQQ) retest <strong>their</strong> structural support simultaneously, that <em>is</em> the bottom — even if SPY stops 5–10% short of its target.
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.55);line-height:1.7;padding:10px 14px;background:rgba(168,85,247,0.06);border-radius:8px;border-left:3px solid rgba(168,85,247,0.4)">
+        <strong style="color:#a855f7">Cross-instrument confluence &gt; single-ticker precision.</strong><br>
+        In Iran 2026: SPY stopped at $629 (never reaching the $565–610 target), but ES1! confirmed at $6,300 and NQ1! confirmed at $17,383.
+        The futures showed the bottom that SPY price alone obscured. Traditional sentiment score: ~2.3/10. The structural confluence was the <em>only</em> signal that correctly identified the bottom.
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderCrossInstrumentMatrix(){
+  const el=document.getElementById('cross-instrument-matrix');
+  if(!el) return;
+
+  const rows=[
+    {crisis:'COVID 2020',     spy:'✅ $218 / ~$200 zone',      es:'✅ ~$2,180',  nq:'✅ ~$6,770',  confirmed:'All instruments', col:'#22c55e'},
+    {crisis:'Inflation 2022', spy:'✅ $348 / $340 zone (2.4%)', es:'✅ ~$3,500',  nq:'✅ ~$11,050', confirmed:'All instruments', col:'#22c55e'},
+    {crisis:'Tariff 2025',    spy:'✅ $482 / $480 zone (0.4%)', es:'✅ $5,050',   nq:'✅ $17,383',  confirmed:'All instruments', col:'#22c55e'},
+    {crisis:'Iran 2026',      spy:'❌ $629 — missed $565–610', es:'✅ $6,300',   nq:'✅ $17,383',  confirmed:'Cross-instrument', col:'#f59e0b'},
+  ];
+
+  // Live current-state row using detectTripleConfluence results
+  let liveRow='';
+  try{
+    const tcR=detectTripleConfluence();
+    const getInst=ticker=>tcR.find(r=>r.inst.ticker===ticker);
+    const fmtInst=r=>{
+      if(!r||r.distToSupport===null) return '<span style="color:rgba(255,255,255,0.25)">— no data</span>';
+      const at=r.atSupport;
+      const pStr=r.inst.futures?Math.round(r.price).toLocaleString():'$'+r.price.toFixed(0);
+      const nStr=r.nearest?(r.inst.futures?r.nearest.price.toLocaleString():'$'+r.nearest.price)+' ('+r.nearest.name+')':'?';
+      const dist=r.distToSupport;
+      const c=at?'#22c55e':Math.abs(dist)<5?'#f59e0b':'rgba(255,255,255,0.4)';
+      return `<span style="color:${c}">${at?'✅':'⏳'} ${pStr} → ${nStr} (${dist>=0?'+':''}${dist.toFixed(1)}%)</span>`;
+    };
+    const spy=getInst('SPY'),es=getInst('ES=F'),nq=getInst('NQ=F');
+    const atCount=[spy,es,nq].filter(r=>r?.atSupport).length;
+    const confStr=atCount>=3?'All at support':atCount>=2?'Cross-instrument':atCount===1?'1 instrument':'None at target';
+    const confC=atCount>=2?'#22c55e':atCount===1?'#f59e0b':'rgba(255,255,255,0.4)';
+    liveRow=`<tr style="background:rgba(34,211,238,0.05);border-top:2px solid rgba(34,211,238,0.15)">
+      <td style="padding:9px 10px;font-size:10px;font-weight:800;color:#22d3ee;white-space:nowrap">● LIVE NOW</td>
+      <td style="padding:9px 10px;font-size:10px">${fmtInst(spy)}</td>
+      <td style="padding:9px 10px;font-size:10px">${fmtInst(es)}</td>
+      <td style="padding:9px 10px;font-size:10px">${fmtInst(nq)}</td>
+      <td style="padding:9px 10px;font-size:10px;font-weight:700;color:${confC}">${confStr}</td>
+    </tr>`;
+  }catch(e){}
+
+  const thStyle='text-align:left;padding:8px 10px;color:rgba(255,255,255,0.35);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap';
+  el.innerHTML=`<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:580px">
+      <thead><tr style="border-bottom:2px solid rgba(255,255,255,0.08)">
+        <th style="${thStyle}">Crisis</th>
+        <th style="${thStyle}">SPY Target Hit?</th>
+        <th style="${thStyle}">ES=F Target Hit?</th>
+        <th style="${thStyle}">NQ=F Target Hit?</th>
+        <th style="${thStyle}">Confirmed By</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+          <td style="padding:9px 10px;font-size:10px;font-weight:700;color:${r.col};white-space:nowrap">${r.crisis}</td>
+          <td style="padding:9px 10px;font-size:10px;color:${r.col}">${r.spy}</td>
+          <td style="padding:9px 10px;font-size:10px;color:${r.col}">${r.es}</td>
+          <td style="padding:9px 10px;font-size:10px;color:${r.col}">${r.nq}</td>
+          <td style="padding:9px 10px;font-size:10px;font-weight:700;color:${r.col}">${r.confirmed}</td>
+        </tr>`).join('')}
+        ${liveRow}
+      </tbody>
+    </table>
+    <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">
+      ✅ At or within 3% of structural support &nbsp;⏳ Not yet at target &nbsp;· &nbsp;ES=F = S&amp;P 500 futures &nbsp;· &nbsp;NQ=F = Nasdaq futures
+    </div>
+  </div>`;
+}
+
 function renderSvgChart(){
   const livePrice=pulseState.spyPrice||656;
   const pts = [
@@ -4339,7 +4436,9 @@ function renderSvgChart(){
     {y:2023,p:450},{y:2023.5,p:480},{y:2024,p:530},{y:2024.3,p:565,l:"ATH $565",ath:1},
     {y:2024.5,p:510,l:"Yen|$510",ev:1},{y:2024.8,p:585},{y:2025,p:565},
     {y:2025.3,p:482,l:"Tariff|$482",ev:1},{y:2025.5,p:560},{y:2025.8,p:650},
-    {y:2026,p:698,l:"ATH $698",ath:1},{y:2026.2,p:livePrice,l:"NOW $"+Math.round(livePrice),cur:1}
+    {y:2026,p:698,l:"ATH $698",ath:1},
+    {y:2026.08,p:629,iran:1},
+    {y:2026.2,p:livePrice,l:"NOW $"+Math.round(livePrice),cur:1}
   ];
   const W=740,H=320,pL=50,pR=30,pT=40,pB=40,cW=W-pL-pR,cH=H-pT-pB,mnY=160,mxY=720,mnX=2014,mxX=2026.5;
   const sx=x=>pL+((x-mnX)/(mxX-mnX))*cW, sy=y=>pT+cH-((y-mnY)/(mxY-mnY))*cH;
@@ -4351,11 +4450,11 @@ function renderSvgChart(){
   const gridX=[2014,2016,2018,2020,2022,2024,2026].map(x=>`<text x="${sx(x)}" y="${H-8}" fill="rgba(255,255,255,0.2)" font-size="9" text-anchor="middle" font-family="JetBrains Mono">${x}</text>`).join('');
   const athSvg=athLines.map(l=>`<line x1="${pL}" y1="${sy(l.p)}" x2="${W-pR}" y2="${sy(l.p)}" stroke="${l.c}" stroke-width="1" ${l.d?'stroke-dasharray="6,4"':''} opacity="0.4"/><text x="${W-pR-4}" y="${sy(l.p)-5}" fill="${l.c}" font-size="7.5" opacity="0.7" font-family="JetBrains Mono" text-anchor="end">${l.l}</text>`).join('');
 
-  const dots=pts.filter(p=>p.ev||p.ath||p.cur).map(p=>{
-    const col=p.cur?'#22d3ee':p.ev?'#ef4444':'#f59e0b', r=p.cur?6:p.ev?5:4;
+  const dots=pts.filter(p=>p.ev||p.ath||p.cur||p.iran).map(p=>{
+    const col=p.cur?'#22d3ee':p.iran?'#f59e0b':p.ev?'#ef4444':'#f59e0b', r=p.cur?6:p.ev?5:4;
     let lbl='';
     if(p.l){
-      const dy=p.ev||p.cur?16:-10;
+      const dy=(p.ev||p.cur||p.iran)?16:-10;
       const lines=p.l.split('|');
       lbl=`<text x="${sx(p.y)}" y="${sy(p.p)+dy}" fill="${col}" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">${lines.map((ln,i)=>`<tspan x="${sx(p.y)}" dy="${i?10:0}">${ln}</tspan>`).join('')}</text>`;
     }
@@ -4368,8 +4467,19 @@ function renderSvgChart(){
     <rect x="${sx(2025.3)-32}" y="${sy(495)}" width="64" height="14" rx="3" fill="#3b82f6" opacity="0.2"/>
     <text x="${sx(2025.3)}" y="${sy(495)+10}" fill="#3b82f6" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">RETEST ✓</text>`;
 
-  const projZone=`<rect x="${pL}" y="${sy(610)}" width="${cW}" height="${sy(565)-sy(610)}" fill="#f59e0b" opacity="0.06" rx="4"/>
-    <text x="${pL+8}" y="${sy(590)}" fill="#f59e0b" font-size="9" font-weight="700" opacity="0.6" font-family="JetBrains Mono">PROJECTED RETEST ZONE $565–610</text>`;
+  const projZone=`
+    <rect x="${pL}" y="${sy(610)}" width="${cW}" height="${sy(565)-sy(610)}" fill="#a855f7" opacity="0.05" rx="3" stroke="#a855f7" stroke-width="1" stroke-dasharray="8,4" stroke-opacity="0.3"/>
+    <text x="${pL+8}" y="${sy(590)}" fill="#a855f7" font-size="9" font-weight="700" opacity="0.7" font-family="JetBrains Mono">SPY TARGET ZONE $565–610 (projected)</text>
+    <line x1="${sx(2026.08)}" y1="${sy(629)}" x2="${sx(2026.08)}" y2="${sy(575)}" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="3,2" opacity="0.55"/>
+    <text x="${sx(2026.08)+4}" y="${sy(605)}" fill="#f59e0b" font-size="7.5" opacity="0.75" font-family="JetBrains Mono">SPY stopped</text>
+    <text x="${sx(2026.08)+4}" y="${sy(598)}" fill="#f59e0b" font-size="7.5" opacity="0.75" font-family="JetBrains Mono">short $629</text>`;
+
+  // ES/NQ cross-instrument callout (placed in lower-center area, clear of main data)
+  const crossAnnot=`
+    <rect x="420" y="218" width="150" height="46" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-opacity="0.25" stroke-width="0.75"/>
+    <text x="495" y="231" fill="#22c55e" font-size="7.5" text-anchor="middle" font-weight="800" font-family="JetBrains Mono">Iran 2026: futures confirmed</text>
+    <text x="495" y="243" fill="#22c55e" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">✅ ES1!  $6,300 structural hold</text>
+    <text x="495" y="255" fill="#22c55e" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">✅ NQ1! $17,383 structural hold</text>`;
 
   const buyLabels=[{x:2016,y:200},{x:2020.1,y:245},{x:2022.8,y:375},{x:2025.4,y:508}].map(b=>
     `<rect x="${sx(b.x)-14}" y="${sy(b.y)-7}" width="28" height="14" rx="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
@@ -4382,7 +4492,7 @@ function renderSvgChart(){
       <defs><linearGradient id="pF" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22d3ee" stop-opacity="0.15"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
       <path d="${pathD} L${sx(2026.2)},${sy(mnY)} L${sx(2014)},${sy(mnY)} Z" fill="url(#pF)"/>
       <path d="${pathD}" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" style="filter:drop-shadow(0 0 4px rgba(34,211,238,0.4))"/>
-      ${projZone}${retestLabels}${dots}${buyLabels}
+      ${projZone}${crossAnnot}${retestLabels}${dots}${buyLabels}
     </svg>`;
 }
 renderSvgChart();
@@ -7153,6 +7263,8 @@ if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
 if(typeof renderBottomState==='function') renderBottomState();
 if(typeof renderTripleConfluence==='function') renderTripleConfluence();
 if(typeof renderRSIConfluence==='function') renderRSIConfluence();
+if(typeof renderIranLesson==='function') renderIranLesson();
+if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix();
 
 // Wire alerts into propagateData
 const _origPropagate=propagateData;
