@@ -489,6 +489,10 @@
     #fetch-log > div { font-size: 9px !important; }
     /* Volume analysis */
     #volume-analysis { grid-template-columns: 1fr !important; }
+    /* Groq sentiment panel */
+    #groq-sentiment-panel p { display: none; }
+    #groq-sentiment-content .gsm-header { flex-direction: column !important; align-items: flex-start !important; }
+    #groq-sentiment-content .gsm-legend { justify-content: flex-start !important; }
   }
 
   @media (max-width: 480px) {
@@ -507,6 +511,9 @@
     #coulling-matrix th, #coulling-matrix td { min-width: 60px !important; font-size: 8px !important; }
     .sig-val { font-size:13px !important; }
     .sig-interp { font-size:8px !important; }
+    /* Groq sentiment panel compact */
+    #groq-sentiment-content .gsm-timeline-row { gap: 4px !important; }
+    #groq-sentiment-content .gsm-phase-label { min-width: 80px !important; font-size: 8px !important; }
   }
 </style>
 </head>
@@ -584,6 +591,11 @@
           <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">NewsAPI <span style="color:rgba(255,255,255,0.15)">— headline sentiment</span></label>
           <input id="key-newsapi" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
           <a href="https://newsapi.org/register" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key (instant)</a>
+        </div>
+        <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border:1px solid rgba(34,211,238,0.08)">
+          <label style="font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-bottom:4px">Groq <span style="color:rgba(255,255,255,0.15)">— AI headline classification (Llama 3.1 70B, free)</span></label>
+          <input id="key-groq" type="text" placeholder="Paste key" style="width:100%;padding:5px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--text);font-family:var(--mono);font-size:11px;outline:none">
+          <a href="https://console.groq.com/keys" target="_blank" style="font-size:8px;color:rgba(34,211,238,0.5);text-decoration:none">→ Get free key · 30 req/min</a>
         </div>
       </div>
     </details>
@@ -960,6 +972,15 @@
       <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;line-height:1.5">Headlines are keyword-matched to both Kobeissi conflict AND tariff steps. Fetches from Google News RSS (free), Reddit (free), Finnhub (if key), NewsAPI (if key). Click <strong style="color:#a855f7">Scan Headlines</strong> or <strong style="color:var(--cyan)">Refresh All Data</strong>.</p>
       <div id="conflict-headlines" style="max-height:300px;overflow-y:auto">
         <div style="font-size:10px;color:rgba(255,255,255,0.15)">Click "Scan Headlines" to fetch latest news and auto-detect conflict phase.</div>
+      </div>
+    </div>
+
+    <!-- Groq AI Sentiment Mix -->
+    <div class="panel" id="groq-sentiment-panel" style="border-color:rgba(34,211,238,0.12);display:none">
+      <div class="panel-title" style="color:var(--cyan)">AI Sentiment Mix — Groq Llama 3.1 70B <span id="groq-shift-badge" style="display:none;margin-left:8px;font-size:8px;padding:2px 8px;border-radius:10px;font-weight:700;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);letter-spacing:0.5px">SHIFT CONFIRMED</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:12px;line-height:1.5">Each headline is classified into CAPITULATION / FEAR / UNCERTAINTY / NEUTRAL / RECOVERY / EUPHORIA. The shift from majority-FEAR to majority-RECOVERY is an independent bottom confirmation signal. Requires Groq API key (free, 30 req/min).</p>
+      <div id="groq-sentiment-content">
+        <div style="font-size:10px;color:rgba(255,255,255,0.2)">Add Groq API key above and click "Scan Headlines" to classify market sentiment.</div>
       </div>
     </div>
 
@@ -3889,6 +3910,9 @@ async function fetchHeadlines(){
   renderConflictSteps();
   renderTariffSteps();
 
+  // AI sentiment classification (non-blocking; only fires if Groq key present)
+  classifyHeadlinesWithGroq(allHeadlines);
+
   return allHeadlines;
 }
 
@@ -5455,6 +5479,190 @@ function _renderTCHistory() {
 // Wire alerts into propagateData
 const _origPropagate=propagateData;
 propagateData=function(){_origPropagate();checkAlerts();};
+
+// ===== GROQ HEADLINE SENTIMENT CLASSIFIER =====
+// Classifies headlines into 6 labels and tracks the daily mix.
+// Shift from majority-FEAR to majority-RECOVERY = independent bottom confirmation signal.
+// localStorage key: 'btf-groq-mix' (array of last 14 daily snapshots)
+
+const GROQ_LABELS=['CAPITULATION','FEAR','UNCERTAINTY','NEUTRAL','RECOVERY','EUPHORIA'];
+const GROQ_COLORS={CAPITULATION:'#ef4444',FEAR:'#f97316',UNCERTAINTY:'#f59e0b',NEUTRAL:'#94a3b8',RECOVERY:'#22d3ee',EUPHORIA:'#22c55e'};
+const GROQ_PHASES={
+  PEAK_FEAR:          {label:'PEAK FEAR',color:'#ef4444',desc:'Maximum retail fear — institutions accumulating into weakness'},
+  TRANSITIONING:      {label:'TRANSITIONING',color:'#f59e0b',desc:'Fear losing dominance — recovery sentiment building'},
+  RECOVERY_CONFIRMED: {label:'RECOVERY CONFIRMED',color:'#22c55e',desc:'Majority headlines constructive — confirmation signal active'},
+  UNCERTAIN:          {label:'UNCERTAIN',color:'#94a3b8',desc:'Mixed signals — no dominant sentiment trend yet'},
+};
+
+function _groqPhase(mix){
+  if(!mix) return 'UNCERTAIN';
+  const tot=Object.values(mix).reduce((a,b)=>a+b,0);
+  if(!tot) return 'UNCERTAIN';
+  const fearPct=((mix.FEAR||0)+(mix.CAPITULATION||0))/tot*100;
+  const recovPct=((mix.RECOVERY||0)+(mix.NEUTRAL||0)+(mix.EUPHORIA||0))/tot*100;
+  if(fearPct>=50) return 'PEAK_FEAR';
+  if(recovPct>=50) return 'RECOVERY_CONFIRMED';
+  if(recovPct>=30&&fearPct<45) return 'TRANSITIONING';
+  return 'UNCERTAIN';
+}
+
+async function classifyHeadlinesWithGroq(headlines){
+  const groqKey=(document.getElementById('key-groq')||{}).value||'';
+  const panel=document.getElementById('groq-sentiment-panel');
+  const content=document.getElementById('groq-sentiment-content');
+
+  // Always show panel if we have stored history
+  let mixHistory=[];
+  try { mixHistory=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]'); } catch(e){}
+  if(mixHistory.length>0){ if(panel) panel.style.display='block'; renderGroqSentimentMix(mixHistory,null); }
+
+  if(!groqKey||!headlines||!headlines.length) return;
+  if(panel) panel.style.display='block';
+  if(content) content.innerHTML='<div style="font-size:10px;color:rgba(255,255,255,0.3);padding:8px 0">Classifying '+Math.min(headlines.length,20)+' headlines with Groq Llama 3.1 70B...</div>';
+
+  const slice=headlines.slice(0,20);
+  const titles=slice.map((h,i)=>(i+1)+'. '+h.title).join('\n');
+
+  try{
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),15000);
+    let resp;
+    try{
+      resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        signal:ctrl.signal,
+        method:'POST',
+        headers:{'Authorization':'Bearer '+groqKey,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'llama-3.1-70b-versatile',
+          messages:[
+            {role:'system',content:'You are a financial news sentiment classifier. For each headline output exactly one label from: CAPITULATION (panic selling/crash/forced liquidation), FEAR (bearish concern/worry/risk-off), UNCERTAINTY (unclear/mixed/wait-and-see), NEUTRAL (factual/no sentiment), RECOVERY (stabilization/buying/optimism), EUPHORIA (excessive optimism/mania/melt-up). Respond ONLY with a JSON array of strings in input order. Example for 3 headlines: ["FEAR","NEUTRAL","RECOVERY"]'},
+            {role:'user',content:'Classify these '+slice.length+' financial headlines:\n'+titles}
+          ],
+          temperature:0,
+          max_tokens:200,
+        })
+      });
+    } finally { clearTimeout(tid); }
+
+    if(!resp.ok) throw new Error('Groq API '+resp.status+' — check key');
+    const data=await resp.json();
+    const raw=(data.choices?.[0]?.message?.content||'').trim();
+    let cls;
+    try{ cls=JSON.parse(raw.match(/\[[\s\S]*?\]/)?.[0]||'[]'); } catch(e){ throw new Error('parse error — Groq response not valid JSON array'); }
+
+    const mix={CAPITULATION:0,FEAR:0,UNCERTAINTY:0,NEUTRAL:0,RECOVERY:0,EUPHORIA:0};
+    cls.forEach(c=>{
+      const l=String(c).toUpperCase().trim();
+      if(Object.prototype.hasOwnProperty.call(mix,l)) mix[l]++;
+      else mix.NEUTRAL++;
+    });
+
+    const classified=slice.map((h,i)=>({
+      title:h.title,url:h.url||'#',
+      groqLabel:GROQ_LABELS.includes(String(cls[i]||'').toUpperCase())?String(cls[i]).toUpperCase():'NEUTRAL'
+    }));
+
+    const today=new Date().toISOString().slice(0,10);
+    mixHistory=mixHistory.filter(e=>e.date!==today);
+    mixHistory.push({date:today,mix,phase:_groqPhase(mix),total:cls.length});
+    if(mixHistory.length>14) mixHistory=mixHistory.slice(-14);
+    try{ localStorage.setItem('btf-groq-mix',JSON.stringify(mixHistory)); } catch(e){}
+
+    renderGroqSentimentMix(mixHistory,classified);
+
+  } catch(err){
+    if(content) content.innerHTML='<div style="font-size:10px;color:rgba(239,68,68,0.6);padding:8px 0">Groq error: '+err.message+'</div>';
+  }
+}
+
+function renderGroqSentimentMix(mixHistory,classified){
+  const panel=document.getElementById('groq-sentiment-panel');
+  const content=document.getElementById('groq-sentiment-content');
+  const badge=document.getElementById('groq-shift-badge');
+  if(!panel||!content) return;
+  panel.style.display='block';
+
+  if(!mixHistory||!mixHistory.length){
+    content.innerHTML='<div style="font-size:10px;color:rgba(255,255,255,0.2)">No data. Add Groq API key and scan headlines.</div>';
+    return;
+  }
+
+  const today=mixHistory[mixHistory.length-1];
+  const phase=_groqPhase(today.mix);
+  const pi=GROQ_PHASES[phase]||GROQ_PHASES.UNCERTAIN;
+  const tot=today.total||Object.values(today.mix).reduce((a,b)=>a+b,0)||1;
+
+  // Confirmation: had PEAK_FEAR in last 7 days, now RECOVERY_CONFIRMED
+  const recentPhases=mixHistory.slice(-7).map(e=>e.phase);
+  const shiftConfirmed=recentPhases.some(p=>p==='PEAK_FEAR')&&phase==='RECOVERY_CONFIRMED';
+  if(badge) badge.style.display=shiftConfirmed?'inline':'none';
+
+  // Stacked mix bar
+  const mixBar=GROQ_LABELS.map(function(l){
+    const c=today.mix[l]||0;
+    if(!c) return '';
+    const p=(c/tot*100).toFixed(0);
+    const col=GROQ_COLORS[l];
+    const inner=(+p>=12)?'<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:8px;font-weight:800;color:rgba(0,0,0,0.7);white-space:nowrap">'+p+'%</span>':'';
+    return '<div title="'+l+': '+c+' ('+p+'%)" style="flex:'+p+';min-width:4px;background:'+col+';position:relative">'+inner+'</div>';
+  }).join('');
+
+  // Legend chips
+  const legend=GROQ_LABELS.map(function(l){
+    const c=today.mix[l]||0;
+    if(!c) return '';
+    const col=GROQ_COLORS[l];
+    const p=Math.round(c/tot*100);
+    return '<span style="font-size:9px;background:'+col+'18;color:'+col+';border:1px solid '+col+'40;padding:2px 8px;border-radius:10px;font-weight:700;white-space:nowrap">'+l+' '+p+'%</span>';
+  }).join('');
+
+  // Timeline rows
+  const timelineRows=mixHistory.slice().reverse().map(function(e,i){
+    const et=e.total||Object.values(e.mix).reduce((a,b)=>a+b,0)||1;
+    const ep=GROQ_PHASES[e.phase]||GROQ_PHASES.UNCERTAIN;
+    const isToday=(i===0);
+    const segBar=GROQ_LABELS.map(function(l){
+      const c=e.mix[l]||0;
+      if(!c) return '';
+      return '<div title="'+l+'" style="flex:'+(c/et*100).toFixed(0)+';min-width:2px;background:'+GROQ_COLORS[l]+'"></div>';
+    }).join('');
+    return '<div class="gsm-timeline-row" style="display:flex;align-items:center;gap:8px;padding:'+(isToday?'6px 8px':'5px 0')+';border-bottom:1px solid rgba(255,255,255,0.04);border-radius:'+(isToday?'4px':'0')+';background:'+(isToday?'rgba(34,211,238,0.04)':'transparent')+'"><span style="font-size:9px;font-family:var(--mono);color:rgba(255,255,255,'+(isToday?'0.6':'0.2')+');min-width:52px">'+e.date.slice(5)+'</span><div style="flex:1;display:flex;height:12px;border-radius:3px;overflow:hidden;gap:1px">'+segBar+'</div><span class="gsm-phase-label" style="font-size:9px;font-weight:700;color:'+ep.color+';white-space:nowrap;min-width:120px;text-align:right">'+ep.label+'</span></div>';
+  }).join('');
+
+  // Classified headlines
+  var hlHtml='';
+  if(classified&&classified.length){
+    var hlRows=classified.slice(0,12).map(function(h){
+      var col=GROQ_COLORS[h.groqLabel]||'#94a3b8';
+      return '<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.025)"><span style="font-size:8px;font-weight:800;background:'+col+'20;color:'+col+';border:1px solid '+col+'40;padding:1px 6px;border-radius:3px;white-space:nowrap;flex-shrink:0;margin-top:1px">'+h.groqLabel+'</span><a href="'+h.url+'" target="_blank" rel="noopener" style="font-size:10px;color:rgba(255,255,255,0.45);line-height:1.35;text-decoration:none">'+h.title+'</a></div>';
+    }).join('');
+    hlHtml='<div style="margin-top:14px"><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Classified Headlines</div>'+hlRows+'</div>';
+  }
+
+  var shiftBanner=shiftConfirmed?'<div style="padding:10px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;margin-bottom:14px;display:flex;align-items:center;gap:12px"><div style="font-size:22px;flex-shrink:0">🟢</div><div><div style="font-size:13px;font-weight:800;color:#22c55e;margin-bottom:2px">SENTIMENT SHIFT CONFIRMED</div><div style="font-size:10px;color:rgba(255,255,255,0.5)">Headlines shifted from majority-FEAR to majority-RECOVERY — independent confirmation signal for the bottom.</div></div></div>':'';
+
+  var headerHtml='<div class="gsm-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px"><div><div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Sentiment Phase</div><div style="font-size:20px;font-weight:900;color:'+pi.color+'">'+pi.label+'</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px">'+pi.desc+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:rgba(255,255,255,0.2);margin-bottom:6px">'+tot+' headlines &middot; '+today.date+'</div><div class="gsm-legend" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end">'+legend+'</div></div></div>';
+
+  var barHtml='<div style="display:flex;height:22px;border-radius:5px;overflow:hidden;margin-bottom:16px">'+mixBar+'</div>';
+
+  var timelineHtml='';
+  if(mixHistory.length>1){
+    var legendItems=GROQ_LABELS.map(function(l){
+      return '<span style="font-size:8px;display:flex;align-items:center;gap:3px;color:rgba(255,255,255,0.3)"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+GROQ_COLORS[l]+'"></span>'+l+'</span>';
+    }).join('');
+    timelineHtml='<div style="margin-bottom:14px"><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Phase Timeline ('+mixHistory.length+' days)</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+legendItems+'</div>'+timelineRows+'</div>';
+  }
+
+  content.innerHTML=shiftBanner+headerHtml+barHtml+timelineHtml+hlHtml;
+}
+
+// On page load, show any existing Groq data from localStorage
+(function(){
+  try{
+    var hist=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]');
+    if(hist.length>0) renderGroqSentimentMix(hist,null);
+  } catch(e){}
+})();
 </script>
 </body>
 </html>
