@@ -420,6 +420,12 @@
   .dir-arrow { font-size:13px; font-weight:900; margin-right:2px; }
   .rolling-banner { display:none; align-items:center; gap:10px; padding:12px 18px; background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,211,238,0.06)); border:1px solid rgba(34,197,94,0.35); border-radius:10px; margin-bottom:16px; font-size:12px; font-weight:800; color:#22c55e; letter-spacing:0.5px; animation:banner-glow 2s ease-in-out infinite; }
 
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: none; }
+    40% { box-shadow: 0 0 16px rgba(34,211,238,0.22), 0 0 4px rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.38) !important; }
+  }
+  .snap-card.delta-sig { animation: pulse-glow 0.9s ease-in-out 3; }
+
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 768px) {
     .container { padding: 16px 12px; }
@@ -559,6 +565,9 @@
       <span id="fetch-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Click to fetch live data from free APIs</span>
       <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2);margin-left:auto"></span>
     </div>
+
+    <!-- Delta status line — shows what moved since last fetch -->
+    <div id="delta-status" style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:-14px;margin-bottom:14px;display:none"></div>
 
     <!-- Fetch log (appears after fetch) -->
     <div id="fetch-log" style="margin-bottom:16px"></div>
@@ -1329,26 +1338,26 @@ function renderPulseCards(){
     </svg>`;
   }
   const cards=[
-    {label:'SPY',val:pulseState.spyPrice?'$'+pulseState.spyPrice.toFixed(2):'--',sub:pulseState.spyPctFromATH?'-'+pulseState.spyPctFromATH.toFixed(1)+'% from ATH':'',color:'#22d3ee',type:'auto',date:pulseState.spyDate||'',chg:pulseState.spyChange,sparkData:pulseState.spySpark},
-    {label:'VIX',val:pulseState.vix?pulseState.vix.toFixed(2):'--',sub:pulseState.vix?(pulseState.vix>=35?'PANIC':pulseState.vix>=25?'ELEVATED':'NORMAL'):'',color:pulseState.vix?vixColor(pulseState.vix):'#94a3b8',type:'auto',date:pulseState.vixDate||'',chg:pulseState.vixChange,sparkData:pulseState.vixSpark},
+    {label:'SPY',val:pulseState.spyPrice?'$'+pulseState.spyPrice.toFixed(2):'--',sub:pulseState.spyPctFromATH?'-'+pulseState.spyPctFromATH.toFixed(1)+'% from ATH':'',color:'#22d3ee',type:'auto',date:pulseState.spyDate||'',chg:pulseState.spyChange,sparkData:pulseState.spySpark,deltaKey:'spyPrice'},
+    {label:'VIX',val:pulseState.vix?pulseState.vix.toFixed(2):'--',sub:pulseState.vix?(pulseState.vix>=35?'PANIC':pulseState.vix>=25?'ELEVATED':'NORMAL'):'',color:pulseState.vix?vixColor(pulseState.vix):'#94a3b8',type:'auto',date:pulseState.vixDate||'',chg:pulseState.vixChange,sparkData:pulseState.vixSpark,deltaKey:'vix'},
     {label:'SPY Vol',val:pulseState.spyVol?(pulseState.spyVol/1e6).toFixed(1)+'M':'--',sub:pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(2)+'x avg':'',color:pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol>=1.8?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.spyDate||''},
-    {label:'QQQ',val:pulseState.qqqPrice?'$'+pulseState.qqqPrice.toFixed(2):'--',sub:'',color:'#a855f7',type:'auto',date:pulseState.qqqDate||'',chg:pulseState.qqqChange,sparkData:pulseState.qqqSpark},
-    {label:'IWM',val:pulseState.iwmPrice?'$'+pulseState.iwmPrice.toFixed(2):'--',sub:'',color:'#3b82f6',type:'auto',date:pulseState.iwmDate||'',chg:pulseState.iwmChange,sparkData:pulseState.iwmSpark},
-    {label:'BTC',val:pulseState.btcPrice?'$'+Math.round(pulseState.btcPrice).toLocaleString():'--',sub:pulseState.btcChange24h?fmtChg(pulseState.btcChange24h)+' 24h':'',color:pulseState.btcChange24h?(pulseState.btcChange24h>=0?'#22c55e':'#ef4444'):'#94a3b8',type:'auto',date:pulseState.btcDate||''},
-    {label:'Oil (WTI)',val:pulseState.oilPrice?'$'+pulseState.oilPrice.toFixed(2):'--',sub:'',color:pulseState.oilPrice?(pulseState.oilPrice>=90?'#ef4444':pulseState.oilPrice>=80?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.oilDate||'',chg:pulseState.oilChange,sparkData:pulseState.oilSpark},
-    {label:'10Y Yield',val:pulseState.tnx?pulseState.tnx.toFixed(2)+'%':'--',sub:pulseState.tnx?(pulseState.tnx>=4.6?'DANGER ZONE':pulseState.tnx>=4.3?'ELEVATED':'NORMAL'):'',color:pulseState.tnx?(pulseState.tnx>=4.6?'#ef4444':pulseState.tnx>=4.3?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.tnxDate||'',sparkData:pulseState.tnxSpark},
-    {label:'Gold',val:pulseState.goldPrice?'$'+Math.round(pulseState.goldPrice).toLocaleString():'--',sub:'Safe haven',color:'#f59e0b',type:'auto',date:pulseState.goldDate||'',sparkData:pulseState.goldSpark},
-    {label:'Crypto F&G',val:pulseState.cryptoFG!==null?pulseState.cryptoFG:'--',sub:pulseState.cryptoFGLabel||'',color:pulseState.cryptoFG!==null?fearColor(pulseState.cryptoFG):'#94a3b8',type:'auto',date:pulseState.cryptoFGDate||''},
-    {label:'CNN F&G',val:pulseState.cnnFG!==null?pulseState.cnnFG:'--',sub:pulseState.cnnFGRating||pulseState.cnnFG!==null?(pulseState.cnnFG<=14?'EXTREME FEAR':pulseState.cnnFG<=25?'FEAR':pulseState.cnnFG<=40?'FEAR':'NEUTRAL'):'',color:pulseState.cnnFG!==null?fearColor(pulseState.cnnFG):'#94a3b8',type:pulseState.cnnFGDate?'auto':'manual',date:pulseState.cnnFGDate||''},
+    {label:'QQQ',val:pulseState.qqqPrice?'$'+pulseState.qqqPrice.toFixed(2):'--',sub:'',color:'#a855f7',type:'auto',date:pulseState.qqqDate||'',chg:pulseState.qqqChange,sparkData:pulseState.qqqSpark,deltaKey:'qqqPrice'},
+    {label:'IWM',val:pulseState.iwmPrice?'$'+pulseState.iwmPrice.toFixed(2):'--',sub:'',color:'#3b82f6',type:'auto',date:pulseState.iwmDate||'',chg:pulseState.iwmChange,sparkData:pulseState.iwmSpark,deltaKey:'iwmPrice'},
+    {label:'BTC',val:pulseState.btcPrice?'$'+Math.round(pulseState.btcPrice).toLocaleString():'--',sub:pulseState.btcChange24h?fmtChg(pulseState.btcChange24h)+' 24h':'',color:pulseState.btcChange24h?(pulseState.btcChange24h>=0?'#22c55e':'#ef4444'):'#94a3b8',type:'auto',date:pulseState.btcDate||'',deltaKey:'btcPrice'},
+    {label:'Oil (WTI)',val:pulseState.oilPrice?'$'+pulseState.oilPrice.toFixed(2):'--',sub:'',color:pulseState.oilPrice?(pulseState.oilPrice>=90?'#ef4444':pulseState.oilPrice>=80?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.oilDate||'',chg:pulseState.oilChange,sparkData:pulseState.oilSpark,deltaKey:'oilPrice'},
+    {label:'10Y Yield',val:pulseState.tnx?pulseState.tnx.toFixed(2)+'%':'--',sub:pulseState.tnx?(pulseState.tnx>=4.6?'DANGER ZONE':pulseState.tnx>=4.3?'ELEVATED':'NORMAL'):'',color:pulseState.tnx?(pulseState.tnx>=4.6?'#ef4444':pulseState.tnx>=4.3?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.tnxDate||'',sparkData:pulseState.tnxSpark,deltaKey:'tnx'},
+    {label:'Gold',val:pulseState.goldPrice?'$'+Math.round(pulseState.goldPrice).toLocaleString():'--',sub:'Safe haven',color:'#f59e0b',type:'auto',date:pulseState.goldDate||'',sparkData:pulseState.goldSpark,deltaKey:'goldPrice'},
+    {label:'Crypto F&G',val:pulseState.cryptoFG!==null?pulseState.cryptoFG:'--',sub:pulseState.cryptoFGLabel||'',color:pulseState.cryptoFG!==null?fearColor(pulseState.cryptoFG):'#94a3b8',type:'auto',date:pulseState.cryptoFGDate||'',deltaKey:'cryptoFG'},
+    {label:'CNN F&G',val:pulseState.cnnFG!==null?pulseState.cnnFG:'--',sub:pulseState.cnnFGRating||pulseState.cnnFG!==null?(pulseState.cnnFG<=14?'EXTREME FEAR':pulseState.cnnFG<=25?'FEAR':pulseState.cnnFG<=40?'FEAR':'NEUTRAL'):'',color:pulseState.cnnFG!==null?fearColor(pulseState.cnnFG):'#94a3b8',type:pulseState.cnnFGDate?'auto':'manual',date:pulseState.cnnFGDate||'',deltaKey:'cnnFG'},
     {label:'StockTwits',val:pulseState.stwSpy?'Bear '+pulseState.stwSpy.bear+'%':'--',sub:pulseState.stwSpy?pulseState.stwSpy.total+' posts':'',color:pulseState.stwSpy?(pulseState.stwSpy.bear>=60?'#ef4444':pulseState.stwSpy.bear>=45?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:'Live'},
   ];
   document.getElementById('pulse-cards').innerHTML=cards.map(c=>`
-    <div class="snap-card">
+    <div class="snap-card${c.deltaKey&&(pulseState.deltas?.[c.deltaKey]?.significant??false)?' delta-sig':''}">
       <div class="top-line" style="background:linear-gradient(90deg,transparent,${c.color},transparent)"></div>
       <div style="display:flex;justify-content:space-between;align-items:start">
         <div style="flex:1;min-width:0">
           <div class="label">${c.label}</div>
-          <div class="value" style="color:${c.color};font-size:20px">${c.val}</div>
+          <div class="value" style="color:${c.color};font-size:20px">${c.val}${c.deltaKey?deltaHTML(c.deltaKey):''}</div>
           <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
             ${c.chg!==undefined&&c.chg!==null?`<span style="font-size:11px;font-weight:700;color:${chgCol(c.chg)};font-family:var(--mono)">${fmtChg(c.chg)}</span>`:''}
             <span class="sub">${c.sub}</span>
@@ -1387,6 +1396,7 @@ function recalcScore(){
   // cap at 10 so the display stays bounded.
   const rawScore=clusterMax.A*clusterWeights.A+clusterMax.B*clusterWeights.B+clusterMax.C*clusterWeights.C+clusterMax.D*clusterWeights.D;
   const total=Math.min(10,rawScore*10);
+  pulseState.score=total;
 
   // BUY gate: A>0.5 AND B>0.5 AND (C>0.5 OR D>0.5)
   const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
@@ -1538,6 +1548,77 @@ function renderRollingOverBanner(dirs){
   }
 }
 
+// ===== DELTA TRACKING =====
+// Snapshots the current state before each fetch, then computes what moved.
+
+function snapshotPrevious(){
+  const keys=['score','spyPrice','vix','vixRatio','cnnFG','cryptoFG',
+    'putCallRatio','hySpreads','rsiSPY','rsiES','rsiNQ','rsiQQQ','rsiIWM',
+    'esPrice','nqPrice','qqqPrice','iwmPrice',
+    'oilPrice','goldPrice','btcPrice','tnx','weeklyRsiSPY'];
+  const snap={};
+  keys.forEach(k=>{if(pulseState[k]!=null) snap[k]=pulseState[k];});
+  snap.timestamp=Date.now();
+  try{localStorage.setItem('btf-prev-state',JSON.stringify(snap));}catch(e){}
+}
+
+function calcDeltas(){
+  try{
+    const prev=JSON.parse(localStorage.getItem('btf-prev-state'));
+    if(!prev||!prev.timestamp) return {};
+    const elapsed=(Date.now()-prev.timestamp)/60000;
+    const numKeys=['score','spyPrice','vix','vixRatio','cnnFG','cryptoFG',
+      'hySpreads','rsiSPY','rsiES','rsiNQ','rsiQQQ','rsiIWM',
+      'esPrice','nqPrice','qqqPrice','iwmPrice',
+      'oilPrice','goldPrice','btcPrice','tnx'];
+    const d={};
+    numKeys.forEach(k=>{
+      if(pulseState[k]!=null&&prev[k]!=null){
+        const delta=pulseState[k]-prev[k];
+        const pct=prev[k]!==0?(delta/Math.abs(prev[k]))*100:0;
+        d[k]={prev:prev[k],current:pulseState[k],delta,pctChg:pct,
+          direction:delta>0.001?'up':delta<-0.001?'down':'flat',
+          significant:Math.abs(pct)>2};
+      }
+    });
+    d.elapsed=elapsed;
+    pulseState.deltas=d;
+    return d;
+  }catch(e){return {};}
+}
+
+function deltaHTML(key){
+  const d=pulseState.deltas?.[key];
+  if(!d||Math.abs(d.delta)<0.001) return '';
+  const up=d.direction==='up';
+  const arr=up?'▲':'▼';
+  // vix and hySpreads: lower = recovering = green
+  const isReverse=(key==='vix'||key==='hySpreads');
+  const isScore=(key==='score');
+  let col;
+  if(isScore) col=up?'#f59e0b':'#94a3b8';
+  else if(isReverse) col=up?'#ef4444':'#22c55e';
+  else col=up?'#22c55e':'#ef4444';
+  const abs=Math.abs(d.delta);
+  const dec=abs<1?2:abs<10?1:0;
+  const dStr=(d.delta>0?'+':'')+d.delta.toFixed(dec);
+  return '<span style="color:'+col+';font-size:0.65em;margin-left:4px;vertical-align:middle;font-weight:700;opacity:0.85">'+arr+dStr+'</span>';
+}
+
+function updateFetchTimestamp(){
+  const el=document.getElementById('last-updated');
+  const ds=document.getElementById('delta-status');
+  const now=new Date();
+  if(el) el.textContent='Updated '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  const d=pulseState.deltas;
+  if(!d||!ds) return;
+  const elapsed=d.elapsed!=null?Math.round(d.elapsed):null;
+  if(elapsed==null||elapsed<=0){ds.style.display='none';return;}
+  const sig=Object.entries(d).filter(([k,v])=>k!=='elapsed'&&v&&v.significant).length;
+  ds.style.display='block';
+  ds.textContent='Changes since last fetch ('+elapsed+' min ago): '+(sig>0?sig+' metric'+(sig!==1?'s':'')+' moved >2%':'no significant moves');
+}
+
 // Global timeout helper for fetch calls
 function fetchWithTimeout(url,ms=8000){
   const controller=new AbortController();
@@ -1550,6 +1631,7 @@ async function fetchAllData(){
   const status=document.getElementById('fetch-status');
   btn.style.opacity='0.5';btn.textContent='⟳ Fetching...';
   status.textContent='Connecting to free APIs...';
+  snapshotPrevious();
   const log=[];
   const SPY_ATH=698;
 
@@ -2020,6 +2102,8 @@ async function fetchAllData(){
   signalDirs=computeDirections();
   renderRollingOverBanner(signalDirs);
   recalcScore();
+  calcDeltas();
+  updateFetchTimestamp();
 
   // Fetch technical confluence data (3-month OHLCV, RSI, support levels)
   fetchTechnicalConfluence().catch(()=>{});
