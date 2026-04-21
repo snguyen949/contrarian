@@ -510,6 +510,14 @@
     .hero-center { gap:8px; }
   }
 
+  /* ===== SCENARIO SIMULATOR ===== */
+  #scenario-simulator .ss-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); outline: none; margin: 6px 0; }
+  #scenario-simulator .ss-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #a855f7; cursor: pointer; border: 2px solid rgba(168,85,247,0.4); box-shadow: 0 0 8px rgba(168,85,247,0.35); }
+  #scenario-simulator .ss-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #a855f7; cursor: pointer; border: 2px solid rgba(168,85,247,0.4); }
+  #scenario-simulator .ss-row { display: grid; grid-template-columns: 110px 1fr 60px 60px 60px; gap: 10px; align-items: center; padding: 6px 0; font-size: 10px; }
+  #scenario-simulator .ss-preset-btn { padding: 5px 10px; border-radius: 6px; font-size: 9px; font-weight: 700; cursor: pointer; font-family: var(--sans); border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.08); color: #a855f7; letter-spacing: 0.5px; }
+  #scenario-simulator .ss-preset-btn:hover { background: rgba(168,85,247,0.15); }
+
   /* ===== POSITION SIZER ===== */
   #position-sizer .ps-instr-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:8px; }
   #position-sizer .ps-instr-label { font-size:8px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
@@ -643,6 +651,9 @@
     /* Position sizer responsive */
     #position-sizer .ps-instr-grid { grid-template-columns: repeat(3, 1fr) !important; }
     #position-sizer .ps-summary { flex-direction: column; align-items: flex-start !important; }
+    /* Scenario simulator responsive */
+    #scenario-simulator .ss-row { grid-template-columns: 90px 1fr 50px !important; row-gap: 2px; }
+    #scenario-simulator .ss-row .ss-cur, #scenario-simulator .ss-row .ss-delta { grid-column: 1 / -1; font-size: 9px !important; padding-left: 100px; }
   }
 
   @media (max-width: 480px) {
@@ -673,6 +684,8 @@
     /* Position sizer compact */
     #position-sizer .ps-instr-grid { grid-template-columns: repeat(2, 1fr) !important; }
     #position-sizer .ps-instr-val { font-size: 14px !important; }
+    /* Scenario simulator compact */
+    #scenario-simulator .ss-row { grid-template-columns: 80px 1fr 45px !important; font-size: 9px !important; gap: 6px !important; }
   }
 </style>
 </head>
@@ -1258,6 +1271,9 @@
 
   <!-- ============ TOOLS TAB ============ -->
   <div id="tab-tools" class="tab-panel">
+
+    <!-- Scenario Simulator — interactive "what if" sliders -->
+    <div class="panel" id="scenario-simulator" style="border-color:rgba(168,85,247,0.2)"></div>
 
     <!-- Alert Thresholds -->
     <div class="panel" style="border-color:rgba(239,68,68,0.15)">
@@ -3248,6 +3264,7 @@ async function fetchAllData(){
   renderScoreTrajectory();
   renderRegimeBanner();
   renderPositionSizer();
+  try{ _ssUpdate(); }catch(e){} // refresh simulator with fresh current values
   // Update direction-aware detection (history → arrows/badges/banner)
   captureSignalHistory();
   signalDirs=computeDirections();
@@ -7630,6 +7647,360 @@ function renderPositionSizer(){
   `;
 }
 
+// ===== SCENARIO SIMULATOR =====
+// Interactive "what-if" sliders that let users see how their score would
+// change if VIX hit 45, CNN F&G dropped to 5, etc. — without waiting for
+// real data. Uses override/restore pattern on pulseState so no changes to
+// the signals array are needed. Real-time recompute on every slider input.
+
+const SS_SCENARIOS = [
+  { id:'sim-vix',       label:'VIX',         key:'vix',           min:10,    max:90,   step:0.5, fmt:v=>v.toFixed(1),  getCur:()=>pulseState.vix },
+  { id:'sim-cnnfg',     label:'CNN F&G',     key:'cnnFG',         min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.cnnFG },
+  { id:'sim-cryptofg',  label:'Crypto F&G',  key:'cryptoFG',      min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.cryptoFG },
+  { id:'sim-vixratio',  label:'VIX/VIX3M',   key:'vixRatio',      min:0.7,   max:1.3,  step:0.01,fmt:v=>v.toFixed(3),  getCur:()=>pulseState.vixRatio },
+  { id:'sim-spy',       label:'SPY Price',   key:'spyPrice',      min:400,   max:750,  step:1,   fmt:v=>'$'+Math.round(v), getCur:()=>pulseState.spyPrice },
+  { id:'sim-hyspread',  label:'HY Spread',   key:'hySpreads',     min:200,   max:1200, step:10,  fmt:v=>Math.round(v)+'bp', getCur:()=>pulseState.hySpreads },
+  { id:'sim-nfci',      label:'NFCI',        key:'nfci',          min:-1,    max:1,    step:0.01,fmt:v=>v.toFixed(2),  getCur:()=>pulseState.nfci },
+  { id:'sim-naaim',     label:'NAAIM',       key:'naaimExposure', min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.naaimExposure },
+  { id:'sim-aaiiBear',  label:'AAII Bear %', key:'aaiiBear',      min:20,    max:70,   step:1,   fmt:v=>Math.round(v)+'%', getCur:()=>pulseState.aaiiBear },
+  { id:'sim-putcall',   label:'Put/Call',    key:'putCallRatio',  min:0.5,   max:1.8,  step:0.01,fmt:v=>v.toFixed(2),  getCur:()=>pulseState.putCallRatio },
+  { id:'sim-skew',      label:'SKEW',        key:'skew',          min:100,   max:170,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.skew },
+];
+
+// Preset historical bottoms — snap sliders to these values
+const SS_PRESETS = {
+  COVID:       { vix:80, cnnFG:3,  cryptoFG:11, vixRatio:1.15, spyPrice:480, hySpreads:1100, nfci:0.7,  naaimExposure:12, aaiiBear:60, putCallRatio:1.45, skew:108 },
+  Tariff:      { vix:60, cnnFG:3,  cryptoFG:10, vixRatio:1.08, spyPrice:482, hySpreads:650,  nfci:0.35, naaimExposure:18, aaiiBear:62, putCallRatio:1.40, skew:112 },
+  Iran:        { vix:31, cnnFG:15, cryptoFG:11, vixRatio:0.95, spyPrice:656, hySpreads:420,  nfci:-0.1, naaimExposure:55, aaiiBear:45, putCallRatio:1.10, skew:128 },
+  FlashCrash:  { vix:46, cnnFG:10, cryptoFG:18, vixRatio:1.03, spyPrice:585, hySpreads:500,  nfci:0.15, naaimExposure:30, aaiiBear:52, putCallRatio:1.25, skew:118 },
+};
+
+function calcSimulatedScore(overrides){
+  // Temporarily swap pulseState values, run full scoring, then restore
+  const saved = {};
+  const keys = Object.keys(overrides || {});
+  keys.forEach(k => { saved[k] = pulseState[k]; pulseState[k] = overrides[k]; });
+
+  // Derive spyPctFromATH if SPY price is overridden
+  const savedPct = pulseState.spyPctFromATH;
+  if(overrides && overrides.spyPrice != null){
+    pulseState.spyPctFromATH = ((698 - overrides.spyPrice) / 698) * 100;
+  }
+
+  let result;
+  try {
+    const clusterMax = {A:0, B:0, C:0, D:0};
+    const contribs = [];
+    signals.forEach(s => {
+      let sc = 0;
+      try { sc = Math.min(1, s.score() || 0); } catch(e) {}
+      contribs.push({ id:s.id, name:s.name, cluster:s.cluster, score:sc });
+      if(s.cluster && clusterMax[s.cluster] !== undefined && sc > clusterMax[s.cluster]){
+        clusterMax[s.cluster] = sc;
+      }
+    });
+    const rawScore = clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20;
+    const boost = pulseState.contrarianBoost || 0;
+    let tcBonus = 0;
+    try { tcBonus = (signals.find(s=>s.id==='tripleConfluence')?.score()) || 0; } catch(e) {}
+    const velBoost = (pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
+    const total = Math.min(10, rawScore*10 + boost + tcBonus + velBoost);
+    result = { score: total, rawScore, clusterMax, contribs: contribs.sort((a,b)=>b.score - a.score) };
+  } finally {
+    keys.forEach(k => { pulseState[k] = saved[k]; });
+    pulseState.spyPctFromATH = savedPct;
+  }
+  return result;
+}
+
+function _ssGetOverrides(){
+  const overrides = {};
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(el && el.value !== '') overrides[s.key] = parseFloat(el.value);
+  });
+  return overrides;
+}
+
+function _ssUpdate(){
+  const overrides = _ssGetOverrides();
+  const sim = calcSimulatedScore(overrides);
+  const current = calcSimulatedScore({});
+  const curScore = current.score;
+  const simScore = sim.score;
+
+  // Update each row's sim value + delta
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(!el) return;
+    const simVal = parseFloat(el.value);
+    const cur = s.getCur();
+    const simDisp = document.getElementById(s.id + '-sim');
+    const delDisp = document.getElementById(s.id + '-delta');
+    if(simDisp) simDisp.textContent = s.fmt(simVal);
+    if(delDisp){
+      if(cur == null || isNaN(cur)){
+        delDisp.textContent = '—';
+        delDisp.style.color = 'rgba(255,255,255,0.2)';
+      } else {
+        const d = simVal - cur;
+        const absD = Math.abs(d);
+        const dec = absD < 1 ? 2 : absD < 10 ? 1 : 0;
+        delDisp.textContent = (d>0?'+':'') + d.toFixed(dec);
+        delDisp.style.color = Math.abs(d) < 0.001 ? 'rgba(255,255,255,0.2)' : (d>0 ? '#22c55e' : '#ef4444');
+      }
+    }
+  });
+
+  // Summary card — score diff, verdict, top contributors
+  const curEl = document.getElementById('ss-current-score');
+  const simEl = document.getElementById('ss-sim-score');
+  const curBarEl = document.getElementById('ss-current-bar');
+  const simBarEl = document.getElementById('ss-sim-bar');
+  const verdictEl = document.getElementById('ss-verdict');
+  const contribEl = document.getElementById('ss-contribs');
+  const narrEl = document.getElementById('ss-narrative');
+
+  if(curEl) curEl.textContent = curScore.toFixed(1);
+  if(simEl) simEl.textContent = simScore.toFixed(1);
+  if(curBarEl) curBarEl.style.width = (curScore*10) + '%';
+  if(simBarEl) simBarEl.style.width = (simScore*10) + '%';
+
+  // Verdict
+  let regKey = 'UNKNOWN';
+  try { regKey = classifyRegime(); } catch(e) {}
+  const threshold = (typeof REGIMES !== 'undefined' && REGIMES[regKey]) ? REGIMES[regKey].threshold : 7;
+  const regLabel = (typeof REGIMES !== 'undefined' && REGIMES[regKey]?.label) || regKey;
+
+  let verdict, verdictCol;
+  if(simScore >= threshold)     { verdict = 'Would trigger STRONG BUY'; verdictCol = '#22c55e'; }
+  else if(simScore >= threshold*0.7) { verdict = 'Would trigger SCALE IN'; verdictCol = '#f59e0b'; }
+  else                          { verdict = 'Still WAIT'; verdictCol = '#94a3b8'; }
+
+  if(verdictEl){
+    verdictEl.innerHTML = '<span style="color:'+verdictCol+';font-weight:800">'+verdict+'</span>'
+      + ' <span style="color:rgba(255,255,255,0.35);font-size:10px">on '+regLabel+' type (threshold '+threshold.toFixed(1)+')</span>';
+  }
+
+  // Top contributors — compare sim vs current
+  if(contribEl){
+    const curContribs = {};
+    current.contribs.forEach(c => { curContribs[c.id] = c.score; });
+    const deltas = sim.contribs.map(c => {
+      const cur = curContribs[c.id] || 0;
+      return { id:c.id, name:c.name, cluster:c.cluster, sim:c.score, cur, delta:c.score - cur };
+    }).filter(d => Math.abs(d.delta) > 0.05).sort((a,b)=>Math.abs(b.delta) - Math.abs(a.delta)).slice(0,4);
+
+    if(deltas.length === 0){
+      contribEl.innerHTML = '<div style="font-size:10px;color:rgba(255,255,255,0.25);padding:4px 0">Drag a slider to see which signals change.</div>';
+    } else {
+      contribEl.innerHTML = deltas.map(d => {
+        const arrow = d.delta > 0 ? '▲' : '▼';
+        const col = d.delta > 0 ? '#22c55e' : '#ef4444';
+        return '<div style="font-size:10px;padding:3px 0;color:rgba(255,255,255,0.55)">'
+          +'<span style="color:'+col+';font-family:var(--mono);font-weight:700;margin-right:6px">'+arrow+' '+(d.delta>0?'+':'')+d.delta.toFixed(2)+'</span>'
+          +'<span>'+d.name+'</span>'
+          +'<span style="color:rgba(255,255,255,0.3);margin-left:6px">(current '+d.cur.toFixed(2)+' → sim '+d.sim.toFixed(2)+')</span>'
+          +'</div>';
+      }).join('');
+    }
+  }
+
+  // Narrative
+  if(narrEl){
+    const diff = simScore - curScore;
+    const diffAbs = Math.abs(diff);
+    if(diffAbs < 0.1){
+      narrEl.innerHTML = '<span style="color:rgba(255,255,255,0.3);font-size:10px;font-style:italic">Sliders match current state — drag to simulate.</span>';
+    } else {
+      const changed = Object.keys(overrides).filter(k => {
+        const s = SS_SCENARIOS.find(sc => sc.key === k);
+        if(!s) return false;
+        const cur = s.getCur();
+        return cur != null && Math.abs(overrides[k] - cur) > 0.001;
+      });
+      const parts = changed.slice(0,3).map(k => {
+        const s = SS_SCENARIOS.find(sc => sc.key === k);
+        return s.label + ' = ' + s.fmt(overrides[k]);
+      });
+      const phrase = parts.length ? '⚡ If ' + parts.join(' and ') + ', ' : '⚡ ';
+      const triggered = simScore >= threshold
+        ? ' — <span style="color:#22c55e;font-weight:800">triggering STRONG BUY</span>.'
+        : simScore >= threshold*0.7
+          ? ' — <span style="color:#f59e0b;font-weight:800">triggering SCALE IN</span>.'
+          : ' — <span style="color:#94a3b8">still below buy threshold</span>.';
+      narrEl.innerHTML = '<span style="color:rgba(255,255,255,0.55);font-size:10px;font-style:italic">'
+        + phrase + 'score would move from ' + curScore.toFixed(1) + ' to ' + simScore.toFixed(1) + triggered + '</span>';
+    }
+  }
+}
+
+function _ssReset(){
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(!el) return;
+    const cur = s.getCur();
+    if(cur != null) el.value = cur;
+  });
+  _ssUpdate();
+}
+
+function _ssApplyPreset(presetKey){
+  const preset = SS_PRESETS[presetKey];
+  if(!preset) return;
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(!el) return;
+    if(preset[s.key] != null){
+      el.value = Math.max(s.min, Math.min(s.max, preset[s.key]));
+    }
+  });
+  _ssUpdate();
+}
+
+function findBuyTrigger(){
+  // Find the SINGLE slider whose extreme bullish value gives the biggest score boost
+  let regKey = 'UNKNOWN';
+  try { regKey = classifyRegime(); } catch(e) {}
+  const threshold = (typeof REGIMES !== 'undefined' && REGIMES[regKey]) ? REGIMES[regKey].threshold : 7;
+  const current = calcSimulatedScore({});
+  const curScore = current.score;
+
+  if(curScore >= threshold){
+    const narrEl = document.getElementById('ss-narrative');
+    if(narrEl) narrEl.innerHTML = '<span style="color:#22c55e;font-size:10px;font-weight:700">✓ Already above buy threshold ('+threshold.toFixed(1)+').</span>';
+    return;
+  }
+
+  // Bullish extreme for each slider (based on whether higher or lower = more fear)
+  const bullishExtremes = {
+    vix:90, vixRatio:1.3, hySpreads:1200, nfci:1.0, skew:100, aaiiBear:70, putCallRatio:1.8,
+    cnnFG:0, cryptoFG:0, spyPrice:400, naaimExposure:0,
+  };
+
+  // Test each slider at its bullish extreme, cumulatively add until threshold is crossed
+  const sortedImpact = SS_SCENARIOS.map(s => {
+    const over = {};
+    over[s.key] = bullishExtremes[s.key];
+    if(over[s.key] == null) return { s, gain:0 };
+    const r = calcSimulatedScore(over);
+    return { s, gain: r.score - curScore };
+  }).filter(x => x.gain > 0.05).sort((a,b) => b.gain - a.gain);
+
+  // Greedy combine from most impactful
+  const combined = {};
+  let simScore = curScore;
+  const used = [];
+  for(const item of sortedImpact){
+    combined[item.s.key] = bullishExtremes[item.s.key];
+    used.push(item.s);
+    const r = calcSimulatedScore(combined);
+    simScore = r.score;
+    if(simScore >= threshold) break;
+  }
+
+  // Apply the found combination to the sliders
+  Object.keys(combined).forEach(k => {
+    const s = SS_SCENARIOS.find(sc => sc.key === k);
+    if(!s) return;
+    const el = document.getElementById(s.id);
+    if(el) el.value = Math.max(s.min, Math.min(s.max, combined[k]));
+  });
+  _ssUpdate();
+
+  const narrEl = document.getElementById('ss-narrative');
+  if(narrEl){
+    if(simScore >= threshold){
+      narrEl.innerHTML = '<span style="color:#22c55e;font-size:10px;font-weight:700">Found! Maxing ' + used.length + ' signal' + (used.length>1?'s':'') + ' (' + used.map(s=>s.label).join(', ') + ') → score ' + curScore.toFixed(1) + ' → ' + simScore.toFixed(1) + ' (crosses threshold ' + threshold.toFixed(1) + ').</span>';
+    } else {
+      narrEl.innerHTML = '<span style="color:#f59e0b;font-size:10px">Even at max bullish extremes the score only reaches ' + simScore.toFixed(1) + ' (threshold ' + threshold.toFixed(1) + '). Regime-specific signals (e.g. triple confluence) may be missing.</span>';
+    }
+  }
+}
+
+function renderScenarioSimulator(){
+  const el = document.getElementById('scenario-simulator');
+  if(!el) return;
+
+  const rows = SS_SCENARIOS.map(s => {
+    const cur = s.getCur();
+    const val = (cur != null && !isNaN(cur)) ? cur : ((s.min + s.max) / 2);
+    const boundedVal = Math.max(s.min, Math.min(s.max, val));
+    const curDisp = (cur != null && !isNaN(cur)) ? s.fmt(cur) : '—';
+    return '<div class="ss-row">'
+      + '<span style="font-weight:700;color:rgba(255,255,255,0.7)">' + s.label + '</span>'
+      + '<input id="' + s.id + '" type="range" class="ss-slider" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + boundedVal + '" oninput="_ssUpdate()">'
+      + '<span class="ss-cur" style="font-family:var(--mono);color:rgba(255,255,255,0.35);text-align:right">' + curDisp + '</span>'
+      + '<span id="' + s.id + '-sim" style="font-family:var(--mono);color:#a855f7;font-weight:700;text-align:right">' + s.fmt(boundedVal) + '</span>'
+      + '<span id="' + s.id + '-delta" style="font-family:var(--mono);font-size:9px;text-align:right;color:rgba(255,255,255,0.2)">—</span>'
+      + '</div>';
+  }).join('');
+
+  const headerRow = '<div class="ss-row" style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.25);padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:4px">'
+    + '<span></span><span></span>'
+    + '<span style="text-align:right">Current</span>'
+    + '<span style="text-align:right">Simulated</span>'
+    + '<span style="text-align:right">Δ</span>'
+    + '</div>';
+
+  const presetBtns = Object.keys(SS_PRESETS).map(k =>
+    '<button class="ss-preset-btn" onclick="_ssApplyPreset(\'' + k + '\')">' + k + '</button>'
+  ).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div class="panel-title" style="color:#a855f7;margin:0">Scenario Simulator</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="ss-preset-btn" onclick="findBuyTrigger()" style="border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.08);color:#22c55e">⚡ What triggers a BUY?</button>
+        <button class="ss-preset-btn" onclick="_ssReset()" style="border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5)">Reset to Current</button>
+      </div>
+    </div>
+    <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px;line-height:1.5">Drag sliders to see how the score would respond. No API calls — instant feedback. Historical-bottom presets snap all sliders at once.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      <span style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-right:4px;align-self:center">Presets:</span>
+      ${presetBtns}
+    </div>
+
+    ${headerRow}
+    <div style="margin-bottom:14px">${rows}</div>
+
+    <div style="padding:14px;background:rgba(168,85,247,0.04);border:1px solid rgba(168,85,247,0.18);border-radius:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
+        <div>
+          <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Current Score</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <div id="ss-current-score" style="font-family:var(--mono);font-size:22px;font-weight:900;color:rgba(255,255,255,0.5)">--</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.3)">/ 10</div>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:4px;overflow:hidden">
+            <div id="ss-current-bar" style="width:0%;height:100%;background:rgba(255,255,255,0.4);transition:width 0.2s ease"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Simulated Score</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <div id="ss-sim-score" style="font-family:var(--mono);font-size:22px;font-weight:900;color:#a855f7">--</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.3)">/ 10</div>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:4px;overflow:hidden">
+            <div id="ss-sim-bar" style="width:0%;height:100%;background:#a855f7;transition:width 0.2s ease"></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-bottom:10px"><span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Verdict: </span><span id="ss-verdict" style="font-size:11px">—</span></div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Biggest signal changes</div>
+        <div id="ss-contribs"><div style="font-size:10px;color:rgba(255,255,255,0.25);padding:4px 0">Drag a slider to see which signals change.</div></div>
+      </div>
+      <div id="ss-narrative"><span style="color:rgba(255,255,255,0.3);font-size:10px;font-style:italic">Sliders match current state — drag to simulate.</span></div>
+    </div>
+  `;
+
+  // Initial compute
+  _ssUpdate();
+}
+
 // ===== REGIME CLASSIFIER =====
 // Auto-detects market regime (CRISIS / RECOVERY / BULL / RANGE) from score,
 // drawdown, VIX, and score velocity. Displays sticky banner with color-coded
@@ -8126,6 +8497,7 @@ function renderGroqSentimentMix(mixHistory, labeledArr){
 propagateData();
 recalcScore();
 try{ renderPositionSizer(); }catch(e){}
+try{ renderScenarioSimulator(); }catch(e){ console.error('[init] scenario sim:', e); }
 // Then immediately fetch fresh live data — no button click needed
 fetchAllData();
 // Restore auto-refresh preference from localStorage (default: 5 min)
