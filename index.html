@@ -510,6 +510,13 @@
     .hero-center { gap:8px; }
   }
 
+  /* ===== DELTA ARROWS ===== */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: none; }
+    40% { box-shadow: 0 0 16px rgba(34,211,238,0.22), 0 0 4px rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.38) !important; }
+  }
+  .snap-card.delta-sig { animation: pulse-glow 0.9s ease-in-out 3; }
+
   /* ===== GROQ SENTIMENT MIX PANEL ===== */
   #groq-sentiment-panel .gsm-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
   #groq-sentiment-panel .gsm-legend { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
@@ -687,9 +694,10 @@
         <button class="ar-pill" data-mode="15min" onclick="setAutoRefreshMode('15min')">15 min</button>
       </div>
     </div>
-    <div style="margin-bottom:20px">
+    <div style="margin-bottom:6px">
       <span id="last-updated" style="font-size:10px;color:rgba(255,255,255,0.2)"></span>
     </div>
+    <div id="delta-status" style="font-size:9px;color:rgba(255,255,255,0.2);margin-bottom:14px;display:none"></div>
 
     <!-- Fetch log (appears after fetch) -->
     <div id="fetch-log" style="margin-bottom:16px"></div>
@@ -1424,13 +1432,17 @@ function renderPulseCards(){
     {label:'VIX/VIX3M',val:pulseState.vixRatio?pulseState.vixRatio.toFixed(3):'--',sub:pulseState.vixRatio?(pulseState.vixRatio>1.0?'⚡ BACKWARDATION — peak panic':pulseState.vixRatio>0.92?'Elevated — watch':'Contango — normal'):'Term structure',color:pulseState.vixRatio?(pulseState.vixRatio>1.0?'#ef4444':pulseState.vixRatio>0.92?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:''},
     {label:'SKEW',val:pulseState.skew?pulseState.skew.toFixed(0):'--',sub:pulseState.skew?(pulseState.skew<120?'Low tail risk = fear exhausting':pulseState.skew>145?'High tail risk':'Normal'):'Tail risk',color:pulseState.skew?(pulseState.skew<120?'#22c55e':pulseState.skew>145?'#ef4444':'#94a3b8'):'#94a3b8',type:'auto',date:''},
   ];
-  document.getElementById('pulse-cards').innerHTML=cards.map(c=>`
-    <div class="snap-card">
+  document.getElementById('pulse-cards').innerHTML=cards.map(c=>{
+    const _dk = (typeof _DELTA_LABEL_MAP !== 'undefined') ? _DELTA_LABEL_MAP[c.label] : null;
+    const _dHtml = (_dk && typeof deltaHTML === 'function') ? deltaHTML(_dk) : '';
+    const _dSig = (_dk && pulseState.deltas && pulseState.deltas[_dk] && pulseState.deltas[_dk].significant) ? ' delta-sig' : '';
+    return `
+    <div class="snap-card${_dSig}">
       <div class="top-line" style="background:linear-gradient(90deg,transparent,${c.color},transparent)"></div>
       <div style="display:flex;justify-content:space-between;align-items:start">
         <div style="flex:1;min-width:0">
           <div class="label">${c.label}</div>
-          <div class="value" style="color:${c.color};font-size:20px">${c.val}</div>
+          <div class="value" style="color:${c.color};font-size:20px">${c.val}${_dHtml}</div>
           <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
             ${c.chg!==undefined&&c.chg!==null?`<span style="font-size:11px;font-weight:700;color:${chgCol(c.chg)};font-family:var(--mono)">${fmtChg(c.chg)}</span>`:''}
             <span class="sub">${c.sub}</span>
@@ -1443,7 +1455,8 @@ function renderPulseCards(){
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function recalcScore(){
@@ -3145,6 +3158,10 @@ async function fetchAllData(){
   try{ localStorage.setItem('contrarianCache',JSON.stringify({data:{...pulseState},ts:Date.now()})); }catch(e){}
   // Persist any API keys entered this session
   saveApiKeys();
+
+  // Build per-card deltas from previous snapshot (before first render so arrows show)
+  calcDeltas(_preSnap);
+  renderDeltaStatus();
 
   // Propagate data across all tabs
   propagateData();
@@ -7294,6 +7311,71 @@ if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix(
 // Wire alerts into propagateData
 const _origPropagate=propagateData;
 propagateData=function(){_origPropagate();checkAlerts();};
+
+// ===== PER-CARD DELTA ARROWS =====
+// Complements the existing "What Changed" panel with inline arrows on each pulse
+// card. Reads from prevFetchSnapshot (already maintained for What Changed) and
+// builds pulseState.deltas so renderPulseCards() can show arrows + glow.
+
+// Map pulse card label → pulseState key (for delta lookup)
+const _DELTA_LABEL_MAP = {
+  'SPY':'spyPrice', 'VIX':'vix', 'QQQ':'qqqPrice', 'IWM':'iwmPrice',
+  'BTC':'btcPrice', 'Oil (WTI)':'oilPrice', '10Y Yield':'tnx',
+  'Gold':'goldPrice', 'Crypto F&G':'cryptoFG', 'CNN F&G':'cnnFG',
+  'VIX/VIX3M':'vixRatio', 'SKEW':'skew'
+};
+
+// Reversed direction: green when DOWN (higher = more fear)
+const _DELTA_REVERSE_KEYS = new Set(['vix','vixRatio','hySpreads','nfci','tnx','skew']);
+
+function calcDeltas(prevSnap){
+  pulseState.deltas = {};
+  if(!prevSnap || !prevSnap.ts) return;
+  const keys = ['spyPrice','vix','vixRatio','cnnFG','cryptoFG','nfci','hySpreads',
+    'tnx','aaiiBull','aaiiBear','putCallRatio','naaimExposure','btcPrice',
+    'oilPrice','goldPrice','qqqPrice','iwmPrice','skew'];
+  let sigCount = 0;
+  keys.forEach(k=>{
+    const prev = prevSnap[k];
+    const cur = pulseState[k];
+    if(prev==null || cur==null || isNaN(prev) || isNaN(cur)) return;
+    const delta = cur - prev;
+    const pct = Math.abs(prev) > 0 ? (delta / Math.abs(prev)) * 100 : 0;
+    const direction = delta > 0.001 ? 'up' : delta < -0.001 ? 'down' : 'flat';
+    const significant = Math.abs(pct) > 2;
+    if(significant) sigCount++;
+    pulseState.deltas[k] = { prev, current:cur, delta, pctChg:pct, direction, significant };
+  });
+  pulseState.deltas._ts = prevSnap.ts;
+  pulseState.deltas._sigCount = sigCount;
+}
+
+function deltaHTML(key){
+  const d = pulseState.deltas && pulseState.deltas[key];
+  if(!d || Math.abs(d.delta) < 0.001) return '';
+  const up = d.direction === 'up';
+  const arr = up ? '▲' : '▼';
+  const isReverse = _DELTA_REVERSE_KEYS.has(key);
+  const col = isReverse
+    ? (up ? '#ef4444' : '#22c55e')
+    : (up ? '#22c55e' : '#ef4444');
+  const abs = Math.abs(d.delta);
+  const dec = abs < 1 ? 2 : abs < 10 ? 1 : 0;
+  const dStr = (d.delta > 0 ? '+' : '') + d.delta.toFixed(dec);
+  return '<span style="color:'+col+';font-size:9px;margin-left:4px;font-weight:700;opacity:0.85;font-family:var(--mono);vertical-align:middle">'+arr+dStr+'</span>';
+}
+
+function renderDeltaStatus(){
+  const el = document.getElementById('delta-status');
+  if(!el) return;
+  const d = pulseState.deltas;
+  if(!d || !d._ts) { el.style.display='none'; return; }
+  const mins = Math.max(1, Math.round((Date.now() - d._ts)/60000));
+  const n = d._sigCount || 0;
+  if(n === 0) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-weight:600">'+n+'</span> metrics moved &gt;2% since last fetch <span style="color:rgba(255,255,255,0.15)">('+mins+' min ago)</span>';
+}
 
 // ===== GROQ HEADLINE SENTIMENT MIX =====
 // Derives 6-label classification from existing Groq `sentiment` floats (-1..+1)
