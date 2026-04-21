@@ -510,6 +510,10 @@
     .hero-center { gap:8px; }
   }
 
+  /* ===== SCORE TRAJECTORY ===== */
+  #score-trajectory .st-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:4px; }
+  #score-trajectory .st-stats > div { background:rgba(255,255,255,0.03); border-radius:6px; padding:8px 10px; }
+
   /* ===== DELTA ARROWS ===== */
   @keyframes pulse-glow {
     0%, 100% { box-shadow: none; }
@@ -597,6 +601,8 @@
     #groq-sentiment-panel p { display: none; }
     #groq-sentiment-panel .gsm-header { flex-direction: column !important; align-items: flex-start !important; }
     #groq-sentiment-panel .gsm-legend { justify-content: flex-start !important; }
+    /* Score trajectory */
+    #score-trajectory .st-stats { grid-template-columns: 1fr 1fr !important; }
   }
 
   @media (max-width: 480px) {
@@ -618,6 +624,9 @@
     /* Groq sentiment panel compact */
     #groq-sentiment-panel .gsm-timeline-row { gap: 4px !important; }
     #groq-sentiment-panel .gsm-phase-label { min-width: 80px !important; font-size: 8px !important; }
+    /* Score trajectory compact */
+    #score-trajectory .st-stats { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+    #score-trajectory .st-stats > div { padding: 6px 8px !important; }
   }
 </style>
 </head>
@@ -791,6 +800,9 @@
 
     <!-- Conviction Meter — unified rating from all systems -->
     <div id="conviction-meter-panel" style="margin-top:12px"></div>
+
+    <!-- SCORE TRAJECTORY — tracks score over time, detects rollover -->
+    <div id="score-trajectory" class="panel" style="display:none;border-color:rgba(168,85,247,0.15)"></div>
 
     <!-- Live metric cards grid -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:24px" id="pulse-cards"></div>
@@ -1482,7 +1494,10 @@ function recalcScore(){
   const boost=pulseState.contrarianBoost||0;
   // Triple Confluence bonus — uncapped signal, added directly (max +2.0)
   const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
-  const total=Math.min(10, rawScore*10 + boost + tcBonus);
+  // Velocity boost: +0.5 when previous fetch confirmed score rollover (lag-1 design)
+  const velBoost=(pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
+  const total=Math.min(10, rawScore*10 + boost + tcBonus + velBoost);
+  pulseState.score=total;
   // BUY gate: A + B + (C or D) must all be > 0.5
   const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
   const activeClusters=['A','B','C','D'].filter(c=>clusterMax[c]>0.5).length;
@@ -3163,9 +3178,15 @@ async function fetchAllData(){
   calcDeltas(_preSnap);
   renderDeltaStatus();
 
+  // Pre-compute score velocity from OLD history (lag-1) so recalcScore can apply velBoost
+  try{ pulseState.scoreVelocity=calcScoreVelocity(JSON.parse(localStorage.getItem('btf-score-history')||'[]')); }catch(e){ pulseState.scoreVelocity=null; }
+
   // Propagate data across all tabs
   propagateData();
   recalcScore();
+  // Record new entry AFTER recalcScore sets pulseState.score
+  recordScoreHistory();
+  renderScoreTrajectory();
   // Update direction-aware detection (history → arrows/badges/banner)
   captureSignalHistory();
   signalDirs=computeDirections();
@@ -7311,6 +7332,108 @@ if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix(
 // Wire alerts into propagateData
 const _origPropagate=propagateData;
 propagateData=function(){_origPropagate();checkAlerts();};
+
+// ===== SCORE TRAJECTORY =====
+// Tracks the composite score over time (up to 50 entries). Detects rollover
+// (score peaked then declining) which is a timing signal for bottoming. When
+// rollover is confirmed with peak >= 5.0, recalcScore() applies +0.5 velBoost.
+
+function recordScoreHistory(){
+  const KEY='btf-score-history';
+  let hist=[];
+  try{ hist=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){}
+  hist.push({
+    timestamp:Date.now(),
+    score:pulseState.score,
+    vix:pulseState.vix,
+    spyPrice:pulseState.spyPrice,
+    fng:pulseState.cnnFG ?? pulseState.cryptoFG ?? null,
+  });
+  if(hist.length>50) hist=hist.slice(-50);
+  try{ localStorage.setItem(KEY,JSON.stringify(hist)); }catch(e){}
+  return hist;
+}
+
+function calcScoreVelocity(history){
+  if(!history||history.length<3) return null;
+  const recent=history.slice(-5);
+  const scores=recent.map(h=>h.score).filter(s=>s!=null&&!isNaN(s));
+  if(scores.length<3) return null;
+  let totalChange=0;
+  for(let i=1;i<scores.length;i++) totalChange+=scores[i]-scores[i-1];
+  const velocity=Math.round((totalChange/(scores.length-1))*100)/100;
+  const maxIdx=scores.indexOf(Math.max(...scores));
+  const rollingOver=maxIdx>0 && maxIdx<scores.length-1 && scores[scores.length-1]<scores[maxIdx];
+  const peak=Math.max(...scores);
+  const peakDistance=Math.round((peak-scores[scores.length-1])*10)/10;
+  let trend;
+  if(velocity>0.3)       trend='FEAR BUILDING — score rising, WAIT';
+  else if(velocity>0.1)  trend='FEAR ACCELERATING — approaching buy zone';
+  else if(velocity>-0.1) trend='PLATEAU — fear peaked, watch for rollover';
+  else if(velocity>-0.3) trend='ROLLING OVER — fear exhausting, BUY ZONE';
+  else                   trend='RECOVERING — score falling fast, opportunity fading';
+  return{velocity,trend,rollingOver,peak,peakDistance,sparkData:scores,isBuySignal:rollingOver&&peak>=5.0};
+}
+
+function renderScoreTrajectory(){
+  const el=document.getElementById('score-trajectory');
+  if(!el) return;
+  let hist=[];
+  try{ hist=JSON.parse(localStorage.getItem('btf-score-history')||'[]'); }catch(e){}
+  if(hist.length<2){ el.style.display='none'; return; }
+  const vel=calcScoreVelocity(hist);
+  if(!vel){ el.style.display='none'; return; }
+  el.style.display='block';
+
+  const recent=hist.slice(-20);
+  const scores=recent.map(h=>h.score).filter(s=>s!=null&&!isNaN(s));
+  const W=300,H=52,pad=4;
+  const minS=Math.min(...scores,0);
+  const maxS=Math.max(...scores,10);
+  const range=maxS-minS||1;
+  const pts=scores.map((s,i)=>{
+    const x=pad+(i/(scores.length-1||1))*(W-pad*2);
+    const y=H-pad-(s-minS)/range*(H-pad*2);
+    return x+','+y;
+  });
+  const lineCol=vel.velocity<-0.1?'#22c55e':vel.velocity>0.1?'#ef4444':'#f59e0b';
+  const svgLine='<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+lineCol+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+
+  let peakDot='';
+  if(vel.rollingOver){
+    const peakIdx=scores.indexOf(Math.max(...scores));
+    const px=pad+(peakIdx/(scores.length-1||1))*(W-pad*2);
+    const py=H-pad-(vel.peak-minS)/range*(H-pad*2);
+    peakDot='<circle cx="'+px+'" cy="'+py+'" r="4" fill="#f59e0b" opacity="0.8"/>';
+  }
+
+  const sparkSvg='<svg width="'+W+'" height="'+H+'" style="overflow:visible">'+svgLine+peakDot+'</svg>';
+  const trendCol=vel.isBuySignal?'#22c55e':vel.velocity<-0.1?'#22d3ee':vel.velocity>0.1?'#f97316':'#f59e0b';
+  const rollovAlert=vel.isBuySignal
+    ?'<div style="margin-top:10px;padding:8px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:6px;font-size:10px;font-weight:700;color:#22c55e;letter-spacing:0.5px">⬇ ROLLOVER CONFIRMED — Score peaked at '+vel.peak.toFixed(1)+', now declining (+0.5 timing boost active)</div>'
+    :'';
+
+  el.innerHTML=`
+    <div class="panel-title" style="color:rgba(168,85,247,0.9);margin-bottom:10px">Score Trajectory <span style="font-size:9px;color:rgba(255,255,255,0.25);font-weight:400;margin-left:6px">${hist.length} readings</span></div>
+    <div style="overflow-x:auto;margin-bottom:10px">${sparkSvg}</div>
+    <div class="st-stats">
+      <div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Velocity</div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:800;color:${lineCol}">${vel.velocity>0?'+':''}${vel.velocity}/fetch</div>
+      </div>
+      <div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Peak Score</div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:800;color:#f59e0b">${vel.peak.toFixed(1)}</div>
+      </div>
+      <div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">From Peak</div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:800;color:rgba(255,255,255,0.5)">${vel.peakDistance>0?'-':''}${Math.abs(vel.peakDistance).toFixed(1)}</div>
+      </div>
+    </div>
+    <div style="font-size:9px;font-weight:700;color:${trendCol};padding:5px 0 2px">${vel.trend}</div>
+    ${rollovAlert}
+  `;
+}
 
 // ===== PER-CARD DELTA ARROWS =====
 // Complements the existing "What Changed" panel with inline arrows on each pulse
