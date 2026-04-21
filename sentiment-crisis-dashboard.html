@@ -426,6 +426,36 @@
   }
   .snap-card.delta-sig { animation: pulse-glow 0.9s ease-in-out 3; }
 
+  @keyframes regime-flash {
+    0%   { opacity: 1; }
+    20%  { opacity: 0.3; }
+    40%  { opacity: 1; }
+    60%  { opacity: 0.3; }
+    80%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+  .regime-flash { animation: regime-flash 0.8s ease-in-out; }
+
+  #regime-banner {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 8px 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1em;
+    letter-spacing: 1px;
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid;
+    border-radius: 0;
+    margin: 0 -20px 16px;
+    gap: 12px;
+  }
+  #regime-banner .rb-left { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+  #regime-banner .rb-subtitle { font-family: 'Inter', sans-serif; font-size: 0.7em; opacity: 0.8; font-weight: 500; }
+  #regime-banner .rb-advice { font-family: 'Inter', sans-serif; font-size: 0.65em; opacity: 0.55; text-align: right; flex-shrink: 0; max-width: 280px; }
+
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 768px) {
     .container { padding: 16px 12px; }
@@ -495,6 +525,9 @@
     #fetch-log > div { font-size: 9px !important; }
     /* Volume analysis */
     #volume-analysis { grid-template-columns: 1fr !important; }
+    /* Regime banner responsive */
+    #regime-banner { flex-direction: column; align-items: flex-start !important; padding: 8px 12px; margin: 0 -12px 12px; font-size: 0.95em; }
+    #regime-banner .rb-advice { text-align: left; max-width: 100%; }
     /* Groq sentiment panel */
     #groq-sentiment-panel p { display: none; }
     #groq-sentiment-content .gsm-header { flex-direction: column !important; align-items: flex-start !important; }
@@ -519,6 +552,9 @@
     #coulling-matrix th, #coulling-matrix td { min-width: 60px !important; font-size: 8px !important; }
     .sig-val { font-size:13px !important; }
     .sig-interp { font-size:8px !important; }
+    /* Regime banner compact */
+    #regime-banner { font-size: 0.85em; padding: 6px 8px; margin: 0 -8px 10px; gap: 4px; }
+    #regime-banner .rb-subtitle { font-size: 0.68em; }
     /* Groq sentiment panel compact */
     #groq-sentiment-content .gsm-timeline-row { gap: 4px !important; }
     #groq-sentiment-content .gsm-phase-label { min-width: 80px !important; font-size: 8px !important; }
@@ -544,6 +580,16 @@
       </div>
     </div>
     <h1>Buy the Fear</h1>
+  </div>
+
+  <!-- Regime Banner -->
+  <div id="regime-banner">
+    <div class="rb-left">
+      <span id="regime-icon"></span>
+      <span id="regime-label"></span>
+      <span id="regime-subtitle" class="rb-subtitle"></span>
+    </div>
+    <div id="regime-advice" class="rb-advice"></div>
   </div>
 
   <!-- Tabs -->
@@ -1658,6 +1704,109 @@ function renderScoreTrajectory(){
   `;
 }
 
+// ===== REGIME CLASSIFIER =====
+
+function detectRegime(){
+  const score=pulseState.score||0;
+  const drawdown=pulseState.spyPctFromATH||0;
+  const vix=pulseState.vix||15;
+  const spyPrice=pulseState.spyPrice||0;
+  const SPY_ATH_VAL=698;
+  const distFromATH=spyPrice>0?((SPY_ATH_VAL-spyPrice)/SPY_ATH_VAL*100):drawdown;
+  const velocity=calcScoreVelocity(
+    JSON.parse(localStorage.getItem('btf-score-history')||'[]')
+  );
+  const rollovering=velocity&&velocity.rollingOver&&velocity.peak>=4.0;
+
+  // CRISIS: active drawdown with elevated fear and high score
+  if(drawdown>5&&vix>25&&score>4){
+    return{
+      regime:'CRISIS',
+      color:'#ef4444',
+      icon:'🔴',
+      label:'CRISIS ACTIVE',
+      subtitle:`SPY -${drawdown.toFixed(1)}% from ATH · VIX ${vix.toFixed(1)} · Score ${score.toFixed(1)}`,
+      focusTab:'pulse',
+      advice:'Focus on: Conviction Meter · Bottom State · Triple Confluence'
+    };
+  }
+
+  // RECOVERY: score peaked and rolling over, drawdown moderate and shrinking, or fear exhausting
+  if(rollovering&&drawdown>1&&drawdown<10){
+    const peakScore=velocity.peak.toFixed(1);
+    const fromPeak=(velocity.peakDistance>0?'-':'')+Math.abs(velocity.peakDistance).toFixed(1);
+    return{
+      regime:'RECOVERY',
+      color:'#22c55e',
+      icon:'🟢',
+      label:'RECOVERY PHASE',
+      subtitle:`Score peaked ${peakScore} → ${fromPeak} · SPY -${distFromATH.toFixed(1)}% from ATH · Fear exhausting`,
+      focusTab:'pulse',
+      advice:'Focus on: Follow-Through Grade · Pattern Match · Position Sizing'
+    };
+  }
+
+  // BULL: near or at ATH, low volatility
+  if(distFromATH<3&&vix<20){
+    return{
+      regime:'BULL',
+      color:'#3b82f6',
+      icon:'🔵',
+      label:'BULL TREND',
+      subtitle:`${distFromATH<1?'AT ATH':distFromATH.toFixed(1)+'% from ATH'} · VIX ${vix.toFixed(1)}`,
+      focusTab:'retest',
+      advice:'Focus on: ATH Retest zones · Where next support lives'
+    };
+  }
+
+  // RANGE: consolidation / moderate vol
+  return{
+    regime:'RANGE',
+    color:'#f59e0b',
+    icon:'🟡',
+    label:'RANGE / CONSOLIDATION',
+    subtitle:`${distFromATH.toFixed(1)}% from ATH · VIX ${vix.toFixed(1)} · Watching for breakout or breakdown`,
+    focusTab:'squeeze',
+    advice:'Focus on: Squeeze Gauge · Key Levels · Cycle Trackers'
+  };
+}
+
+function renderRegimeBanner(){
+  const el=document.getElementById('regime-banner');
+  if(!el) return;
+
+  // Only show when we have real data
+  const hasData=pulseState.spyPrice||pulseState.vix||pulseState.score;
+  if(!hasData){el.style.display='none';return;}
+
+  const r=detectRegime();
+  const KEY='btf-prev-regime';
+  let prevRegime=null;
+  try{prevRegime=localStorage.getItem(KEY);}catch(e){}
+
+  // Detect regime change → flash animation + log
+  if(prevRegime&&prevRegime!==r.regime){
+    const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    console.log(`REGIME CHANGE: ${prevRegime} → ${r.regime} (${dateStr})`);
+    el.classList.remove('regime-flash');
+    void el.offsetWidth; // reflow to restart animation
+    el.classList.add('regime-flash');
+    el.addEventListener('animationend',()=>el.classList.remove('regime-flash'),{once:true});
+  }
+  try{localStorage.setItem(KEY,r.regime);}catch(e){}
+
+  // Apply styling
+  el.style.display='flex';
+  el.style.background=r.color+'26'; // ~15% opacity
+  el.style.borderColor=r.color;
+  el.style.color='var(--text)';
+
+  document.getElementById('regime-icon').textContent=r.icon+' ';
+  document.getElementById('regime-label').textContent=r.label;
+  document.getElementById('regime-subtitle').textContent=r.subtitle;
+  document.getElementById('regime-advice').textContent=r.advice;
+}
+
 // ===== DELTA TRACKING =====
 // Snapshots the current state before each fetch, then computes what moved.
 
@@ -2215,6 +2364,7 @@ async function fetchAllData(){
   recalcScore();
   recordScoreHistory();
   renderScoreTrajectory();
+  renderRegimeBanner();
   calcDeltas();
   updateFetchTimestamp();
 
