@@ -770,6 +770,7 @@
         <button class="ar-pill active" data-mode="off" onclick="setAutoRefreshMode('off')">Off</button>
         <button class="ar-pill" data-mode="5min" onclick="setAutoRefreshMode('5min')">5 min</button>
         <button class="ar-pill" data-mode="15min" onclick="setAutoRefreshMode('15min')">15 min</button>
+        <button class="ar-pill" data-mode="30min" onclick="setAutoRefreshMode('30min')">30 min</button>
       </div>
     </div>
     <div style="margin-bottom:6px">
@@ -1295,6 +1296,35 @@
       </div>
       <button onclick="requestNotifPermission()" style="margin-top:12px;padding:6px 16px;border:1px solid var(--red);border-radius:6px;background:rgba(239,68,68,0.1);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--sans)">Enable Browser Notifications</button>
       <div id="alert-status" style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:6px"></div>
+    </div>
+
+    <!-- Advanced Alerts — regime-aware triggers layered on top of Alert Thresholds -->
+    <div class="panel" style="border-color:rgba(168,85,247,0.15)">
+      <div class="panel-title" style="color:#a855f7">⚡ Advanced Alerts <span style="font-size:8px;color:rgba(255,255,255,0.2);text-transform:none;letter-spacing:0;font-weight:400;margin-left:8px">browser notifications for score/regime/confluence events</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px">Fires alongside the basic Alert Thresholds. Requires notifications enabled above. Uses regime-aware buy threshold instead of hardcoded 7.</p>
+      <div id="notif-advanced-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-buyThreshold" checked style="accent-color:#22c55e" onchange="saveNotifPrefs()"> Score crosses regime buy threshold <span style="font-size:8px;color:rgba(255,255,255,0.2);font-style:italic">critical</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-triple" checked style="accent-color:#22c55e" onchange="saveNotifPrefs()"> Triple confluence detected <span style="font-size:8px;color:rgba(255,255,255,0.2);font-style:italic">critical</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-supertrend" checked style="accent-color:#a855f7" onchange="saveNotifPrefs()"> Weekly Supertrend flip
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-backwardation" checked style="accent-color:#f59e0b" onchange="saveNotifPrefs()"> VIX/VIX3M backwardation (>1.0)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-rollover" checked style="accent-color:#22c55e" onchange="saveNotifPrefs()"> Score rollover confirmed
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-regime" checked style="accent-color:#22d3ee" onchange="saveNotifPrefs()"> Regime change (CRISIS/RECOVERY/BULL/RANGE)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer">
+          <input type="checkbox" id="notif-vixSpike" style="accent-color:#ef4444" onchange="saveNotifPrefs()"> Significant VIX move (&gt;10%) <span style="font-size:8px;color:rgba(255,255,255,0.2);font-style:italic">noisy — off by default</span>
+        </label>
+      </div>
     </div>
 
     <!-- Export -->
@@ -2426,7 +2456,7 @@ function renderHistoricalCharts(series, range){
 
 let _arCountdownTimer=null;
 let _arNextAt=null;
-const AR_INTERVALS={'5min':300000,'15min':900000};
+const AR_INTERVALS={'5min':300000,'15min':900000,'30min':1800000};
 
 function setAutoRefreshMode(mode){
   // Cancel existing timers
@@ -5597,6 +5627,164 @@ function checkAlerts() {
   if(document.getElementById('alert-vol110')?.checked && p.spyVol && p.spyVol/1e6 >= 110) {
     new Notification('🔊 Volume Spike', {body:'SPY volume '+Math.round(p.spyVol/1e6)+'M — 110M+ red candle = local bottom pattern.'});
   }
+  // Advanced triggers (7 additional alert types behind btf-notif-prefs)
+  try { checkNotificationTriggers(); } catch(e) { console.warn('[notif-triggers]', e); }
+}
+
+// ===== ADVANCED NOTIFICATION TRIGGERS =====
+// Unified helper + 7 regime-aware triggers that run alongside the 4 basic
+// alerts. Each trigger is individually toggleable via btf-notif-prefs.
+
+function sendNotification(title, body, urgency){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const icon = urgency === 'critical' ? '🔴' : urgency === 'high' ? '🟡' : '🟢';
+  try {
+    new Notification(icon + ' BTF: ' + title, {
+      body,
+      tag: 'btf-' + title.toLowerCase().replace(/\s+/g, '-'),
+      requireInteraction: urgency === 'critical',
+    });
+  } catch(e) { console.warn('[sendNotif]', e); }
+}
+
+// Read notif prefs from localStorage (default all-on except high-volume VIX-spike)
+function _notifPrefs(){
+  const defaults = {
+    buyThreshold:true, triple:true, supertrend:true, backwardation:true,
+    rollover:true, regime:true, vixSpike:false
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem('btf-notif-prefs') || '{}');
+    return { ...defaults, ...saved };
+  } catch(e) { return defaults; }
+}
+
+function saveNotifPrefs(){
+  const keys = ['buyThreshold','triple','supertrend','backwardation','rollover','regime','vixSpike'];
+  const out = {};
+  keys.forEach(k => {
+    const el = document.getElementById('notif-' + k);
+    if(el) out[k] = !!el.checked;
+  });
+  try { localStorage.setItem('btf-notif-prefs', JSON.stringify(out)); } catch(e) {}
+}
+
+function checkNotificationTriggers(){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const prefs = _notifPrefs();
+  const p = pulseState;
+
+  // Load previous state for comparison
+  let prev = {};
+  try { prev = JSON.parse(localStorage.getItem('btf-prev-notif-state') || '{}'); } catch(e) {}
+
+  const curScore = typeof p.score === 'number' ? p.score : 0;
+  const prevScore = typeof prev.score === 'number' ? prev.score : 0;
+
+  // 1. Score crosses regime-aware buy threshold
+  if(prefs.buyThreshold){
+    let regKey = 'UNKNOWN';
+    try { regKey = classifyRegime(); } catch(e) {}
+    const threshold = (typeof REGIMES !== 'undefined' && REGIMES[regKey]) ? REGIMES[regKey].threshold : 7;
+    const regLabel = (typeof REGIMES !== 'undefined' && REGIMES[regKey]?.label) || regKey;
+    if(prevScore < threshold && curScore >= threshold){
+      sendNotification(
+        'BUY THRESHOLD CROSSED',
+        'Score ' + curScore.toFixed(1) + ' crossed ' + regLabel + ' buy threshold (' + threshold.toFixed(1) + '). Check dashboard.',
+        'critical'
+      );
+    }
+  }
+
+  // 2. Triple confluence detected
+  let tripleCount = 0;
+  let tripleNames = '';
+  try {
+    const res = detectTripleConfluence();
+    const hits = res.filter(r => r.tripleConfluence);
+    tripleCount = hits.length;
+    tripleNames = hits.map(r => r.inst?.ticker || '?').join(', ');
+  } catch(e) {}
+  const prevTriple = prev.tripleCount || 0;
+  if(prefs.triple && tripleCount > prevTriple && tripleCount > 0){
+    sendNotification(
+      'TRIPLE CONFLUENCE',
+      'Triple confluence on ' + tripleNames + ' — price at support + RSI oversold + volume spike.',
+      'critical'
+    );
+  }
+
+  // 3. Weekly Supertrend flip
+  if(prefs.supertrend && p.supertrendJustFlipped){
+    sendNotification(
+      'WEEKLY SUPERTREND FLIP',
+      'SPY weekly Supertrend flipped ' + (p.supertrendBullish ? 'BULLISH' : 'BEARISH') + '.',
+      'high'
+    );
+  }
+
+  // 4. VIX/VIX3M backwardation crossed
+  const prevRatio = typeof prev.vixRatio === 'number' ? prev.vixRatio : null;
+  const curRatio = typeof p.vixRatio === 'number' ? p.vixRatio : null;
+  if(prefs.backwardation && prevRatio != null && curRatio != null && prevRatio < 1.0 && curRatio >= 1.0){
+    sendNotification(
+      'VIX BACKWARDATION',
+      'VIX/VIX3M crossed above 1.0 (' + curRatio.toFixed(3) + '). Vol structure in backwardation — historically strong contrarian buy signal.',
+      'high'
+    );
+  }
+
+  // 5. Score rollover (via scoreVelocity)
+  if(prefs.rollover){
+    let vel = null;
+    try { vel = calcScoreVelocity(JSON.parse(localStorage.getItem('btf-score-history') || '[]')); } catch(e) {}
+    const prevBuySignal = !!prev.rolloverBuy;
+    const curBuySignal = !!(vel && vel.isBuySignal);
+    if(curBuySignal && !prevBuySignal){
+      sendNotification(
+        'SCORE ROLLOVER',
+        'Score peaked at ' + vel.peak.toFixed(1) + ' and is now declining. Fear may be exhausting.',
+        'high'
+      );
+    }
+    prev.rolloverBuy = curBuySignal;
+  }
+
+  // 6. Regime change (CRISIS / RECOVERY / BULL / RANGE)
+  let curRegime = null;
+  try { curRegime = (typeof detectRegime === 'function') ? detectRegime().regime : null; } catch(e) {}
+  // Use prev.regime for comparison so we don't double-fire with renderRegimeBanner's own tracker
+  if(prefs.regime && prev.regime && curRegime && prev.regime !== curRegime){
+    sendNotification(
+      'REGIME CHANGE',
+      'Market regime: ' + prev.regime + ' → ' + curRegime,
+      'high'
+    );
+  }
+
+  // 7. Significant VIX move (>10% change)
+  if(prefs.vixSpike){
+    const d = p.deltas && p.deltas.vix;
+    if(d && typeof d.pctChg === 'number' && Math.abs(d.pctChg) > 10){
+      const sign = d.pctChg > 0 ? '+' : '';
+      sendNotification(
+        'VIX SPIKE',
+        'VIX moved ' + sign + d.pctChg.toFixed(1) + '% (' + d.prev.toFixed(1) + ' → ' + d.current.toFixed(1) + ')',
+        Math.abs(d.pctChg) > 20 ? 'critical' : 'high'
+      );
+    }
+  }
+
+  // Persist state for next comparison
+  try {
+    localStorage.setItem('btf-prev-notif-state', JSON.stringify({
+      score: curScore,
+      tripleCount,
+      vixRatio: curRatio,
+      regime: curRegime,
+      rolloverBuy: prev.rolloverBuy || false
+    }));
+  } catch(e) {}
 }
 
 // ===== TOOLS TAB: EXPORT =====
@@ -8499,12 +8687,20 @@ propagateData();
 recalcScore();
 try{ renderPositionSizer(); }catch(e){}
 try{ renderScenarioSimulator(); }catch(e){ console.error('[init] scenario sim:', e); }
+// Hydrate advanced notif prefs checkboxes from localStorage
+try{
+  const _np = _notifPrefs();
+  Object.keys(_np).forEach(k => {
+    const el = document.getElementById('notif-' + k);
+    if(el) el.checked = !!_np[k];
+  });
+}catch(e){}
 // Then immediately fetch fresh live data — no button click needed
 fetchAllData();
 // Restore auto-refresh preference from localStorage (default: 5 min)
 (function restoreAutoRefresh(){
   let saved='5min';
-  try{ const v=localStorage.getItem('arMode'); if(v==='off'||v==='5min'||v==='15min') saved=v; }catch(e){}
+  try{ const v=localStorage.getItem('arMode'); if(v==='off'||v==='5min'||v==='15min'||v==='30min') saved=v; }catch(e){}
   setAutoRefreshMode(saved);
 })();
 </script>
