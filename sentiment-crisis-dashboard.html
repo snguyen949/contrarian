@@ -4505,6 +4505,9 @@ async function fetchHeadlines(){
           const isConflict = !!cStep;
           const isTariff = !!tStep && !cStep;
           const stepBadge = step ? `<span style="padding:1px 6px;border-radius:3px;font-size:7px;font-weight:700;background:${step>=9?'rgba(34,197,94,0.15)':step>=7?'rgba(34,211,238,0.15)':'rgba(249,115,22,0.15)'};color:${step>=9?'#22c55e':step>=7?'#22d3ee':'#f97316'}">${isConflict?'C':'T'}-STEP ${step}</span>` : '';
+          const kwLabel=keywordClassify(h.title);
+          const kwColor=GROQ_COLORS[kwLabel]||'#94a3b8';
+          const sentBadge=`<span style="font-size:7px;font-weight:800;background:${kwColor}18;color:${kwColor};border:1px solid ${kwColor}35;padding:1px 5px;border-radius:3px;white-space:nowrap">${kwLabel}</span>`;
           const srcIcon = h.src==='gnews'?'📰':h.src==='reddit'?'🔗':h.src==='finnhub'?'📊':h.src==='newsapi'?'📡':'📄';
           const age = Math.round((Date.now()/1000 - h.created) / 3600);
           const ageStr = age < 1 ? 'now' : age < 24 ? age+'h' : Math.round(age/24)+'d';
@@ -4513,7 +4516,7 @@ async function fetchHeadlines(){
             <div style="font-size:9px;flex-shrink:0;padding-top:1px">${srcIcon}</div>
             <div style="flex:1">
               <a href="${h.url}" target="_blank" rel="noopener" style="font-size:10px;color:rgba(255,255,255,0.55);text-decoration:none;line-height:1.35;display:block">${h.title}</a>
-              <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:1px">${h.domain} ${stepBadge}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.12);margin-top:1px">${h.domain} ${stepBadge} ${sentBadge}</div>
             </div>
           </div>`;
         }).join('');
@@ -4526,6 +4529,8 @@ async function fetchHeadlines(){
   renderConflictSteps();
   renderTariffSteps();
 
+  // Keyword fallback: always labels headlines + shows mix panel when no Groq key
+  runKeywordFallbackMix(allHeadlines);
   // AI sentiment classification (non-blocking; only fires if Groq key present)
   classifyHeadlinesWithGroq(allHeadlines);
 
@@ -6122,6 +6127,69 @@ function _groqPhase(mix){
   return 'UNCERTAIN';
 }
 
+function keywordClassify(headline){
+  const t=(headline||'').toLowerCase();
+  if(/crash|plunge|panic|worst|collapse|margin call|circuit breaker|liquidat|capitulat|rout|carnage|bloodbath|meltdown/.test(t)) return 'CAPITULATION';
+  if(/fear|drop|decline|sell|warn|risk|bearish|recession|bear|tumbl|slump|slide|fall|loss|worry|concern|retreat/.test(t)) return 'FEAR';
+  // EUPHORIA before RECOVERY — catches "fomo/bubble/all-time high" before "buy/rally" keywords
+  if(/record|all.?time high|euphori|fomo|bubble|melt.?up|mania|soar|rocket/.test(t)) return 'EUPHORIA';
+  if(/rally|surge|rebound|recover|gain|\bbuy\b|bullish|best day|bounce|jump|climb|rise|resum|stabiliz/.test(t)) return 'RECOVERY';
+  if(/could|may|uncertain|watch|mixed|volatile|unclear|caution|hedge|await|wait/.test(t)) return 'UNCERTAINTY';
+  return 'NEUTRAL';
+}
+
+function calcSentimentVelocity(history){
+  if(!history||history.length<3) return null;
+  const recent=history.slice(-5);
+  const fearTrend=recent.map(h=>{
+    const tot=Object.values(h.mix).reduce((a,b)=>a+b,0)||1;
+    return ((h.mix.CAPITULATION||0)+(h.mix.FEAR||0))/tot*100;
+  });
+  const recoveryTrend=recent.map(h=>{
+    const tot=Object.values(h.mix).reduce((a,b)=>a+b,0)||1;
+    return ((h.mix.RECOVERY||0)+(h.mix.EUPHORIA||0))/tot*100;
+  });
+  const n=fearTrend.length;
+  const fearSlope=(fearTrend[n-1]-fearTrend[0])/n;
+  const recoverySlope=(recoveryTrend[n-1]-recoveryTrend[0])/n;
+  let phase;
+  if(fearTrend[n-1]>60)        phase='PEAK FEAR';
+  else if(fearSlope<-5)        phase='FEAR FADING';
+  else if(recoverySlope>5)     phase='RECOVERY BUILDING';
+  else if(recoveryTrend[n-1]>50) phase='RECOVERY DOMINANT';
+  else                         phase='MIXED';
+  return{fearSlope,recoverySlope,phase,fearTrend,recoveryTrend};
+}
+
+function runKeywordFallbackMix(headlines){
+  if(!headlines||!headlines.length) return;
+  const groqKey=(document.getElementById('key-groq')||{}).value||'';
+  let groqHist=[];
+  try{groqHist=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]');}catch(e){}
+  // Only show keyword fallback when no Groq key OR no Groq history yet
+  if(groqKey&&groqHist.length) return;
+
+  const mix={CAPITULATION:0,FEAR:0,UNCERTAINTY:0,NEUTRAL:0,RECOVERY:0,EUPHORIA:0};
+  const classified=headlines.slice(0,20).map(h=>{
+    const label=keywordClassify(h.title);
+    mix[label]++;
+    return{title:h.title,url:h.url||'#',groqLabel:label,kwFallback:true};
+  });
+
+  const KEY='btf-keyword-mix';
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){}
+  const today=new Date().toISOString().slice(0,10);
+  hist=hist.filter(e=>e.date!==today);
+  hist.push({date:today,mix,phase:_groqPhase(mix),total:classified.length,source:'keyword'});
+  if(hist.length>14) hist=hist.slice(-14);
+  try{localStorage.setItem(KEY,JSON.stringify(hist));}catch(e){}
+
+  const panel=document.getElementById('groq-sentiment-panel');
+  if(panel) panel.style.display='block';
+  renderGroqSentimentMix(hist,classified);
+}
+
 async function classifyHeadlinesWithGroq(headlines){
   const groqKey=(document.getElementById('key-groq')||{}).value||'';
   const panel=document.getElementById('groq-sentiment-panel');
@@ -6133,6 +6201,13 @@ async function classifyHeadlinesWithGroq(headlines){
   if(mixHistory.length>0){ if(panel) panel.style.display='block'; renderGroqSentimentMix(mixHistory,null); }
 
   if(!groqKey||!headlines||!headlines.length) return;
+  // 15-minute throttle — respect Groq 30 RPM free tier
+  const _lastCall=parseInt(localStorage.getItem('btf-groq-last-call')||'0');
+  const _minsSince=(Date.now()-_lastCall)/60000;
+  if(_minsSince<15){
+    if(content) content.innerHTML='<div style="font-size:9px;color:rgba(255,255,255,0.3);padding:8px 0">⏱ Next Groq scan in '+Math.ceil(15-_minsSince)+'min (30 RPM free tier)</div>';
+    return;
+  }
   if(panel) panel.style.display='block';
   if(content) content.innerHTML='<div style="font-size:10px;color:rgba(255,255,255,0.3);padding:8px 0">Classifying '+Math.min(headlines.length,20)+' headlines with Groq Llama 3.1 70B...</div>';
 
@@ -6183,6 +6258,7 @@ async function classifyHeadlinesWithGroq(headlines){
     mixHistory.push({date:today,mix,phase:_groqPhase(mix),total:cls.length});
     if(mixHistory.length>14) mixHistory=mixHistory.slice(-14);
     try{ localStorage.setItem('btf-groq-mix',JSON.stringify(mixHistory)); } catch(e){}
+    try{ localStorage.setItem('btf-groq-last-call',String(Date.now())); } catch(e){}
 
     renderGroqSentimentMix(mixHistory,classified);
 
@@ -6261,6 +6337,34 @@ function renderGroqSentimentMix(mixHistory,classified){
 
   var barHtml='<div style="display:flex;height:22px;border-radius:5px;overflow:hidden;margin-bottom:16px">'+mixBar+'</div>';
 
+  // Keyword-source annotation
+  var isKw=!!(today.source==='keyword');
+  var kwNote=isKw?'<div style="font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:10px;font-style:italic">Keyword-based classification — add Groq API key for AI-powered labels</div>':'';
+
+  // Sentiment velocity
+  var velocityHtml='';
+  if(mixHistory.length>=3){
+    var vel=calcSentimentVelocity(mixHistory);
+    if(vel){
+      var vpc=vel.phase==='PEAK FEAR'?'#ef4444':vel.phase==='FEAR FADING'||vel.phase==='RECOVERY BUILDING'||vel.phase==='RECOVERY DOMINANT'?'#22c55e':'#f59e0b';
+      var fsSign=vel.fearSlope>0?'+':'';
+      var rsSign=vel.recoverySlope>0?'+':'';
+      var prevEntry=mixHistory.length>=2?mixHistory[mixHistory.length-2]:null;
+      var prevFearN=prevEntry?((prevEntry.mix.CAPITULATION||0)+(prevEntry.mix.FEAR||0)):null;
+      var curFearN=(today.mix.CAPITULATION||0)+(today.mix.FEAR||0);
+      var prevRecovN=prevEntry?((prevEntry.mix.RECOVERY||0)+(prevEntry.mix.EUPHORIA||0)):null;
+      var curRecovN=(today.mix.RECOVERY||0)+(today.mix.EUPHORIA||0);
+      velocityHtml='<div style="padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">'
+        +'<div><div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Velocity Phase</div>'
+        +'<div style="font-size:13px;font-weight:800;color:'+vpc+'">'+vel.phase+'</div></div>'
+        +'<div><div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Fear Trend</div>'
+        +'<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+(vel.fearSlope<-2?'#22c55e':vel.fearSlope>2?'#ef4444':'#94a3b8')+'">'+fsSign+vel.fearSlope.toFixed(1)+'%/scan'+(prevFearN!==null?' · was '+prevFearN+' → '+curFearN:'')+'</div></div>'
+        +'<div><div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Recovery Trend</div>'
+        +'<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+(vel.recoverySlope>2?'#22c55e':vel.recoverySlope<-2?'#ef4444':'#94a3b8')+'">'+rsSign+vel.recoverySlope.toFixed(1)+'%/scan'+(prevRecovN!==null?' · was '+prevRecovN+' → '+curRecovN:'')+'</div></div>'
+        +'</div>';
+    }
+  }
+
   var timelineHtml='';
   if(mixHistory.length>1){
     var legendItems=GROQ_LABELS.map(function(l){
@@ -6269,14 +6373,16 @@ function renderGroqSentimentMix(mixHistory,classified){
     timelineHtml='<div style="margin-bottom:14px"><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Phase Timeline ('+mixHistory.length+' days)</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+legendItems+'</div>'+timelineRows+'</div>';
   }
 
-  content.innerHTML=shiftBanner+headerHtml+barHtml+timelineHtml+hlHtml;
+  content.innerHTML=shiftBanner+headerHtml+kwNote+barHtml+velocityHtml+timelineHtml+hlHtml;
 }
 
-// On page load, show any existing Groq data from localStorage
+// On page load, show any existing Groq or keyword-based data from localStorage
 (function(){
   try{
     var hist=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]');
-    if(hist.length>0) renderGroqSentimentMix(hist,null);
+    if(hist.length>0){ renderGroqSentimentMix(hist,null); return; }
+    var khist=JSON.parse(localStorage.getItem('btf-keyword-mix')||'[]');
+    if(khist.length>0) renderGroqSentimentMix(khist,null);
   } catch(e){}
 })();
 </script>
