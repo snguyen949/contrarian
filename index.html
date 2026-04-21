@@ -7659,6 +7659,7 @@ const SS_SCENARIOS = [
   { id:'sim-cryptofg',  label:'Crypto F&G',  key:'cryptoFG',      min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.cryptoFG },
   { id:'sim-vixratio',  label:'VIX/VIX3M',   key:'vixRatio',      min:0.7,   max:1.3,  step:0.01,fmt:v=>v.toFixed(3),  getCur:()=>pulseState.vixRatio },
   { id:'sim-spy',       label:'SPY Price',   key:'spyPrice',      min:400,   max:750,  step:1,   fmt:v=>'$'+Math.round(v), getCur:()=>pulseState.spyPrice },
+  { id:'sim-rsi',       label:'SPY RSI',     key:'rsiSPY',        min:10,    max:90,   step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.rsiSPY },
   { id:'sim-hyspread',  label:'HY Spread',   key:'hySpreads',     min:200,   max:1200, step:10,  fmt:v=>Math.round(v)+'bp', getCur:()=>pulseState.hySpreads },
   { id:'sim-nfci',      label:'NFCI',        key:'nfci',          min:-1,    max:1,    step:0.01,fmt:v=>v.toFixed(2),  getCur:()=>pulseState.nfci },
   { id:'sim-naaim',     label:'NAAIM',       key:'naaimExposure', min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.naaimExposure },
@@ -7669,10 +7670,10 @@ const SS_SCENARIOS = [
 
 // Preset historical bottoms — snap sliders to these values
 const SS_PRESETS = {
-  COVID:       { vix:80, cnnFG:3,  cryptoFG:11, vixRatio:1.15, spyPrice:480, hySpreads:1100, nfci:0.7,  naaimExposure:12, aaiiBear:60, putCallRatio:1.45, skew:108 },
-  Tariff:      { vix:60, cnnFG:3,  cryptoFG:10, vixRatio:1.08, spyPrice:482, hySpreads:650,  nfci:0.35, naaimExposure:18, aaiiBear:62, putCallRatio:1.40, skew:112 },
-  Iran:        { vix:31, cnnFG:15, cryptoFG:11, vixRatio:0.95, spyPrice:656, hySpreads:420,  nfci:-0.1, naaimExposure:55, aaiiBear:45, putCallRatio:1.10, skew:128 },
-  FlashCrash:  { vix:46, cnnFG:10, cryptoFG:18, vixRatio:1.03, spyPrice:585, hySpreads:500,  nfci:0.15, naaimExposure:30, aaiiBear:52, putCallRatio:1.25, skew:118 },
+  COVID:       { vix:80, cnnFG:3,  cryptoFG:11, vixRatio:1.15, spyPrice:480, rsiSPY:22, hySpreads:1100, nfci:0.7,  naaimExposure:12, aaiiBear:60, putCallRatio:1.45, skew:108 },
+  Tariff:      { vix:60, cnnFG:3,  cryptoFG:10, vixRatio:1.08, spyPrice:482, rsiSPY:25, hySpreads:650,  nfci:0.35, naaimExposure:18, aaiiBear:62, putCallRatio:1.40, skew:112 },
+  Iran:        { vix:31, cnnFG:15, cryptoFG:11, vixRatio:0.95, spyPrice:656, rsiSPY:38, hySpreads:420,  nfci:-0.1, naaimExposure:55, aaiiBear:45, putCallRatio:1.10, skew:128 },
+  FlashCrash:  { vix:46, cnnFG:10, cryptoFG:18, vixRatio:1.03, spyPrice:585, rsiSPY:30, hySpreads:500,  nfci:0.15, naaimExposure:30, aaiiBear:52, putCallRatio:1.25, skew:118 },
 };
 
 function calcSimulatedScore(overrides){
@@ -7875,7 +7876,7 @@ function findBuyTrigger(){
   // Bullish extreme for each slider (based on whether higher or lower = more fear)
   const bullishExtremes = {
     vix:90, vixRatio:1.3, hySpreads:1200, nfci:1.0, skew:100, aaiiBear:70, putCallRatio:1.8,
-    cnnFG:0, cryptoFG:0, spyPrice:400, naaimExposure:0,
+    cnnFG:0, cryptoFG:0, spyPrice:400, naaimExposure:0, rsiSPY:10,
   };
 
   // Test each slider at its bullish extreme, cumulatively add until threshold is crossed
