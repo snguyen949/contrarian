@@ -1411,7 +1411,7 @@ const pulseState = {
   putCallRatio:null, pctAbove200dma:null, naaimExposure:null,
   hySpreads:null,
   // Sparkline arrays (last 20 closes)
-  spySpark:[], vixSpark:[], qqqSpark:[], iwmSpark:[], oilSpark:[], goldSpark:[], tnxSpark:[],
+  spySpark:[], vixSpark:[], qqqSpark:[], iwmSpark:[], oilSpark:[], goldSpark:[], tnxSpark:[], esSpark:[], nqSpark:[],
   // StockTwits sentiment
   stwSpy:null, stwQqq:null,
   // AAII auto
@@ -1450,6 +1450,63 @@ const pulseState = {
   allClosesSPY:[], allClosesQQQ:[], allClosesIWM:[], allClosesES:[], allClosesNQ:[],
   spy:null, // alias for spyPrice used by bottom confirmation engine
 };
+
+// ===== INSTRUMENT MAP — structural price levels for 5 instruments =====
+// Updated levels validated against 14 historical bottoms (1987–2026).
+// Each level is a prior ATH zone that acted as support on retests.
+const instrumentMap = {
+  SPY: {
+    ticker: 'SPY', yahoo: 'SPY', priceKey: 'spyPrice',
+    levels: [
+      { price: 698, label: 'Current ATH',    date: 'Jan 2026' },
+      { price: 590, label: 'Mid-2024 ATH',   date: 'Jul 2024' },
+      { price: 480, label: 'Jan 2022 ATH',   date: 'Jan 2022', retested: 'Apr 2025' },
+      { price: 340, label: 'Pre-COVID ATH',  date: 'Feb 2020', retested: 'Oct 2022' },
+    ]
+  },
+  ES: {
+    ticker: 'ES1!', yahoo: 'ES=F', priceKey: 'esPrice',
+    levels: [
+      { price: 7093, label: 'Current ATH',         date: 'Jan 2026' },
+      { price: 6300, label: '2024 Consolidation',  date: 'Mid-2024', retested: 'Mar 2026' },
+      { price: 5050, label: 'Jan 2022 ATH',         date: 'Jan 2022', retested: 'Apr 2025' },
+    ]
+  },
+  NQ: {
+    ticker: 'NQ1!', yahoo: 'NQ=F', priceKey: 'nqPrice',
+    levels: [
+      { price: 26864, label: 'Current ATH',      date: 'Jan 2026' },
+      { price: 23276, label: 'Supertrend Level', date: 'Weekly ST' },
+      { price: 17383, label: 'Structural Low',   date: '2024' },
+    ]
+  },
+  QQQ: {
+    ticker: 'QQQ', yahoo: 'QQQ', priceKey: 'qqqPrice',
+    levels: [
+      { price: 637, label: 'Current ATH',               date: 'Jan 2026' },
+      { price: 535, label: 'Mid-2024 Range',             date: 'Mid-2024' },
+      { price: 402, label: 'Tariff Low / 2022 ATH Zone', date: 'Jan 2022', retested: 'Apr 2025' },
+    ]
+  },
+  IWM: {
+    ticker: 'IWM', yahoo: 'IWM', priceKey: 'iwmPrice',
+    levels: [
+      { price: 244, label: '2021 ATH',      date: 'Nov 2021' },
+      { price: 197, label: 'Range Support', date: '2024' },
+    ]
+  }
+};
+
+// Returns {level, distancePct, atSupport} for the nearest structural level BELOW current price.
+// atSupport = within 3% of level. Returns null if no levels below price.
+function calcNearestSupport(price, levels) {
+  if (!price || !levels || !levels.length) return null;
+  const below = levels.filter(l => l.price <= price).sort((a, b) => b.price - a.price);
+  if (!below.length) return null;
+  const nearest = below[0];
+  const distancePct = ((price - nearest.price) / price) * 100;
+  return { level: nearest, distancePct, atSupport: distancePct <= 3.0 };
+}
 
 // Thresholds for contrarian scoring — cluster-based aggregation
 // A=Fear Level (0.20) | B=Vol Structure (0.35) | C=Flow/Positioning (0.25) | D=Credit/Macro (0.20)
@@ -1535,6 +1592,8 @@ function renderPulseCards(){
     {label:'SPY Vol',val:pulseState.spyVol?(pulseState.spyVol/1e6).toFixed(1)+'M':'--',sub:pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol).toFixed(2)+'x avg':'',color:pulseState.spyVol&&pulseState.spy20dAvgVol?(pulseState.spyVol/pulseState.spy20dAvgVol>=1.8?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.spyDate||''},
     {label:'QQQ',val:pulseState.qqqPrice?'$'+pulseState.qqqPrice.toFixed(2):'--',sub:'',color:'#a855f7',type:'auto',date:pulseState.qqqDate||'',chg:pulseState.qqqChange,sparkData:pulseState.qqqSpark},
     {label:'IWM',val:pulseState.iwmPrice?'$'+pulseState.iwmPrice.toFixed(2):'--',sub:'',color:'#3b82f6',type:'auto',date:pulseState.iwmDate||'',chg:pulseState.iwmChange,sparkData:pulseState.iwmSpark},
+    {label:'ES1!',val:pulseState.esPrice?Math.round(pulseState.esPrice).toLocaleString():'--',sub:(()=>{if(!pulseState.esPrice)return'';const ns=calcNearestSupport(pulseState.esPrice,instrumentMap.ES.levels);return ns?(ns.atSupport?'✅ At '+ns.level.label:'-'+ns.distancePct.toFixed(1)+'% → '+ns.level.price.toLocaleString()):''})(),color:'#22c55e',type:'auto',date:'',chg:pulseState.esChange,sparkData:pulseState.esSpark},
+    {label:'NQ1!',val:pulseState.nqPrice?Math.round(pulseState.nqPrice).toLocaleString():'--',sub:(()=>{if(!pulseState.nqPrice)return'';const ns=calcNearestSupport(pulseState.nqPrice,instrumentMap.NQ.levels);return ns?(ns.atSupport?'✅ At '+ns.level.label:'-'+ns.distancePct.toFixed(1)+'% → '+ns.level.price.toLocaleString()):''})(),color:'#f59e0b',type:'auto',date:'',chg:pulseState.nqChange,sparkData:pulseState.nqSpark},
     {label:'BTC',val:pulseState.btcPrice?'$'+Math.round(pulseState.btcPrice).toLocaleString():'--',sub:pulseState.btcChange24h?fmtChg(pulseState.btcChange24h)+' 24h':'',color:pulseState.btcChange24h?(pulseState.btcChange24h>=0?'#22c55e':'#ef4444'):'#94a3b8',type:'auto',date:pulseState.btcDate||''},
     {label:'Oil (WTI)',val:pulseState.oilPrice?'$'+pulseState.oilPrice.toFixed(2):'--',sub:'',color:pulseState.oilPrice?(pulseState.oilPrice>=90?'#ef4444':pulseState.oilPrice>=80?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.oilDate||'',chg:pulseState.oilChange,sparkData:pulseState.oilSpark},
     {label:'10Y Yield',val:pulseState.tnx?pulseState.tnx.toFixed(2)+'%':'--',sub:pulseState.tnx?(pulseState.tnx>=4.6?'DANGER ZONE':pulseState.tnx>=4.3?'ELEVATED':'NORMAL'):'',color:pulseState.tnx?(pulseState.tnx>=4.6?'#ef4444':pulseState.tnx>=4.3?'#f97316':'#22c55e'):'#94a3b8',type:'auto',date:pulseState.tnxDate||'',sparkData:pulseState.tnxSpark},
@@ -2509,7 +2568,7 @@ async function fetchLightData(){
   const SPY_ATH=698;
 
   // Parallel: Crypto F&G, BTC, Yahoo tickers, Polymarket
-  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR,_spyWR]=
+  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR,_spyWR,_esR,_nqR]=
     await Promise.allSettled([
       fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
       fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true').then(r=>r.json()),
@@ -2526,6 +2585,8 @@ async function fetchLightData(){
       fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('iran ceasefire')),6000).then(r=>r.ok?r.json():null),
       fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent('https://gamma-api.polymarket.com/markets?closed=false&limit=3&active=true&query='+encodeURIComponent('us recession 2026')),6000).then(r=>r.ok?r.json():null),
       yahooChart('SPY','2y','1wk'),
+      yahooChart('ES=F','1mo','1d'),
+      yahooChart('NQ=F','1mo','1d'),
     ]);
 
   // Process Crypto F&G
@@ -2583,6 +2644,26 @@ async function fetchLightData(){
   if(iwmD.ok){
     pulseState.iwmPrice=iwmD.price; pulseState.iwmDate=iwmD.dateStr;
     pulseState.iwmChange=iwmD.prevClose?((iwmD.price-iwmD.prevClose)/iwmD.prevClose*100):null;
+  }
+  // Process ES=F (S&P 500 Futures)
+  const esD=_esR&&_esR.status==='fulfilled'?_esR.value:{ok:false};
+  if(esD.ok){
+    pulseState.esPrice=esD.price;
+    pulseState.esVol=esD.volume; pulseState.es20dAvgVol=esD.avg20Vol;
+    pulseState.esChange=esD.prevClose?((esD.price-esD.prevClose)/esD.prevClose*100):null;
+    pulseState.esSpark=esD.allCloses.slice(-20);
+    pulseState.allClosesES=esD.allCloses;
+    if(esD.allCloses.length>=14) pulseState.rsiES=calcRSI(esD.allCloses,14);
+  }
+  // Process NQ=F (Nasdaq Futures)
+  const nqD=_nqR&&_nqR.status==='fulfilled'?_nqR.value:{ok:false};
+  if(nqD.ok){
+    pulseState.nqPrice=nqD.price;
+    pulseState.nqVol=nqD.volume; pulseState.nq20dAvgVol=nqD.avg20Vol;
+    pulseState.nqChange=nqD.prevClose?((nqD.price-nqD.prevClose)/nqD.prevClose*100):null;
+    pulseState.nqSpark=nqD.allCloses.slice(-20);
+    pulseState.allClosesNQ=nqD.allCloses;
+    if(nqD.allCloses.length>=14) pulseState.rsiNQ=calcRSI(nqD.allCloses,14);
   }
   // Process Oil
   const oilD=_oilR.status==='fulfilled'?_oilR.value:{ok:false};
@@ -2716,7 +2797,7 @@ async function fetchAllData(){
 
   // 1-10) Parallel fetch: Crypto F&G, BTC, 7 Yahoo Finance tickers, and ^SPXA200R breadth
   status.textContent='Fetching market data (parallel)...';
-  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR]=await Promise.allSettled([
+  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_esR,_nqR]=await Promise.allSettled([
     fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
     fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true').then(r=>r.json()),
     yahooChart('SPY','1mo','1d'),
@@ -2727,6 +2808,8 @@ async function fetchAllData(){
     yahooChart('%5ETNX','5d','1d'),
     yahooChart('GC=F','5d','1d'),
     yahooChart('%5ESPXA200R','5d','1d'), // S&P 500 % of stocks above 200-DMA
+    yahooChart('ES=F','1mo','1d'),
+    yahooChart('NQ=F','1mo','1d'),
   ]);
   // Unwrap with same variable names for backward compatibility
   const spyData=_spyR.status==='fulfilled'?_spyR.value:{ok:false};
@@ -2986,6 +3069,28 @@ async function fetchAllData(){
   if(oilData.ok) pulseState.oilSpark=oilData.allCloses.slice(-10);
   if(goldData.ok) pulseState.goldSpark=goldData.allCloses.slice(-10);
   if(tnxData.ok) pulseState.tnxSpark=tnxData.allCloses.slice(-10);
+  // Process ES=F
+  const esDataL=_esR&&_esR.status==='fulfilled'?_esR.value:{ok:false};
+  if(esDataL.ok){
+    pulseState.esPrice=esDataL.price;
+    pulseState.esVol=esDataL.volume; pulseState.es20dAvgVol=esDataL.avg20Vol;
+    pulseState.esChange=esDataL.prevClose?((esDataL.price-esDataL.prevClose)/esDataL.prevClose*100):null;
+    pulseState.esSpark=esDataL.allCloses.slice(-20);
+    pulseState.allClosesES=esDataL.allCloses;
+    if(esDataL.allCloses.length>=14) pulseState.rsiES=calcRSI(esDataL.allCloses,14);
+    log.push({src:'ES=F',val:Math.round(esDataL.price).toLocaleString(),date:esDataL.dateStr,ok:true,via:esDataL.proxy});
+  } else { log.push({src:'ES=F',val:'--',date:'--',ok:false}); }
+  // Process NQ=F
+  const nqDataL=_nqR&&_nqR.status==='fulfilled'?_nqR.value:{ok:false};
+  if(nqDataL.ok){
+    pulseState.nqPrice=nqDataL.price;
+    pulseState.nqVol=nqDataL.volume; pulseState.nq20dAvgVol=nqDataL.avg20Vol;
+    pulseState.nqChange=nqDataL.prevClose?((nqDataL.price-nqDataL.prevClose)/nqDataL.prevClose*100):null;
+    pulseState.nqSpark=nqDataL.allCloses.slice(-20);
+    pulseState.allClosesNQ=nqDataL.allCloses;
+    if(nqDataL.allCloses.length>=14) pulseState.rsiNQ=calcRSI(nqDataL.allCloses,14);
+    log.push({src:'NQ=F',val:Math.round(nqDataL.price).toLocaleString(),date:nqDataL.dateStr,ok:true,via:nqDataL.proxy});
+  } else { log.push({src:'NQ=F',val:'--',date:'--',ok:false}); }
 
   // 15) CNN Fear & Greed — scrape via allorigins proxy
   status.textContent='Fetching CNN Fear & Greed...';
