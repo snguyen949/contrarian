@@ -954,6 +954,9 @@
       </div>
     </div>
 
+    <!-- Technical Confluence Panel -->
+    <div id="tech-confluence-panel" class="panel" style="border-color:rgba(34,197,94,0.2);display:none"></div>
+
     <!-- Action Card -->
     <div id="action-card" class="action-card score-low"></div>
   </div>
@@ -2568,14 +2571,14 @@ async function fetchLightData(){
   const SPY_ATH=698;
 
   // Parallel: Crypto F&G, BTC, Yahoo tickers, Polymarket
-  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR,_spyWR,_esR,_nqR]=
+  const [_cfR,_btcR,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_vix3mR,_skewR,_pmCeaseR,_pmRecR,_spyWR,_esR,_nqR,_qqqWR,_iwmWR,_esWR,_nqWR]=
     await Promise.allSettled([
       fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
       fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true').then(r=>r.json()),
       yahooChart('SPY','1mo','1d'),
       yahooChart('%5EVIX','5d','1d'),
-      yahooChart('QQQ','5d','1d'),
-      yahooChart('IWM','5d','1d'),
+      yahooChart('QQQ','1mo','1d'),
+      yahooChart('IWM','1mo','1d'),
       yahooChart('CL=F','5d','1d'),
       yahooChart('%5ETNX','5d','1d'),
       yahooChart('GC=F','5d','1d'),
@@ -2587,6 +2590,10 @@ async function fetchLightData(){
       yahooChart('SPY','2y','1wk'),
       yahooChart('ES=F','1mo','1d'),
       yahooChart('NQ=F','1mo','1d'),
+      yahooChart('QQQ','6mo','1wk'),
+      yahooChart('IWM','6mo','1wk'),
+      yahooChart('ES=F','6mo','1wk'),
+      yahooChart('NQ=F','6mo','1wk'),
     ]);
 
   // Process Crypto F&G
@@ -2610,6 +2617,7 @@ async function fetchLightData(){
     pulseState.spyDate=spyD.dateStr;
     pulseState.spyChange=spyD.prevClose?((spyD.price-spyD.prevClose)/spyD.prevClose*100):null;
     pulseState.spySpark=spyD.allCloses.slice(-20);
+    if(spyD.allCloses.length>=15) pulseState.rsiSPY=calcRSI(spyD.allCloses,14);
   }
   // Process SPY weekly (2y, 1wk) — drives weekly RSI + weekly Supertrend
   const spyWD=_spyWR.status==='fulfilled'?_spyWR.value:{ok:false};
@@ -2624,6 +2632,15 @@ async function fetchLightData(){
       console.log('[supertrend] weekly SPY close=$'+st.currentClose.toFixed(2)+' ST=$'+st.value.toFixed(2)+' '+(st.bullish?'BULLISH':'BEARISH')+(st.justFlipped?' ⚡ JUST FLIPPED':''));
     }
   }
+  // Process QQQ/IWM/ES/NQ weekly RSI
+  const qqqWD=_qqqWR&&_qqqWR.status==='fulfilled'?_qqqWR.value:{ok:false};
+  if(qqqWD.ok&&qqqWD.allCloses&&qqqWD.allCloses.length>=15) pulseState.weeklyRsiQQQ=calcRSI(qqqWD.allCloses,14);
+  const iwmWD=_iwmWR&&_iwmWR.status==='fulfilled'?_iwmWR.value:{ok:false};
+  if(iwmWD.ok&&iwmWD.allCloses&&iwmWD.allCloses.length>=15) pulseState.weeklyRsiIWM=calcRSI(iwmWD.allCloses,14);
+  const esWD=_esWR&&_esWR.status==='fulfilled'?_esWR.value:{ok:false};
+  if(esWD.ok&&esWD.allCloses&&esWD.allCloses.length>=15) pulseState.weeklyRsiES=calcRSI(esWD.allCloses,14);
+  const nqWD=_nqWR&&_nqWR.status==='fulfilled'?_nqWR.value:{ok:false};
+  if(nqWD.ok&&nqWD.allCloses&&nqWD.allCloses.length>=15) pulseState.weeklyRsiNQ=calcRSI(nqWD.allCloses,14);
   // Process VIX
   const vixD=_vixR.status==='fulfilled'?_vixR.value:{ok:false};
   if(vixD.ok){
@@ -2638,12 +2655,14 @@ async function fetchLightData(){
     pulseState.qqqPrice=qqqD.price; pulseState.qqqDate=qqqD.dateStr;
     pulseState.qqqChange=qqqD.prevClose?((qqqD.price-qqqD.prevClose)/qqqD.prevClose*100):null;
     pulseState.qqqSpark=qqqD.allCloses.slice(-10);
+    if(qqqD.allCloses.length>=15) pulseState.rsiQQQ=calcRSI(qqqD.allCloses,14);
   }
   // Process IWM
   const iwmD=_iwmR.status==='fulfilled'?_iwmR.value:{ok:false};
   if(iwmD.ok){
     pulseState.iwmPrice=iwmD.price; pulseState.iwmDate=iwmD.dateStr;
     pulseState.iwmChange=iwmD.prevClose?((iwmD.price-iwmD.prevClose)/iwmD.prevClose*100):null;
+    if(iwmD.allCloses&&iwmD.allCloses.length>=15) pulseState.rsiIWM=calcRSI(iwmD.allCloses,14);
   }
   // Process ES=F (S&P 500 Futures)
   const esD=_esR&&_esR.status==='fulfilled'?_esR.value:{ok:false};
@@ -2797,19 +2816,23 @@ async function fetchAllData(){
 
   // 1-10) Parallel fetch: Crypto F&G, BTC, 7 Yahoo Finance tickers, and ^SPXA200R breadth
   status.textContent='Fetching market data (parallel)...';
-  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_esR,_nqR]=await Promise.allSettled([
+  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_esR,_nqR,_qqqWR,_iwmWR,_esWR,_nqWR]=await Promise.allSettled([
     fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
     fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true').then(r=>r.json()),
     yahooChart('SPY','1mo','1d'),
     yahooChart('%5EVIX','5d','1d'),
-    yahooChart('QQQ','5d','1d'),
-    yahooChart('IWM','5d','1d'),
+    yahooChart('QQQ','1mo','1d'),
+    yahooChart('IWM','1mo','1d'),
     yahooChart('CL=F','5d','1d'),
     yahooChart('%5ETNX','5d','1d'),
     yahooChart('GC=F','5d','1d'),
     yahooChart('%5ESPXA200R','5d','1d'), // S&P 500 % of stocks above 200-DMA
     yahooChart('ES=F','1mo','1d'),
     yahooChart('NQ=F','1mo','1d'),
+    yahooChart('QQQ','6mo','1wk'),
+    yahooChart('IWM','6mo','1wk'),
+    yahooChart('ES=F','6mo','1wk'),
+    yahooChart('NQ=F','6mo','1wk'),
   ]);
   // Unwrap with same variable names for backward compatibility
   const spyData=_spyR.status==='fulfilled'?_spyR.value:{ok:false};
@@ -2849,6 +2872,7 @@ async function fetchAllData(){
     pulseState.spyDate=spyData.dateStr;
     pulseState.spyChange=spyData.prevClose?((spyData.price-spyData.prevClose)/spyData.prevClose*100):null;
     pulseState.spySpark=spyData.allCloses.slice(-20);
+    if(spyData.allCloses.length>=15) pulseState.rsiSPY=calcRSI(spyData.allCloses,14);
     log.push({src:'SPY',val:'$'+spyData.price.toFixed(2),date:spyData.dateStr,ok:true,via:spyData.proxy});
   }else{
     log.push({src:'SPY',val:'All proxies failed',date:'--',ok:false});
@@ -2871,6 +2895,7 @@ async function fetchAllData(){
     pulseState.qqqPrice=qqqData.price;
     pulseState.qqqDate=qqqData.dateStr;
     pulseState.qqqChange=qqqData.prevClose?((qqqData.price-qqqData.prevClose)/qqqData.prevClose*100):null;
+    if(qqqData.allCloses&&qqqData.allCloses.length>=15) pulseState.rsiQQQ=calcRSI(qqqData.allCloses,14);
     log.push({src:'QQQ',val:'$'+qqqData.price.toFixed(2),date:qqqData.dateStr,ok:true});
   }else{ log.push({src:'QQQ',val:'All proxies failed',date:'--',ok:false}); }
 
@@ -2879,6 +2904,7 @@ async function fetchAllData(){
     pulseState.iwmPrice=iwmData.price;
     pulseState.iwmDate=iwmData.dateStr;
     pulseState.iwmChange=iwmData.prevClose?((iwmData.price-iwmData.prevClose)/iwmData.prevClose*100):null;
+    if(iwmData.allCloses&&iwmData.allCloses.length>=15) pulseState.rsiIWM=calcRSI(iwmData.allCloses,14);
     log.push({src:'IWM',val:'$'+iwmData.price.toFixed(2),date:iwmData.dateStr,ok:true});
   }else{ log.push({src:'IWM',val:'All proxies failed',date:'--',ok:false}); }
 
@@ -3069,6 +3095,15 @@ async function fetchAllData(){
   if(oilData.ok) pulseState.oilSpark=oilData.allCloses.slice(-10);
   if(goldData.ok) pulseState.goldSpark=goldData.allCloses.slice(-10);
   if(tnxData.ok) pulseState.tnxSpark=tnxData.allCloses.slice(-10);
+  // Process weekly RSI for QQQ/IWM/ES/NQ
+  const qqqWDL=_qqqWR&&_qqqWR.status==='fulfilled'?_qqqWR.value:{ok:false};
+  if(qqqWDL.ok&&qqqWDL.allCloses&&qqqWDL.allCloses.length>=15) pulseState.weeklyRsiQQQ=calcRSI(qqqWDL.allCloses,14);
+  const iwmWDL=_iwmWR&&_iwmWR.status==='fulfilled'?_iwmWR.value:{ok:false};
+  if(iwmWDL.ok&&iwmWDL.allCloses&&iwmWDL.allCloses.length>=15) pulseState.weeklyRsiIWM=calcRSI(iwmWDL.allCloses,14);
+  const esWDL=_esWR&&_esWR.status==='fulfilled'?_esWR.value:{ok:false};
+  if(esWDL.ok&&esWDL.allCloses&&esWDL.allCloses.length>=15) pulseState.weeklyRsiES=calcRSI(esWDL.allCloses,14);
+  const nqWDL=_nqWR&&_nqWR.status==='fulfilled'?_nqWR.value:{ok:false};
+  if(nqWDL.ok&&nqWDL.allCloses&&nqWDL.allCloses.length>=15) pulseState.weeklyRsiNQ=calcRSI(nqWDL.allCloses,14);
   // Process ES=F
   const esDataL=_esR&&_esR.status==='fulfilled'?_esR.value:{ok:false};
   if(esDataL.ok){
@@ -3931,6 +3966,7 @@ function propagateData(){
 
   // RSI confluence + Triple Confluence + Bottom Confirmation Engine + State Machine
   if(typeof renderRSIConfluence==='function') renderRSIConfluence();
+  if(typeof renderTechConfluence==='function') renderTechConfluence();
   if(typeof renderTripleConfluence==='function') renderTripleConfluence();
   if(typeof renderPatternMatcher==='function') renderPatternMatcher();
   if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
@@ -6072,6 +6108,65 @@ function renderRSIConfluence(){
   }
 }
 
+function renderTechConfluence(){
+  const el=document.getElementById('tech-confluence-panel');
+  if(!el) return;
+  const p=pulseState;
+  const instruments=Object.entries(instrumentMap);
+  let dailyOversold=0, weeklyOversold=0, atSupportCount=0;
+  const rows=instruments.map(([key,cfg])=>{
+    const price=p[cfg.priceKey];
+    const rsiKeyMap={SPY:'rsiSPY',QQQ:'rsiQQQ',IWM:'rsiIWM',ES:'rsiES',NQ:'rsiNQ'};
+    const wRsiKeyMap={SPY:'weeklyRsiSPY',QQQ:'weeklyRsiQQQ',IWM:'weeklyRsiIWM',ES:'weeklyRsiES',NQ:'weeklyRsiNQ'};
+    const dr=p[rsiKeyMap[key]], wr=p[wRsiKeyMap[key]];
+    const ns=price?calcNearestSupport(price,cfg.levels):null;
+    if(dr!=null&&dr<30) dailyOversold++;
+    if(wr!=null&&wr<35) weeklyOversold++;
+    if(ns&&ns.atSupport) atSupportCount++;
+    const drColor=dr==null?'rgba(255,255,255,0.3)':dr<30?'#22c55e':dr<40?'#86efac':dr>70?'#ef4444':'rgba(255,255,255,0.7)';
+    const wrColor=wr==null?'rgba(255,255,255,0.3)':wr<35?'#22c55e':wr<45?'#86efac':wr>70?'#ef4444':'rgba(255,255,255,0.7)';
+    const suppCell=ns?(ns.atSupport?'<span style="color:#22c55e">✅ AT SUPPORT</span>':'<span style="color:rgba(255,255,255,0.5)">-'+ns.distancePct.toFixed(1)+'%</span>'):'<span style="color:rgba(255,255,255,0.2)">--</span>';
+    const zoneCell=ns?ns.level.label:'--';
+    const alert=((dr!=null&&dr<30)||(wr!=null&&wr<35)||(ns&&ns.atSupport))?'← ALERT':'';
+    return `<tr>
+      <td style="padding:6px 8px;color:rgba(255,255,255,0.9);font-weight:600">${cfg.ticker}</td>
+      <td style="padding:6px 8px;color:${drColor};text-align:center">${dr!=null?dr.toFixed(1):'--'}</td>
+      <td style="padding:6px 8px;color:${wrColor};text-align:center">${wr!=null?wr.toFixed(1):'--'}</td>
+      <td style="padding:6px 8px;text-align:center">${suppCell}</td>
+      <td style="padding:6px 8px;color:rgba(255,255,255,0.4);font-size:10px">${zoneCell}</td>
+      <td style="padding:6px 8px;color:#f59e0b;font-size:10px;font-weight:700">${alert}</td>
+    </tr>`;
+  }).join('');
+  const confluenceScore=dailyOversold+weeklyOversold+atSupportCount;
+  let badge='';
+  if(dailyOversold>=4||weeklyOversold>=4){
+    badge=`<div style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:8px;padding:10px 16px;margin-bottom:12px;color:#22c55e;font-weight:700;font-size:13px">🚨 RSI CONFLUENCE — EXTREME OVERSOLD (${Math.max(dailyOversold,weeklyOversold)}/5)</div>`;
+  } else if(dailyOversold>=3||weeklyOversold>=3){
+    badge=`<div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:10px 16px;margin-bottom:12px;color:#f59e0b;font-weight:700;font-size:13px">⚡ RSI CONFLUENCE — OVERSOLD (${Math.max(dailyOversold,weeklyOversold)}/5)</div>`;
+  }
+  if(atSupportCount>=3){
+    badge+=`<div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:8px 16px;margin-bottom:12px;color:#22c55e;font-weight:700;font-size:12px">🏗️ STRUCTURAL SUPPORT CONFLUENCE — ${atSupportCount}/5 AT SUPPORT</div>`;
+  }
+  el.style.display='block';
+  el.innerHTML=`
+    <div class="panel-title" style="color:#22c55e">Technical Confluence — RSI + Structural Support</div>
+    ${badge}
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)">
+        <thead><tr style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;letter-spacing:0.5px">
+          <th style="padding:4px 8px;text-align:left">Instrument</th>
+          <th style="padding:4px 8px;text-align:center">Daily RSI</th>
+          <th style="padding:4px 8px;text-align:center">Weekly RSI</th>
+          <th style="padding:4px 8px;text-align:center">At Support?</th>
+          <th style="padding:4px 8px;text-align:left">Support Zone</th>
+          <th style="padding:4px 8px;text-align:left"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.3)">Daily RSI&lt;30 = oversold · Weekly RSI&lt;35 = weekly oversold · Support ±3% = at zone</div>`;
+}
+
 // ===== BOTTOM PATTERNS + PATTERN MATCHER =====
 const BP_TYPE_COLORS={mechanical:'#22d3ee',capitulation:'#22c55e',credit_contagion:'#f97316',fundamental_bear:'#ef4444',geopolitical:'#f59e0b',stealth:'#a855f7'};
 const BP_TYPE_LABELS={mechanical:'Mechanical',capitulation:'Capitulation',credit_contagion:'Credit',fundamental_bear:'Fund. Bear',geopolitical:'Geo-Political',stealth:'Stealth'};
@@ -7715,6 +7810,7 @@ if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
 if(typeof renderBottomState==='function') renderBottomState();
 if(typeof renderTripleConfluence==='function') renderTripleConfluence();
 if(typeof renderRSIConfluence==='function') renderRSIConfluence();
+if(typeof renderTechConfluence==='function') renderTechConfluence();
 if(typeof renderIranLesson==='function') renderIranLesson();
 if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix();
 
