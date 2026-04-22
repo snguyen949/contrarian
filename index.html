@@ -6782,10 +6782,12 @@ renderPatternMatcher();
 // Returns: {type, confidence (1–4), description, warning} or null if insufficient data.
 function classifyBottomType(conditions) {
   if (!conditions) return null;
-  const { vix, drawdown, volMultiple, fng, hyCreditSpread, drawdownMonths, geopoliticalCatalyst } = conditions;
+  const { vix, drawdown, volMultiple, fng, hyCreditSpread, drawdownMonths, geopoliticalCatalyst, vixChangeRate } = conditions;
   if (!vix || !drawdown) return null;
   const dd = Math.abs(drawdown);
   const vixDdRatio = vix / Math.max(dd, 1);
+  // vixChangeRate: % VIX moved over 2 sessions; >100 = VIX doubled = classic mechanical spike
+  const vixSpiked = vixChangeRate != null ? vixChangeRate > 100 : vixDdRatio >= 5.0;
 
   // P1: CREDIT CONTAGION — financial system stress (highest priority)
   if (hyCreditSpread != null && hyCreditSpread >= 500) {
@@ -6812,17 +6814,17 @@ function classifyBottomType(conditions) {
     };
   }
 
-  // P3: MECHANICAL — VIX spike disproportionate to drawdown (ratio ≥ 2.75), but NOT extreme capitulation
+  // P3: MECHANICAL — VIX doubled in 1-2 days (vixChangeRate) OR ratio ≥ 2.75, but NOT extreme capitulation
   // Guard: if VIX ≥ 55 + vol ≥ 3× + F&G ≤ 5, it's true panic/capitulation, not mechanical
-  if (vixDdRatio >= 2.75 && vix >= 35) {
+  if ((vixSpiked || vixDdRatio >= 2.75) && vix >= 35) {
     const isExtremeCapitulation = vix >= 55 && (volMultiple !== null && volMultiple >= 3.0) && (fng !== null && fng <= 5);
     if (!isExtremeCapitulation) {
-      const allSig = vixDdRatio >= 5.0 && vix >= 45 && (fng === null || fng <= 20) && (volMultiple === null || volMultiple >= 2.5);
+      const allSig = (vixSpiked || vixDdRatio >= 5.0) && vix >= 45 && (fng === null || fng <= 20) && (volMultiple === null || volMultiple >= 2.5);
       const mostSig = vixDdRatio >= 3.5 || (vix >= 40 && (volMultiple === null || volMultiple >= 2.0));
       return {
         type: 'mechanical',
         confidence: allSig ? 4 : mostSig ? 3 : 2,
-        description: 'VIX spike >> drawdown magnitude. Liquidity/positioning shock, not fundamentals. Self-correcting once forced selling exhausts — recovery historically within days to weeks.',
+        description: `VIX spike${vixChangeRate != null ? ' +'+vixChangeRate.toFixed(0)+'% in 2 sessions' : ' >> drawdown magnitude'}. Liquidity/positioning shock, not fundamentals. Self-correcting once forced selling exhausts — recovery historically within days to weeks.`,
         warning: null
       };
     }
@@ -6891,12 +6893,20 @@ function classifyBottomType(conditions) {
 // Build the conditions object from pulseState for use with classifyBottomType()
 function buildClassifyConditions() {
   const p = pulseState;
+  // vixChangeRate: % VIX moved over last 2 sessions from sparkline (catches mechanical spikes)
+  let vixChangeRate = null;
+  if (p.vixSpark && p.vixSpark.length >= 3) {
+    const prev2 = p.vixSpark[p.vixSpark.length - 3];
+    const cur  = p.vixSpark[p.vixSpark.length - 1];
+    if (prev2 > 0) vixChangeRate = ((cur - prev2) / prev2) * 100;
+  }
   return {
     vix: p.vix,
     drawdown: p.spyPctFromATH,
     volMultiple: (p.spyVol && p.spy20dAvgVol) ? p.spyVol / p.spy20dAvgVol : null,
     fng: p.cnnFG,
     hyCreditSpread: p.hySpreads,
+    vixChangeRate,
     drawdownMonths: null,        // not tracked live
     geopoliticalCatalyst: null,  // not auto-detected
     interventionAnnounced: null  // not auto-detected
