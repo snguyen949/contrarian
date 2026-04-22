@@ -6187,6 +6187,7 @@ const bottomPatterns={
     retestConfirmed:'No ETF structure existed. Futures retested intraday lows.',
     timeToATH:'~24 months (Sep 1989)',twelveMonthReturn:21,followThroughScore:90,
     keyLesson:'Largest 1-day drop in history. Buying Day 1–2 produced +18% in one week. Fed liquidity was THE catalyst. Program trading cascade = mechanical bottom — once forced selling exhausted, the reversal was violent.',
+    crossInstrument:{futures:true,bonds:true,global:true},
   },
   ltcm:{
     name:'LTCM/Russia Crisis',date:'Oct 8, 1998',type:'credit_contagion',
@@ -6203,6 +6204,7 @@ const bottomPatterns={
     retestConfirmed:'Retested Jul 1998 ATH ~$113 by Dec 1998 (+2mo)',
     timeToATH:'~3 months',twelveMonthReturn:27,followThroughScore:65,
     keyLesson:'Credit crisis bottom required Fed intervention. Slow build, not a V-shape initially. Buying within 1 week of the low produced +27% in 12 months.',
+    crossInstrument:{sp500:true,nasdaq:true,smallcap:true},
   },
   dotcomBottom:{
     name:'Dot-com Bottom',date:'Oct 9, 2002',type:'fundamental_bear',
@@ -6219,6 +6221,7 @@ const bottomPatterns={
     retestConfirmed:'Retested 1996–1998 support zone (~780–800). Held.',
     timeToATH:'~5 years (Oct 2007)',twelveMonthReturn:26,followThroughScore:55,
     keyLesson:'FUNDAMENTAL BEARS take longest to confirm. No V-shape. Score needs to be 8+ because false bottoms are common. Buying the exact low still worked (+26% 12mo) but required patience through multiple retests.',
+    crossInstrument:{sp500:true,nasdaq:true,smallcap:true},
   },
   gfc:{
     name:'GFC Bottom',date:'Mar 9, 2009',type:'capitulation',
@@ -6235,6 +6238,7 @@ const bottomPatterns={
     retestConfirmed:'Retested 1996 pre-bubble levels — the "generational low."',
     timeToATH:'~4 years (Mar 2013)',twelveMonthReturn:68,followThroughScore:88,
     keyLesson:'THE generational buying opportunity. VIX peaked at 80 in Nov 2008 — MONTHS before the Mar 2009 price bottom. KEY INSIGHT: VIX peak and price bottom can be months apart in severe bears. The final bottom came on lower VIX (52) but deeper price. Score was 8.5+.',
+    crossInstrument:{sp500:true,nasdaq:true,smallcap:true,global:true},
   },
   flashCrash:{
     name:'Flash Crash',date:'May 6, 2010',type:'mechanical',
@@ -6251,6 +6255,7 @@ const bottomPatterns={
     retestConfirmed:'Retested Feb 2010 correction lows (~1,040).',
     timeToATH:'~6 months',twelveMonthReturn:22,followThroughScore:58,
     keyLesson:'MECHANICAL FLUSH. Recovered most losses same day. Buying the close on May 6 = +22% in 12 months. The pattern: VIX spike >40 with NO credit deterioration = buy the close.',
+    crossInstrument:{sp500:true,nasdaq:true,futures:true},
   },
   euDebt:{
     name:'EU Debt / US Downgrade',date:'Aug 8, 2011',type:'geopolitical',
@@ -6267,6 +6272,7 @@ const bottomPatterns={
     retestConfirmed:'Retested 2010 correction lows (~1,040–1,100 zone).',
     timeToATH:'~10 months',twelveMonthReturn:13,followThroughScore:55,
     keyLesson:'GEOPOLITICAL bottom with credit-stress undertones. Initial bounce FAILED (day 2: −4.4%). Had to retest before confirming. Conviction needed to be lower — scale-in, not all-at-once.',
+    crossInstrument:{sp500:true,nasdaq:true,global:true},
   },
   chinaDevalue:{
     name:'China Devaluation',date:'Aug 24, 2015',type:'geopolitical',
@@ -6283,6 +6289,7 @@ const bottomPatterns={
     retestConfirmed:'Retested Oct 2014 correction lows (~1,830–1,870).',
     timeToATH:'~6 months',twelveMonthReturn:10,followThroughScore:78,
     keyLesson:'VIX spiked to 53 on only a 12% drawdown. When VIX/drawdown ratio is extreme (VIX > 4× drawdown%), it signals PANIC > REALITY = strong contrarian buy.',
+    crossInstrument:{sp500:true,nasdaq:true,emerging:true},
   },
   volmageddon:{
     name:'Volmageddon',date:'Feb 5, 2018',type:'mechanical',
@@ -6299,6 +6306,7 @@ const bottomPatterns={
     retestConfirmed:'Retested late-Jan 2018 range lows.',
     timeToATH:'~7 months (Sep 2018)',twelveMonthReturn:9,followThroughScore:62,
     keyLesson:'MECHANICAL FLUSH from volatility product implosion. Credit = fine, economy = fine, earnings = fine. VIX spike was STRUCTURAL not FUNDAMENTAL. These recover fastest. Score 4+ = buy immediately.',
+    crossInstrument:{sp500:true,nasdaq:true,volatility:true},
   },
   q4_2018:{
     name:'Q4 2018 Fed Tightening',date:'Dec 24, 2018',type:'capitulation',
@@ -6315,6 +6323,7 @@ const bottomPatterns={
     retestConfirmed:'Retested Feb 2018 Volmageddon lows (~2,350). Held perfectly.',
     timeToATH:'4 months (Apr 2019)',twelveMonthReturn:29,followThroughScore:65,
     keyLesson:'LOW-VOLUME capitulation can be stronger than high volume. Christmas Eve was forced tax-loss selling. F&G at 2 = extreme. The Powell Pivot was THE catalyst. Buying Dec 26 = +29% in 12 months.',
+    crossInstrument:{sp500:true,nasdaq:true,smallcap:true,global:true},
   },
   covid:{
     name:'COVID Crash',date:'Mar 23, 2020',type:'capitulation',
@@ -6331,6 +6340,8 @@ const bottomPatterns={
     retestConfirmed:'SPY retested Feb 2020 ATH $340 by Aug 2020 (+5mo). Fastest ATH retest ever.',
     timeToATH:'5 months (Aug 2020)',twelveMonthReturn:100,followThroughScore:95,
     keyLesson:'THE template for capitulation bottoms. VIX 82 + F&G 3 + record volume + Fed bazooka = generational buy. Every indicator was screaming buy. Score would have been 9.5. Buying Day 0–1 = +100% in 12 months.',
+    crossInstrument:{sp500:true,es:true,nq:true,qqq:true,iwm:true},
+    supertrendFlip:'Week of Apr 6, 2020',
   },
   inflationBear:{
     name:'Inflation Bear Bottom',date:'Oct 12, 2022',type:'fundamental_bear',
@@ -6347,6 +6358,8 @@ const bottomPatterns={
     retestConfirmed:'SPY retested pre-COVID ATH $340 at $348 (within 2.4%). Textbook ATH retest.',
     timeToATH:'~24 months (Jan 2025)',twelveMonthReturn:21,followThroughScore:48,
     keyLesson:'STEALTH BOTTOM in a fundamental bear. No VIX spike, no volume capitulation, no single catalyst. Confirmed by CPI DIVERGENCE — market refusing to sell on bad news = sellers exhausted. Score 7.0 from sentiment alone (F&G 13, AAII bear 61%, NAAIM 25).',
+    crossInstrument:{sp500:true,nasdaq:true,smallcap:true},
+    supertrendFlip:'Week of Nov 14, 2022',
   },
   yenUnwind:{
     name:'Yen Carry Trade Unwind',date:'Aug 5, 2024',type:'mechanical',
@@ -6363,6 +6376,8 @@ const bottomPatterns={
     retestConfirmed:'SPY retested Jul 2024 ATH $564 within 3 weeks.',
     timeToATH:'3 weeks',twelveMonthReturn:15,followThroughScore:92,
     keyLesson:'FASTEST VIX mean reversion ever. When VIX spikes 200%+ in 2 days with NO credit deterioration = buy immediately. Yen carry unwind was a POSITIONING event, not fundamental. Score needed only 4.5 to buy.',
+    crossInstrument:{sp500:true,es:true,nq:true,qqq:true,japan:true},
+    supertrendFlip:'Same week',
   },
   tariff:{
     name:'Tariff Crisis',date:'Apr 7, 2025',type:'capitulation',
@@ -6379,6 +6394,8 @@ const bottomPatterns={
     retestConfirmed:'SPY $482 retested Jan 2022 ATH $480 (within 0.4%). ES retested 2022 ATH. NQ retested $17,383.',
     timeToATH:'8 months (Jan 2026)',twelveMonthReturn:45,followThroughScore:72,
     keyLesson:'RECORD volume day + VIX 60 + F&G 3 = maximum capitulation. Day 3 retest (−3.5%) shook out weak hands but HELD. This is why the Day 3 check matters — if it holds above Day 0, the bottom is confirmed. Score was 9.0.',
+    crossInstrument:{sp500:true,es:true,nq:true,qqq:true,iwm:true},
+    supertrendFlip:'Week of Apr 14, 2025',
   },
   iran:{
     name:'Iran War',date:'Mar 30, 2026',type:'stealth',
@@ -6395,6 +6412,8 @@ const bottomPatterns={
     retestConfirmed:'SPY missed $565–610 target (stopped at $629). BUT ES1! confirmed at $6,300 and NQ1! confirmed at $17,383 — cross-instrument confluence validated the bottom at a HIGHER price level.',
     timeToATH:'~2 weeks to near-ATH ($694 vs ATH $698)',twelveMonthReturn:null,followThroughScore:78,
     keyLesson:'THE STEALTH BOTTOM. No capitulation, no extreme VIX, no extreme F&G. Only visible through cross-instrument structural analysis. SPY alone would have said "not oversold enough." ES and NQ retesting their levels PROVED institutional buying. Traditional sentiment score: ~2.3. The structural confluence was the ONLY signal that correctly identified the bottom.',
+    crossInstrument:{sp500:false,es:true,nq:true,qqq:false,iwm:false},
+    supertrendFlip:'Week of Apr 7, 2026',
   },
 };
 
