@@ -2768,8 +2768,17 @@ async function fetchLightData(){
   // Update UI
   const okSrcs=[spyD,vixD,qqqD,oilD,tnxD,goldD].filter(d=>d.ok).length;
   if(status) status.innerHTML=`<span style="color:#22c55e">Auto-refreshed — ${okSrcs} price sources</span> <span style="color:rgba(255,255,255,0.25)">· ${new Date().toLocaleTimeString()}</span>`;
+  const _luTsL=Date.now();
   const luEl=document.getElementById('last-updated');
-  if(luEl) luEl.innerHTML=`<span style="color:rgba(255,255,255,0.35)">Prices as of: <strong style="color:var(--cyan)">${pulseState.spyDate||'--'}</strong></span> <span style="color:rgba(255,255,255,0.15)">· Auto-refreshed ${new Date().toLocaleTimeString()}</span>`;
+  if(luEl) luEl.innerHTML=`<span style="color:rgba(255,255,255,0.35)">Prices as of: <strong style="color:var(--cyan)">${pulseState.spyDate||'--'}</strong></span> <span style="color:rgba(255,255,255,0.15)">· Auto-refreshed ${new Date(_luTsL).toLocaleTimeString()}</span> <span id="lu-ago" style="color:rgba(255,255,255,0.15)"> · just now</span>`;
+  if(window._luTimer) clearInterval(window._luTimer);
+  window._luFetchedAt=_luTsL;
+  window._luTimer=setInterval(()=>{
+    const el=document.getElementById('lu-ago');
+    if(!el){clearInterval(window._luTimer);return;}
+    const m=Math.round((Date.now()-window._luFetchedAt)/60000);
+    el.textContent=m<1?' · just now':' · '+m+' min ago';
+  },60000);
 
   // Cache + propagate
   try{ localStorage.setItem('contrarianCache',JSON.stringify({data:{...pulseState},ts:Date.now()})); }catch(e){}
@@ -2781,10 +2790,12 @@ async function fetchLightData(){
   recalcScore();
   captureSnapshot();
 
-  // What Changed
+  // Build per-card deltas then update what-changed panel
+  calcDeltas(_preSnap);
+  renderDeltaStatus();
   const _postSnap=snapshotForDiff();
   if(_preSnap!==null) renderWhatChanged(_preSnap,_postSnap);
-  prevFetchSnapshot=_postSnap;
+  snapshotPrevious(_postSnap);
 
   isFetching=false;
 }
@@ -2951,9 +2962,19 @@ async function fetchAllData(){
   const proxyUsed=workingProxy>=0?PROXY_NAMES[workingProxy]:'none';
   status.innerHTML=`<span style="color:${okCount>=5?'#22c55e':'#f59e0b'}">${okCount}/${log.length} sources fetched</span>${proxyUsed!=='direct'&&proxyUsed!=='none'?' · <span style="color:rgba(255,255,255,0.3)">via '+proxyUsed+'</span>':''}${failCount>0&&okCount<5?' · <span style="color:rgba(255,255,255,0.25)">Some sources unreachable — check network</span>':''}`;
 
+  const _luTs=Date.now();
   document.getElementById('last-updated').innerHTML=`
     <span style="color:rgba(255,255,255,0.35)">Data as of: <strong style="color:var(--cyan)">${latestDate}</strong></span>
-    <span style="color:rgba(255,255,255,0.15)"> · Fetched ${new Date().toLocaleTimeString()}</span>`;
+    <span style="color:rgba(255,255,255,0.15)"> · Fetched ${new Date(_luTs).toLocaleTimeString()}</span>
+    <span id="lu-ago" style="color:rgba(255,255,255,0.15)"> · just now</span>`;
+  if(window._luTimer) clearInterval(window._luTimer);
+  window._luFetchedAt=_luTs;
+  window._luTimer=setInterval(()=>{
+    const el=document.getElementById('lu-ago');
+    if(!el){clearInterval(window._luTimer);return;}
+    const m=Math.round((Date.now()-window._luFetchedAt)/60000);
+    el.textContent=m<1?' · just now':' · '+m+' min ago';
+  },60000);
 
   const logEl=document.getElementById('fetch-log');
   if(logEl) logEl.innerHTML=log.map(l=>`
@@ -3446,7 +3467,7 @@ async function fetchAllData(){
   // What Changed — compare previous fetch vs current state
   const _postSnap=snapshotForDiff();
   if(_preSnap!==null) renderWhatChanged(_preSnap, _postSnap);
-  prevFetchSnapshot=_postSnap;
+  snapshotPrevious(_postSnap);
 
   // Fetch headlines for conflict phase detection (async, non-blocking)
   fetchConflictHeadlines().catch(()=>{});
@@ -3454,7 +3475,13 @@ async function fetchAllData(){
 }
 
 // ===== WHAT CHANGED =====
-let prevFetchSnapshot = null;
+let prevFetchSnapshot = (()=>{ try{ const s=localStorage.getItem('btf-prev-state'); return s?JSON.parse(s):null; }catch(e){ return null; } })();
+
+// Save snapshot to btf-prev-state localStorage so deltas survive page reloads
+function snapshotPrevious(snap){
+  prevFetchSnapshot = snap;
+  try{ localStorage.setItem('btf-prev-state', JSON.stringify(snap)); }catch(e){}
+}
 
 function snapshotForDiff(){
   return {
@@ -3475,6 +3502,14 @@ function snapshotForDiff(){
     btcPrice:       pulseState.btcPrice       ?? null,
     oilPrice:       pulseState.oilPrice       ?? null,
     goldPrice:      pulseState.goldPrice      ?? null,
+    iwmPrice:       pulseState.iwmPrice       ?? null,
+    esPrice:        pulseState.esPrice        ?? null,
+    nqPrice:        pulseState.nqPrice        ?? null,
+    rsiSPY:         pulseState.rsiSPY         ?? null,
+    rsiES:          pulseState.rsiES          ?? null,
+    rsiNQ:          pulseState.rsiNQ          ?? null,
+    ceasefireOdds:  pulseState.polyIranCeasefire?.pct ?? null,
+    recessionOdds:  pulseState.polyRecession?.pct     ?? null,
     conflictStep:   (typeof currentConflictStep!=='undefined')?currentConflictStep:null,
     tariffStep:     (typeof currentTariffStep  !=='undefined')?currentTariffStep  :null,
   };
@@ -8702,16 +8737,19 @@ function calcDeltas(prevSnap){
   if(!prevSnap || !prevSnap.ts) return;
   const keys = ['spyPrice','vix','vixRatio','cnnFG','cryptoFG','nfci','hySpreads',
     'tnx','aaiiBull','aaiiBear','putCallRatio','naaimExposure','btcPrice',
-    'oilPrice','goldPrice','qqqPrice','iwmPrice','skew'];
+    'oilPrice','goldPrice','qqqPrice','iwmPrice','skew',
+    'esPrice','nqPrice','rsiSPY','rsiES','rsiNQ','ceasefireOdds','recessionOdds'];
   let sigCount = 0;
   keys.forEach(k=>{
     const prev = prevSnap[k];
-    const cur = pulseState[k];
+    const cur = k==='ceasefireOdds' ? (pulseState.polyIranCeasefire?.pct ?? null)
+              : k==='recessionOdds' ? (pulseState.polyRecession?.pct ?? null)
+              : pulseState[k];
     if(prev==null || cur==null || isNaN(prev) || isNaN(cur)) return;
     const delta = cur - prev;
     const pct = Math.abs(prev) > 0 ? (delta / Math.abs(prev)) * 100 : 0;
     const direction = delta > 0.001 ? 'up' : delta < -0.001 ? 'down' : 'flat';
-    const significant = Math.abs(pct) > 2;
+    const significant = Math.abs(pct) > 5;
     if(significant) sigCount++;
     pulseState.deltas[k] = { prev, current:cur, delta, pctChg:pct, direction, significant };
   });
@@ -8743,7 +8781,7 @@ function renderDeltaStatus(){
   const n = d._sigCount || 0;
   if(n === 0) { el.style.display='none'; return; }
   el.style.display = 'block';
-  el.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-weight:600">'+n+'</span> metrics moved &gt;2% since last fetch <span style="color:rgba(255,255,255,0.15)">('+mins+' min ago)</span>';
+  el.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-weight:600">'+n+'</span> metrics moved &gt;5% since last fetch <span style="color:rgba(255,255,255,0.15)">('+mins+' min ago)</span>';
 }
 
 // ===== GROQ HEADLINE SENTIMENT MIX =====
