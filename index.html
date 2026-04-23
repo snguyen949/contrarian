@@ -2631,6 +2631,9 @@ async function fetchLightData(){
       pulseState.supertrendJustFlipped = st.justFlipped;
       console.log('[supertrend] weekly SPY close=$'+st.currentClose.toFixed(2)+' ST=$'+st.value.toFixed(2)+' '+(st.bullish?'BULLISH':'BEARISH')+(st.justFlipped?' ⚡ JUST FLIPPED':''));
     }
+    // Weekly streak — consecutive loss/gain counter
+    const wStreak = calcWeeklyStreak(wCloses);
+    if(wStreak){ pulseState.weeklyStreak=wStreak.streak; pulseState.weeklyStreakDir=wStreak.direction; pulseState.weeklyRecentChanges=wStreak.recentChanges; }
   }
   // Process QQQ/IWM/ES/NQ weekly RSI
   const qqqWD=_qqqWR&&_qqqWR.status==='fulfilled'?_qqqWR.value:{ok:false};
@@ -2827,7 +2830,7 @@ async function fetchAllData(){
 
   // 1-10) Parallel fetch: Crypto F&G, BTC, 7 Yahoo Finance tickers, and ^SPXA200R breadth
   status.textContent='Fetching market data (parallel)...';
-  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_esR,_nqR,_qqqWR,_iwmWR,_esWR,_nqWR]=await Promise.allSettled([
+  const [_cfRaw,_btcRaw,_spyR,_vixR,_qqqR,_iwmR,_oilR,_tnxR,_goldR,_spxaR,_esR,_nqR,_qqqWR,_iwmWR,_esWR,_nqWR,_spyWRa]=await Promise.allSettled([
     fetch('https://api.alternative.me/fng/?limit=1').then(r=>r.json()),
     fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true').then(r=>r.json()),
     yahooChart('SPY','1mo','1d'),
@@ -2844,6 +2847,7 @@ async function fetchAllData(){
     yahooChart('IWM','6mo','1wk'),
     yahooChart('ES=F','6mo','1wk'),
     yahooChart('NQ=F','6mo','1wk'),
+    yahooChart('SPY','2y','1wk'),
   ]);
   // Unwrap with same variable names for backward compatibility
   const spyData=_spyR.status==='fulfilled'?_spyR.value:{ok:false};
@@ -3125,6 +3129,18 @@ async function fetchAllData(){
   if(esWDL.ok&&esWDL.allCloses&&esWDL.allCloses.length>=15) pulseState.weeklyRsiES=calcRSI(esWDL.allCloses,14);
   const nqWDL=_nqWR&&_nqWR.status==='fulfilled'?_nqWR.value:{ok:false};
   if(nqWDL.ok&&nqWDL.allCloses&&nqWDL.allCloses.length>=15) pulseState.weeklyRsiNQ=calcRSI(nqWDL.allCloses,14);
+  // SPY weekly — weekly streak + RSI + Supertrend (fetchAllData path)
+  const spyWDa=_spyWRa&&_spyWRa.status==='fulfilled'?_spyWRa.value:{ok:false};
+  if(spyWDa.ok && spyWDa.allCloses && spyWDa.allCloses.length >= 12){
+    const wC=spyWDa.allCloses;
+    if(!pulseState.weeklyRsiSPY) pulseState.weeklyRsiSPY=calcRSI(wC,14);
+    if(pulseState.supertrendBullish===undefined||pulseState.supertrendBullish===null){
+      const st=calcWeeklySupertrend(wC,10,3.0);
+      if(st){ pulseState.weeklySupertrend=st.value; pulseState.supertrendBullish=st.bullish; pulseState.supertrendJustFlipped=st.justFlipped; }
+    }
+    const wStreak=calcWeeklyStreak(wC);
+    if(wStreak){ pulseState.weeklyStreak=wStreak.streak; pulseState.weeklyStreakDir=wStreak.direction; pulseState.weeklyRecentChanges=wStreak.recentChanges; }
+  }
   // Process ES=F
   const esDataL=_esR&&_esR.status==='fulfilled'?_esR.value:{ok:false};
   if(esDataL.ok){
@@ -4216,8 +4232,29 @@ function updateShortTermSignals() {
       momSignals.push({icon:'⚠️',label:'Below 200-DMA ($658)',desc:'SPY broke below 200-DMA on 3/20 for first time in 214 sessions. Historic data: 70% of 200-DMA breaks are reclaimed within 30 days.',color:'#ef4444',active:true,type:'bear'});
     }
 
-    // Consecutive down weeks
-    momSignals.push({icon:'📅',label:'4th Consecutive Weekly Loss',desc:'SPY has not had 5+ consecutive weekly losses since Sep 2022 (inflation bear). The 4th week is historically where selling exhaustion begins.',color:'#f97316',active:true,type:'contrarian'});
+    // Consecutive weekly streak — live calculated from weekly closes
+    if(pulseState.weeklyStreak >= 2 && pulseState.weeklyStreakDir) {
+      const streak = pulseState.weeklyStreak;
+      const isLoss = pulseState.weeklyStreakDir === 'loss';
+      const ord = streak===1?'st':streak===2?'nd':streak===3?'rd':'th';
+      const label = `${streak}${ord} Consecutive Weekly ${isLoss ? 'Loss' : 'Gain'}`;
+      const isContrarian = streak >= 4;
+      const changesStr = (pulseState.weeklyRecentChanges||[]).map(c=>(c>0?'+':'')+c.toFixed(1)+'%').join(' → ');
+      let desc = '';
+      if(isLoss && streak >= 5) desc = `SPY has not had ${streak+1}+ consecutive weekly losses since Sep 2022 (inflation bear). Selling exhaustion is historically imminent. Recent weeks: ${changesStr}`;
+      else if(isLoss && streak >= 4) desc = `SPY has not had 5+ consecutive weekly losses since Sep 2022 (inflation bear). The 4th week is historically where selling exhaustion begins. Recent weeks: ${changesStr}`;
+      else if(isLoss) desc = `${streak} consecutive red weeks. Watching for selling exhaustion or acceleration. Recent weeks: ${changesStr}`;
+      else if(!isLoss && streak >= 4) desc = `${streak} consecutive green weeks. Extended winning streaks often precede pullbacks — contrarian caution. Recent weeks: ${changesStr}`;
+      else desc = `${streak} consecutive green weeks. Momentum is strong. Recent weeks: ${changesStr}`;
+      momSignals.push({
+        icon: isLoss ? '📉' : '📈',
+        label,
+        desc,
+        color: isContrarian ? (isLoss ? '#22c55e' : '#f97316') : '#f59e0b',
+        active: true,
+        type: isContrarian ? 'contrarian' : 'neutral'
+      });
+    }
 
     // Drawdown signal
     if(pctFromATH && pctFromATH >= 5 && pctFromATH < 10) {
@@ -7506,6 +7543,25 @@ function renderBottomState() {
 }
 
 // ===== TECHNICAL CONFLUENCE DETECTION =====
+
+// Counts consecutive weekly losses or gains from most-recent week backwards.
+// Returns { streak, direction:'loss'|'gain', recentChanges } or null if <2 closes.
+function calcWeeklyStreak(weeklyCloses) {
+  if(!weeklyCloses || weeklyCloses.length < 2) return null;
+  let streak = 0, direction = null;
+  for(let i = weeklyCloses.length - 1; i >= 1; i--) {
+    const thisDir = weeklyCloses[i] < weeklyCloses[i-1] ? 'loss' : 'gain';
+    if(direction === null) { direction = thisDir; streak = 1; }
+    else if(thisDir === direction) { streak++; }
+    else break;
+  }
+  const recentChanges = [];
+  for(let i = Math.max(1, weeklyCloses.length - 6); i < weeklyCloses.length; i++) {
+    recentChanges.push((weeklyCloses[i] - weeklyCloses[i-1]) / weeklyCloses[i-1] * 100);
+  }
+  return { streak, direction, recentChanges };
+}
+
 // Simple RSI(14) — averages gains/losses over last `period` bars
 function calcRSI(closes, period=14) {
   if (!closes || closes.length < period+1) return null;
