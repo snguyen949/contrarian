@@ -6689,6 +6689,105 @@ function renderBottomPatterns(){
 renderBottomPatterns();
 
 // ===== PATTERN MATCHER =====
+// ===== PHASE 3: SELF-EXPANDING PATTERN DATABASE =====
+// When bottomStateManager reaches CONFIRMED, captures the full market
+// fingerprint in btf-learned-patterns localStorage. learned patterns are
+// scored for quality after 20+ days (SPY return grades A-D) and included
+// in matchCurrentToPatterns() alongside the static 14.
+
+const LP_KEY = 'btf-learned-patterns';
+const LP_MAX = 20; // max stored learned patterns
+
+function loadLearnedPatterns() {
+  try { return JSON.parse(localStorage.getItem(LP_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function saveLearnedPatterns(arr) {
+  try { localStorage.setItem(LP_KEY, JSON.stringify(arr.slice(-LP_MAX))); } catch(e) {}
+}
+
+// Capture current market conditions as a learned pattern (compatible with bottomPatterns shape)
+function captureLearnedPattern(stateData) {
+  const p = pulseState;
+  if (!p.spyPrice || !p.vix) return;
+
+  const existing = loadLearnedPatterns();
+  // Avoid duplicates within 3 days
+  const recentTs = existing.filter(lp => Date.now() - (lp._ts||0) < 3 * 86400000);
+  if (recentTs.length) return;
+
+  let crossInstrument = {};
+  try {
+    const tc = detectTripleConfluence();
+    ['SPY','QQQ','IWM','ES','NQ'].forEach(k => {
+      crossInstrument[k.toLowerCase()] = !!(tc.find(r => r.instrument === k && r.atSupport));
+    });
+  } catch(e) {}
+
+  let bottomType = null;
+  try { bottomType = classifyBottomType(buildClassifyConditions())?.type || null; } catch(e) {}
+
+  const volMultiple = (p.spyVol && p.spy20dAvgVol) ? +(p.spyVol / p.spy20dAvgVol).toFixed(1) : null;
+  const day0 = stateData?.day0 || {};
+
+  const pattern = {
+    // Shape matches bottomPatterns entries so calcBottomSimilarity works unchanged
+    name:        'Learned Bottom',
+    date:        new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    type:        bottomType || 'stealth',
+    drawdownPct: p.spyPctFromATH ?? null,
+    day0: {
+      spyPrice:  p.spyPrice,
+      vix:       p.vix,
+      vol:       volMultiple,
+      rsi:       p.rsiSPY ?? null,
+      weeklyRsi: p.weeklyRsiSPY ?? null,
+      fng:       p.cnnFG ?? p.cryptoFG ?? null,
+    },
+    crossInstrument,
+    // Outcome fields — resolved later
+    twelveMonthReturn: null,
+    followThroughScore: null,
+    // Metadata
+    _learned:        true,
+    _ts:             Date.now(),
+    _confirmedPrice: p.spyPrice,
+    _quality:        null,   // null = unresolved; A/B/C/D after 20d
+    _resolvedTs:     null,
+    _spyReturn20d:   null,
+  };
+
+  existing.push(pattern);
+  saveLearnedPatterns(existing);
+  console.log('[phase3] Learned pattern captured:', pattern.date, 'VIX', p.vix, 'DD', p.spyPctFromATH?.toFixed(1)+'%');
+}
+
+// Resolve quality grade on learned patterns after 20 trading days
+function scoreLearnedPatterns() {
+  const lp = loadLearnedPatterns();
+  if (!lp.length || !pulseState.spyPrice) return;
+  const now = Date.now();
+  let changed = false;
+
+  lp.forEach(pattern => {
+    if (pattern._quality !== null) return; // already graded
+    const daysElapsed = (now - (pattern._ts || 0)) / 86400000;
+    if (daysElapsed < 20) return;
+
+    const ret = (pulseState.spyPrice - pattern._confirmedPrice) / pattern._confirmedPrice * 100;
+    pattern._spyReturn20d = +ret.toFixed(2);
+    pattern._resolvedTs = now;
+    // Grade: A=+10%+, B=+3-10%, C=0-3%, D=negative
+    pattern._quality = ret >= 10 ? 'A' : ret >= 3 ? 'B' : ret >= 0 ? 'C' : 'D';
+    // Backfill followThroughScore for calcBottomSimilarity compatibility
+    pattern.followThroughScore = ret >= 10 ? 85 : ret >= 3 ? 65 : ret >= 0 ? 40 : 10;
+    changed = true;
+    console.log('[phase3] Learned pattern graded:', pattern.date, '→ grade', pattern._quality, '('+ret.toFixed(1)+'% in 20d)');
+  });
+
+  if (changed) saveLearnedPatterns(lp);
+}
+
 // Compares current pulseState against all 14 historical bottoms.
 // Similarity is a weighted average of per-dimension closeness (0–1 each).
 // 7-dimension similarity scorer — returns score 0-100 + details
@@ -6780,10 +6879,30 @@ function matchCurrentToPatterns(){
     rsi:      p.rsiSPY,
     fng:      p.cnnFG,
   };
-  return Object.entries(bottomPatterns).map(([key,bp])=>{
+
+  // Static 14 patterns
+  const staticMatches = Object.entries(bottomPatterns).map(([key,bp])=>{
     const result=calcBottomSimilarity(current,bp);
-    return {key, bp, similarity:result.similarity, score:result.score, details:result.details};
-  }).sort((a,b)=>b.score-a.score);
+    return {key, bp, similarity:result.similarity, score:result.score, details:result.details, learned:false};
+  });
+
+  // Learned patterns from Phase 3 — quality-weighted
+  const learnedMatches = loadLearnedPatterns().map((lp, i)=>{
+    const result = calcBottomSimilarity(current, lp);
+    // Quality multiplier: unresolved=0.8 (slight discount), A=1.0, B=0.85, C=0.70, D=0.40
+    const qMult = lp._quality === null ? 0.8 : lp._quality === 'A' ? 1.0 : lp._quality === 'B' ? 0.85 : lp._quality === 'C' ? 0.70 : 0.40;
+    return {
+      key: 'learned_'+i,
+      bp: lp,
+      similarity: result.similarity * qMult,
+      score: Math.round(result.score * qMult),
+      details: result.details,
+      learned: true,
+      quality: lp._quality,
+    };
+  });
+
+  return [...staticMatches, ...learnedMatches].sort((a,b)=>b.score-a.score);
 }
 
 function renderPatternMatcher(){
@@ -6878,6 +6997,28 @@ function renderPatternMatcher(){
       </div>
       <div style="font-size:28px;font-weight:900;font-family:var(--mono);color:#22c55e">+${expRet.toFixed(0)}%</div>
     </div>`:''}
+
+    ${(()=>{
+      const lp = loadLearnedPatterns();
+      if(!lp.length) return '<div style="margin-top:12px;font-size:9px;color:rgba(255,255,255,0.12);padding-top:10px;border-top:1px solid rgba(255,255,255,0.05)">Phase 3 · No learned patterns yet — captured automatically when bottom state reaches CONFIRMED.</div>';
+      const qCol = q => q==='A'?'#22c55e':q==='B'?'#22d3ee':q==='C'?'#f59e0b':q==='D'?'#ef4444':'#94a3b8';
+      const qLabel = q => q?'Grade '+q:'Pending (20d)';
+      const rows = lp.map(p => {
+        const daysElapsed = Math.round((Date.now()-(p._ts||0))/86400000);
+        const retStr = p._spyReturn20d!=null ? (p._spyReturn20d>0?'+':'')+p._spyReturn20d.toFixed(1)+'% D20' : daysElapsed+'d ago';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:9px">
+          <div style="color:rgba(255,255,255,0.5);width:80px;flex-shrink:0">${p.date}</div>
+          <div style="color:rgba(255,255,255,0.35);flex:1">VIX ${p.day0?.vix?.toFixed(0)??'--'} · RSI ${p.day0?.rsi?.toFixed(0)??'--'} · DD -${p.drawdownPct?.toFixed(1)??'--'}% · ${p.type}</div>
+          <div style="font-weight:700;color:${qCol(p._quality)}">${qLabel(p._quality)}</div>
+          <div style="font-family:var(--mono);color:${p._spyReturn20d>0?'#22c55e':p._spyReturn20d<0?'#ef4444':'#94a3b8'}">${retStr}</div>
+        </div>`;
+      }).join('');
+      return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05)">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Phase 3 · Learned Patterns (${lp.length}) <span style="font-weight:400;color:rgba(255,255,255,0.15)">— auto-captured on CONFIRMED, quality graded at D+20</span></div>
+        ${rows}
+        <button onclick="if(confirm('Delete all learned patterns?')){localStorage.removeItem('${LP_KEY}');renderPatternMatcher();}" style="margin-top:6px;padding:3px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:transparent;color:rgba(255,255,255,0.2);font-size:8px;cursor:pointer;font-family:var(--sans)">Clear learned patterns</button>
+      </div>`;
+    })()}
   </div>`;
 }
 renderPatternMatcher();
@@ -7518,8 +7659,16 @@ function renderBottomState() {
     nqPrice: p.nqPrice || null
   };
   let s;
+  const _prevBSState = bottomStateManager.load().state;
   try { s = bottomStateManager.evaluate(current); }
   catch(e) { console.error('[bottomStateManager]', e); s = bottomStateManager.load(); }
+
+  // Phase 3: capture learned pattern on CONFIRMING → CONFIRMED transition
+  if(_prevBSState === BS_STATES.CONFIRMING && s.state === BS_STATES.CONFIRMED){
+    try{ captureLearnedPattern(s); }catch(e){ console.warn('[phase3] capture failed', e); }
+  }
+  // Phase 3: resolve quality grades on existing learned patterns
+  try{ scoreLearnedPatterns(); }catch(e){}
 
   const stageLabels = ['SCANNING', 'POTENTIAL', 'CONFIRMING', '✅ CONFIRMED'];
   const stageColors = ['#94a3b8', '#f59e0b', '#22d3ee', '#22c55e'];
