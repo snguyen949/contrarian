@@ -358,7 +358,7 @@
   .crisis-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text-2); }
   .crisis-btn .date { font-size: 9px; margin-left: 4px; opacity: 0.5; }
 
-  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: start; }
   .detail-row { display: flex; border-bottom: 1px solid var(--border); padding: 10px 0; }
   .detail-label { width: 100px; flex-shrink: 0; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); font-weight: 600; padding-top: 2px; }
   .detail-value { font-size: 12px; color: var(--muted); line-height: 1.6; }
@@ -3928,7 +3928,7 @@ function propagateData(){
   if(pulseState.vix) iranData.vixPeak=Math.max(iranData.vixPeak,pulseState.vix);
   if(pulseState.spyPrice){
     iranData.spyBottom=Math.min(iranData.spyBottom,pulseState.spyPrice);
-    iranData.drawdown=((698-pulseState.spyPrice)/698*100);
+    iranData.drawdown=+((698-pulseState.spyPrice)/698*100).toFixed(1);
   }
 
   // Refresh Sentiment tab cards
@@ -4925,10 +4925,11 @@ function renderCrisisDetail() {
   const cScoreLabel=cMatch?cMatch.scoreLabel+' ('+cMatch.pct+'%)':'N/A';
   const cScoreCol=cMatch?(cMatch.ratio>=0.75?'#22c55e':cMatch.ratio>=0.6?'#f59e0b':'#ef4444'):'#555';
 
+  const fmtDd = typeof d.drawdown==='number' ? (Number.isInteger(d.drawdown)?d.drawdown:d.drawdown.toFixed(1))+'%' : 'N/A';
   const metrics = [
     {l:"F&G",v:fgVal!==null?fgVal:'N/A',c:fgCol},
-    {l:"VIX Peak",v:d.vixPeak,c:vCol},
-    {l:"Drawdown",v:d.drawdown+'%',c:ddCol},
+    {l:"VIX Peak",v:typeof d.vixPeak==='number'?d.vixPeak:d.vixPeak,c:vCol},
+    {l:"Drawdown",v:fmtDd,c:ddCol},
     {l:"SPY Low",v:d.spyBottom<100?d.spyBottom:'$'+d.spyBottom,c:'#22d3ee'},
     {l:"AAII Bear",v:aaiiVal!==null?aaiiVal+'%':'N/A',c:aaiiVal?aaiiColor(aaiiVal):'#555'},
     {l:"Coulling",v:cMatch?cScoreLabel:'N/A',c:cScoreCol},
@@ -4943,12 +4944,12 @@ function renderCrisisDetail() {
     <div>
       ${rows.map(r=>`<div class="detail-row"><div class="detail-label">${r.l}</div><div class="detail-value">${r.v}</div></div>`).join('')}
     </div>
-    <div>
-      <div class="metric-grid">
-        ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}15"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c}">${m.v}</div></div>`).join('')}
+    <div style="max-width:340px">
+      <div class="metric-grid" style="grid-template-columns:1fr 1fr">
+        ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}20"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c};font-size:18px">${m.v}</div></div>`).join('')}
         <div class="contrarian-box" style="grid-column:1/-1;background:${contrBg};border:1px solid ${contrBorder}">
-          <div style="font-size:10px;color:rgba(255,255,255,0.35)">Contrarians Correct?</div>
-          <div style="font-size:14px;font-weight:700;margin-top:3px;color:${contrCol}">${contrText}</div>
+          <div style="font-size:10px;color:var(--dim)">Contrarians Correct?</div>
+          <div style="font-size:13px;font-weight:700;margin-top:3px;color:${contrCol}">${contrText}</div>
         </div>
       </div>
     </div>`;
