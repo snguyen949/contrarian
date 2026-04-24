@@ -1676,8 +1676,9 @@ function recalcScore(){
     if(cl && clusterMax[cl]!==undefined && sc>clusterMax[cl]) clusterMax[cl]=sc;
   });
 
-  // Weighted score: A×0.20 + B×0.35 + C×0.25 + D×0.20, scaled to 0-10
-  const rawScore=clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20;
+  // Weighted score — uses adaptive cluster weights when ≥3 resolved D+10 outcomes exist
+  const _cw=_clusterWeights();
+  const rawScore=clusterMax.A*_cw.A + clusterMax.B*_cw.B + clusterMax.C*_cw.C + clusterMax.D*_cw.D;
   // Contrarian headline boost: +0.5 or +1.0 when Groq detects >40%/>60% contrarian headlines
   const boost=pulseState.contrarianBoost||0;
   // Triple Confluence bonus — uncapped signal, added directly (max +2.0)
@@ -1866,7 +1867,8 @@ function updateActionCard(){
     const sc=Math.min(1,s.score());
     if(s.cluster&&clusterMax[s.cluster]!==undefined&&sc>clusterMax[s.cluster]) clusterMax[s.cluster]=sc;
   });
-  const rawScore=clusterMax.A*0.20+clusterMax.B*0.35+clusterMax.C*0.25+clusterMax.D*0.20;
+  const _cw2=_clusterWeights();
+  const rawScore=clusterMax.A*_cw2.A+clusterMax.B*_cw2.B+clusterMax.C*_cw2.C+clusterMax.D*_cw2.D;
   const boost=pulseState.contrarianBoost||0;
   const ftMult=pulseState.followThrough?.multiplier||1.0;
   const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
@@ -2814,8 +2816,10 @@ async function fetchLightData(){
   recalcScore();
   captureSnapshot();
 
-  // Phase 1: resolve pending outcomes, record new signal if threshold just crossed
+  // Phase 1+2: resolve outcomes → compute adaptive weights → record new signal → render
   try{ resolveOutcomes(); }catch(e){}
+  try{ const aw=calcAdaptiveWeights(); if(aw) pulseState.adaptiveWeights=aw; }catch(e){}
+  try{ pulseState.calibratedThreshold=calcCalibratedThreshold(); }catch(e){}
   try{ recordSignalOutcome(); }catch(e){}
   try{ renderSignalScorecard(); }catch(e){}
 
@@ -3506,8 +3510,10 @@ async function fetchAllData(){
   // Save daily snapshot to 30-day history
   captureSnapshot();
 
-  // Phase 1: resolve pending outcomes, record new signal if threshold just crossed
+  // Phase 1+2: resolve outcomes → compute adaptive weights → record new signal → render
   try{ resolveOutcomes(); }catch(e){}
+  try{ const aw=calcAdaptiveWeights(); if(aw) pulseState.adaptiveWeights=aw; }catch(e){}
+  try{ pulseState.calibratedThreshold=calcCalibratedThreshold(); }catch(e){}
   try{ recordSignalOutcome(); }catch(e){}
   try{ renderSignalScorecard(); }catch(e){}
 
@@ -7776,7 +7782,8 @@ function calcBuyRating() {
     const sc = Math.min(1, s.score());
     if (s.cluster && clusterMax[s.cluster] !== undefined && sc > clusterMax[s.cluster]) clusterMax[s.cluster] = sc;
   });
-  const sentimentRaw = (clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20) * 10;
+  const _cw3=_clusterWeights();
+  const sentimentRaw = (clusterMax.A*_cw3.A + clusterMax.B*_cw3.B + clusterMax.C*_cw3.C + clusterMax.D*_cw3.D) * 10;
 
   // Triple confluence uncapped bonus
   const tcSig = signals.find(s => s.id === 'tripleConfluence');
@@ -8240,7 +8247,8 @@ function calcSimulatedScore(overrides){
         clusterMax[s.cluster] = sc;
       }
     });
-    const rawScore = clusterMax.A*0.20 + clusterMax.B*0.35 + clusterMax.C*0.25 + clusterMax.D*0.20;
+    const _cw4=_clusterWeights();
+    const rawScore = clusterMax.A*_cw4.A + clusterMax.B*_cw4.B + clusterMax.C*_cw4.C + clusterMax.D*_cw4.D;
     const boost = pulseState.contrarianBoost || 0;
     let tcBonus = 0;
     try { tcBonus = (signals.find(s=>s.id==='tripleConfluence')?.score()) || 0; } catch(e) {}
@@ -8646,6 +8654,105 @@ const _SOL_KEY = 'btf-signal-log';
 const _SOL_WIN_THR = 3;   // % SPY gain to count as WIN
 const _SOL_LOSS_THR = -3; // % SPY loss to count as LOSS
 
+// ===== PHASE 2: ADAPTIVE CLUSTER WEIGHTS =====
+// Base weights (prior session design). Adaptive engine adjusts these ±25%
+// based on which clusters were active on winning vs losing signal fires.
+// Needs ≥3 resolved D+10 entries to activate; falls back to base otherwise.
+
+const BASE_CLUSTER_WEIGHTS = { A:0.20, B:0.35, C:0.25, D:0.20 };
+
+// Returns current adaptive weights (or base if insufficient data)
+function _clusterWeights(){
+  const aw = pulseState.adaptiveWeights;
+  if(aw && aw._adaptive) return aw;
+  // Try loading from localStorage (survives page reload)
+  try{
+    const s = localStorage.getItem('btf-adaptive-weights');
+    if(s){ const p=JSON.parse(s); if(p && p._adaptive) return p; }
+  }catch(e){}
+  return BASE_CLUSTER_WEIGHTS;
+}
+
+function calcAdaptiveWeights(){
+  let log = [];
+  try{ log = JSON.parse(localStorage.getItem(_SOL_KEY)||'[]'); }catch(e){ return null; }
+  const resolved = log.filter(e => e.outcomes?.d10?.resolved);
+  if(!resolved.length) return null;
+
+  // Current regime — prefer regime-specific subset (min 3), else all
+  let curRegime = null;
+  try{ curRegime = (typeof classifyRegime==='function') ? classifyRegime() : null; }catch(e){}
+  const regimeSubset = curRegime ? resolved.filter(e=>e.regime===curRegime) : [];
+  const useEntries = regimeSubset.length >= 3 ? regimeSubset : resolved;
+  const regimeSpecific = regimeSubset.length >= 3;
+
+  if(useEntries.length < 3){
+    return { ...BASE_CLUSTER_WEIGHTS, _adaptive:false, _n:useEntries.length };
+  }
+
+  // Per-cluster win rates: only count entries where that cluster was active
+  const cs = { A:{w:0,t:0}, B:{w:0,t:0}, C:{w:0,t:0}, D:{w:0,t:0} };
+  useEntries.forEach(entry => {
+    const isWin = entry.outcomes.d10.result === 'WIN';
+    const activeClusters = new Set();
+    (entry.activeSignals||[]).forEach(sid => {
+      const sig = (typeof signals!=='undefined') ? signals.find(s=>s.id===sid) : null;
+      if(sig?.cluster) activeClusters.add(sig.cluster);
+    });
+    activeClusters.forEach(cl => {
+      if(cs[cl]){ cs[cl].t++; if(isWin) cs[cl].w++; }
+    });
+  });
+
+  // Multiplier: 1.0 at 50% win rate, ±0.25 at 0%/100%
+  const MAX_ADJ = 0.25;
+  const raw = {};
+  ['A','B','C','D'].forEach(cl => {
+    const { w, t } = cs[cl];
+    const base = BASE_CLUSTER_WEIGHTS[cl];
+    if(t < 2){ raw[cl] = base; return; }
+    const mult = 1 + (w/t - 0.5) * (MAX_ADJ * 2);
+    raw[cl] = base * Math.max(1-MAX_ADJ, Math.min(1+MAX_ADJ, mult));
+  });
+
+  // Normalize so weights sum to 1.0
+  const sum = Object.values(raw).reduce((a,b)=>a+b, 0);
+  const weights = {};
+  ['A','B','C','D'].forEach(cl => weights[cl] = Math.round(raw[cl]/sum*1000)/1000);
+
+  const result = {
+    ...weights,
+    _adaptive: true,
+    _n: useEntries.length,
+    _regime: curRegime,
+    _regimeSpecific: regimeSpecific,
+    _clusterStats: cs,
+    _ts: Date.now(),
+  };
+  try{ localStorage.setItem('btf-adaptive-weights', JSON.stringify(result)); }catch(e){}
+  return result;
+}
+
+function calcCalibratedThreshold(){
+  let log = [];
+  try{ log = JSON.parse(localStorage.getItem(_SOL_KEY)||'[]'); }catch(e){ return null; }
+  const resolved = log.filter(e => e.outcomes?.d10?.resolved);
+  if(resolved.length < 5) return null;
+
+  // Find lowest score where entries with score >= X have ≥55% win rate (min 3 entries)
+  const scores = resolved.map(e=>e.score).sort((a,b)=>b-a);
+  for(let i = scores.length-1; i >= 0; i--){
+    const thr = scores[i];
+    const subset = resolved.filter(e=>e.score >= thr);
+    if(subset.length < 3) continue;
+    const wr = subset.filter(e=>e.outcomes.d10.result==='WIN').length / subset.length;
+    if(wr >= 0.55){
+      return { threshold: +thr.toFixed(1), winRate: Math.round(wr*100), n: subset.length };
+    }
+  }
+  return null;
+}
+
 function recordSignalOutcome(){
   const p = pulseState;
   if(!p.score || !p.spyPrice) return;
@@ -8825,8 +8932,54 @@ function renderSignalScorecard(){
         <div>${outcome(e.outcomes.d20)}</div>
       </div>`).join('')}
 
-    <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.15);line-height:1.5">WIN = SPY +3%+ within window · LOSS = SPY -3%+ · FLAT = between · Resolves automatically on each fetch · Foundation for Phase 2 adaptive weights</div>
-    <button onclick="if(confirm('Clear all signal outcome history?')){localStorage.removeItem('${_SOL_KEY}');renderSignalScorecard();}" style="margin-top:8px;padding:4px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:5px;background:transparent;color:rgba(255,255,255,0.25);font-size:9px;cursor:pointer;font-family:var(--sans)">Clear history</button>
+    ${(()=>{
+      // Phase 2: Adaptive weights panel
+      const aw = pulseState.adaptiveWeights || _clusterWeights();
+      const ct = pulseState.calibratedThreshold;
+      const isAdaptive = aw._adaptive;
+      const clusterNames = {A:'Sentiment',B:'Fear/Vol',C:'Technicals',D:'Macro'};
+      const clusterColors = {A:'#22d3ee',B:'#ef4444',C:'#a855f7',D:'#f59e0b'};
+      const weightBars = ['A','B','C','D'].map(cl => {
+        const cur = aw[cl] ?? BASE_CLUSTER_WEIGHTS[cl];
+        const base = BASE_CLUSTER_WEIGHTS[cl];
+        const delta = cur - base;
+        const pct = Math.round(cur*100);
+        const basePct = Math.round(base*100);
+        const col = clusterColors[cl];
+        const deltaStr = delta===0 ? '' : `<span style="font-family:var(--mono);font-size:8px;color:${delta>0?'#22c55e':'#ef4444'};margin-left:4px">${delta>0?'+':''}${Math.round(delta*100)}pp</span>`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+          <div style="width:12px;height:12px;border-radius:3px;background:${col};opacity:0.85;flex-shrink:0"></div>
+          <div style="width:70px;font-size:9px;color:rgba(255,255,255,0.5)">${cl}: ${clusterNames[cl]}</div>
+          <div style="flex:1;background:rgba(255,255,255,0.06);border-radius:2px;height:6px;overflow:hidden">
+            <div style="width:${pct*2}%;height:100%;background:${col};border-radius:2px;transition:width 0.4s"></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:9px;color:${col};font-weight:700;width:28px;text-align:right">${pct}%</div>
+          ${deltaStr}
+        </div>`;
+      }).join('');
+      const adaptiveBadge = isAdaptive
+        ? `<span style="font-size:8px;padding:1px 7px;border-radius:3px;background:rgba(34,197,94,0.15);color:#22c55e;font-weight:700">ACTIVE · ${aw._n} samples${aw._regimeSpecific?' · '+aw._regime+' regime':''}</span>`
+        : `<span style="font-size:8px;padding:1px 7px;border-radius:3px;background:rgba(148,163,184,0.12);color:#94a3b8;font-weight:700">BASE WEIGHTS · need ${3-((pulseState.adaptiveWeights?._n)||0)} more resolved signals</span>`;
+      const thrSection = ct
+        ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:6px;font-size:9px">
+            <span style="color:rgba(255,255,255,0.4)">Calibrated buy threshold: </span>
+            <span style="font-family:var(--mono);font-weight:700;color:#22c55e">${ct.threshold}</span>
+            <span style="color:rgba(255,255,255,0.3)"> · ${ct.winRate}% win rate at D+10 (${ct.n} entries)</span>
+           </div>`
+        : `<div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.15)">Calibrated threshold: need 5+ resolved signals</div>`;
+      return `
+      <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:12px;padding-top:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Phase 2 · Adaptive Cluster Weights</div>
+          ${adaptiveBadge}
+        </div>
+        ${weightBars}
+        ${thrSection}
+      </div>`;
+    })()}
+
+    <div style="margin-top:10px;font-size:9px;color:rgba(255,255,255,0.15);line-height:1.5">WIN = SPY +3%+ within window · LOSS = SPY -3%+ · FLAT = between · Cluster weights auto-adjust ±25% from base as outcomes resolve</div>
+    <button onclick="if(confirm('Clear all outcome history and reset adaptive weights?')){localStorage.removeItem('${_SOL_KEY}');localStorage.removeItem('btf-adaptive-weights');pulseState.adaptiveWeights=null;pulseState.calibratedThreshold=null;renderSignalScorecard();}" style="margin-top:8px;padding:4px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:5px;background:transparent;color:rgba(255,255,255,0.25);font-size:9px;cursor:pointer;font-family:var(--sans)">Reset all</button>
   `;
 }
 
@@ -9235,7 +9388,14 @@ propagateData();
 recalcScore();
 try{ renderPositionSizer(); }catch(e){}
 try{ renderScenarioSimulator(); }catch(e){ console.error('[init] scenario sim:', e); }
-try{ resolveOutcomes(); renderSignalScorecard(); }catch(e){}
+try{
+  // Load adaptive weights from cache so scoring uses them before first fetch
+  const _awCached = localStorage.getItem('btf-adaptive-weights');
+  if(_awCached){ const _awp=JSON.parse(_awCached); if(_awp&&_awp._adaptive) pulseState.adaptiveWeights=_awp; }
+  resolveOutcomes();
+  pulseState.calibratedThreshold = calcCalibratedThreshold();
+  renderSignalScorecard();
+}catch(e){}
 // Hydrate advanced notif prefs checkboxes from localStorage
 try{
   const _np = _notifPrefs();
