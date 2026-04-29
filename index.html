@@ -4944,12 +4944,12 @@ function renderCrisisDetail() {
     <div>
       ${rows.map(r=>`<div class="detail-row"><div class="detail-label">${r.l}</div><div class="detail-value">${r.v}</div></div>`).join('')}
     </div>
-    <div style="max-width:340px">
-      <div class="metric-grid" style="grid-template-columns:1fr 1fr">
-        ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}20"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c};font-size:18px">${m.v}</div></div>`).join('')}
-        <div class="contrarian-box" style="grid-column:1/-1;background:${contrBg};border:1px solid ${contrBorder}">
-          <div style="font-size:10px;color:var(--dim)">Contrarians Correct?</div>
-          <div style="font-size:13px;font-weight:700;margin-top:3px;color:${contrCol}">${contrText}</div>
+    <div style="width:240px;flex-shrink:0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}20;padding:8px 10px"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c};font-size:14px">${m.v}</div></div>`).join('')}
+        <div class="contrarian-box" style="grid-column:1/-1;padding:8px 10px;background:${contrBg};border:1px solid ${contrBorder}">
+          <div style="font-size:9px;color:var(--dim)">Contrarians Correct?</div>
+          <div style="font-size:11px;font-weight:700;margin-top:2px;color:${contrCol}">${contrText}</div>
         </div>
       </div>
     </div>`;
