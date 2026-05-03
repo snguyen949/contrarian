@@ -358,7 +358,7 @@
   .crisis-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text-2); }
   .crisis-btn .date { font-size: 9px; margin-left: 4px; opacity: 0.5; }
 
-  .detail-grid { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: start; }
+  .detail-grid { display: grid; grid-template-columns: minmax(0, 620px) 190px; gap: 16px; align-items: start; }
   .detail-row { display: flex; border-bottom: 1px solid var(--border); padding: 10px 0; }
   .detail-label { width: 100px; flex-shrink: 0; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); font-weight: 600; padding-top: 2px; }
   .detail-value { font-size: 12px; color: var(--muted); line-height: 1.6; }
@@ -4944,8 +4944,8 @@ function renderCrisisDetail() {
     <div>
       ${rows.map(r=>`<div class="detail-row"><div class="detail-label">${r.l}</div><div class="detail-value">${r.v}</div></div>`).join('')}
     </div>
-    <div style="width:240px;flex-shrink:0">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
         ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}20;padding:8px 10px"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c};font-size:14px">${m.v}</div></div>`).join('')}
         <div class="contrarian-box" style="grid-column:1/-1;padding:8px 10px;background:${contrBg};border:1px solid ${contrBorder}">
           <div style="font-size:9px;color:var(--dim)">Contrarians Correct?</div>
