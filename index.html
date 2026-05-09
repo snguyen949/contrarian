@@ -210,7 +210,8 @@
   #conflict-steps > div:nth-child(8) { animation-delay:0.35s; }
   #conflict-steps > div:nth-child(9) { animation-delay:0.4s; }
   #conflict-steps > div:nth-child(10) { animation-delay:0.45s; }
-  .tab-panel { animation: fadeIn 0.25s ease-out; }
+  .tab-panel { animation: none; }
+  .tab-panel.active { animation: fadeIn 0.25s ease-out; }
   .snap-card { animation: scaleIn 0.2s ease-out both; }
   .snap-card:nth-child(2) { animation-delay:0.03s; }
   .snap-card:nth-child(3) { animation-delay:0.06s; }
@@ -4289,10 +4290,21 @@ const crisisData = [
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      p.classList.remove('active');
+      p.style.display = 'none';
+    });
     btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    const panel = document.getElementById('tab-' + btn.dataset.tab);
+    if (panel) {
+      panel.classList.add('active');
+      panel.style.display = 'block';
+    }
   });
+});
+// Init: enforce inline display state so tab visibility never depends solely on CSS
+document.querySelectorAll('.tab-panel').forEach(p => {
+  p.style.display = p.classList.contains('active') ? 'block' : 'none';
 });
 
 // ===== SNAPSHOT CARDS =====
