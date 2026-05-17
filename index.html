@@ -8901,8 +8901,8 @@ function renderBottomState() {
     const bg = isActive ? stageColors[i]+'22' : isDone ? stageColors[i]+'12' : 'rgba(255,255,255,0.03)';
     const border = isActive ? stageColors[i]+'66' : isDone ? stageColors[i]+'33' : 'rgba(255,255,255,0.08)';
     const suffix = (isActive && i === 2 && confirmingDay !== null) ? ' Day '+confirmingDay+'/5' : '';
-    return `<div style="flex:1;padding:6px 10px;background:${bg};border:1px solid ${border};border-radius:6px;text-align:center;font-size:10px;font-weight:700;color:${color};letter-spacing:0.5px">${lbl}${suffix}</div>`;
-  }).join('<div style="color:rgba(255,255,255,0.2);font-size:10px;align-self:center;padding:0 4px">→</div>');
+    return `<div style="flex:1;min-width:0;padding:5px 6px;background:${bg};border:1px solid ${border};border-radius:6px;text-align:center;font-size:9px;font-weight:700;color:${color};letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lbl}${suffix}</div>`;
+  }).join('<div style="color:rgba(255,255,255,0.2);font-size:10px;align-self:center;padding:0 2px;flex-shrink:0">→</div>');
 
   let detailHTML = '';
   if (active >= BS_STATES.POTENTIAL && s.day0) {
@@ -8943,7 +8943,7 @@ function renderBottomState() {
       <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Bottom State Machine</div>
       ${resetBtn}
     </div>
-    <div style="display:flex;align-items:stretch;gap:0">${stepsHTML}</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="display:flex;align-items:stretch;gap:0;min-width:max-content;width:100%">${stepsHTML}</div></div>
     ${detailHTML}`;
 }
 
