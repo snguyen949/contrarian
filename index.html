@@ -1665,6 +1665,54 @@
   }
 
 </style>
+
+<style>
+/* ===== GUIDE MODAL ===== */
+#guide-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); overflow-y:auto; padding:20px 12px; }
+#guide-modal.open { display:flex; justify-content:center; align-items:flex-start; }
+#guide-inner { background:#0f1117; border:1px solid rgba(255,255,255,0.08); border-radius:16px; max-width:860px; width:100%; padding:36px 40px 48px; position:relative; }
+#guide-inner h1 { font-size:28px; font-family:var(--display,sans-serif); font-weight:400; text-transform:uppercase; letter-spacing:2px; background:linear-gradient(135deg,#e2e8f0,#94a3b8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:0 0 6px; }
+#guide-inner h2 { font-size:15px; font-family:var(--sans,sans-serif); font-weight:800; text-transform:uppercase; letter-spacing:2px; color:#22d3ee; border-bottom:1px solid rgba(34,211,238,0.2); padding-bottom:6px; margin:32px 0 14px; }
+#guide-inner h3 { font-size:12px; font-family:var(--sans,sans-serif); font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:rgba(255,255,255,0.7); margin:20px 0 8px; }
+#guide-inner p { font-size:13px; color:rgba(255,255,255,0.6); line-height:1.7; margin:0 0 12px; }
+#guide-inner ul,#guide-inner ol { padding-left:20px; margin:0 0 12px; }
+#guide-inner li { font-size:13px; color:rgba(255,255,255,0.6); line-height:1.7; margin-bottom:4px; }
+#guide-inner strong { color:rgba(255,255,255,0.9); font-weight:700; }
+#guide-inner code { font-family:monospace; font-size:11px; background:rgba(255,255,255,0.06); border-radius:4px; padding:2px 6px; color:#22d3ee; }
+#guide-inner pre { background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:14px 16px; overflow-x:auto; margin:0 0 16px; }
+#guide-inner pre code { background:none; padding:0; font-size:12px; color:#86efac; }
+#guide-inner table { width:100%; border-collapse:collapse; margin:0 0 16px; font-size:12px; }
+#guide-inner th { text-align:left; padding:8px 10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.3); border-bottom:1px solid rgba(255,255,255,0.08); font-weight:700; }
+#guide-inner td { padding:7px 10px; border-bottom:1px solid rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); vertical-align:top; }
+#guide-inner tr:hover td { background:rgba(255,255,255,0.02); }
+#guide-inner .g-tag { display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:2px 7px; border-radius:4px; margin-right:4px; }
+#guide-inner .g-buy { background:rgba(34,197,94,0.15); color:#22c55e; }
+#guide-inner .g-watch { background:rgba(245,158,11,0.15); color:#f59e0b; }
+#guide-inner .g-wait { background:rgba(148,163,184,0.12); color:#94a3b8; }
+#guide-inner .g-strong { background:rgba(34,197,94,0.25); color:#4ade80; border:1px solid rgba(34,197,94,0.3); }
+#guide-inner .cluster-badge { display:inline-block; width:20px; height:20px; border-radius:4px; font-size:10px; font-weight:800; text-align:center; line-height:20px; margin-right:6px; }
+#guide-inner .ca { background:rgba(239,68,68,0.2); color:#ef4444; }
+#guide-inner .cb { background:rgba(168,85,247,0.2); color:#a855f7; }
+#guide-inner .cc { background:rgba(34,211,238,0.2); color:#22d3ee; }
+#guide-inner .cd { background:rgba(245,158,11,0.2); color:#f59e0b; }
+#guide-close { position:sticky; top:0; float:right; margin:-10px -10px 10px 10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:rgba(255,255,255,0.5); font-size:18px; width:36px; height:36px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+#guide-close:hover { background:rgba(255,255,255,0.1); color:#fff; }
+#guide-btn { padding:10px 18px; border:1px solid rgba(255,255,255,0.15); border-radius:8px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.5); font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; text-transform:uppercase; letter-spacing:1.5px; transition:all 0.2s; white-space:nowrap; }
+#guide-btn:hover { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); border-color:rgba(255,255,255,0.25); }
+[data-theme="light"] #guide-modal { background:rgba(0,0,0,0.7); }
+[data-theme="light"] #guide-inner { background:#f8f8f8; border-color:rgba(0,0,0,0.1); }
+[data-theme="light"] #guide-inner h2 { color:#0891b2; border-bottom-color:rgba(8,145,178,0.2); }
+[data-theme="light"] #guide-inner h3 { color:#374151; }
+[data-theme="light"] #guide-inner p,[data-theme="light"] #guide-inner li { color:#4b5563; }
+[data-theme="light"] #guide-inner td { color:#4b5563; }
+[data-theme="light"] #guide-inner strong { color:#111827; }
+[data-theme="light"] #guide-inner code { color:#0891b2; background:rgba(8,145,178,0.08); }
+[data-theme="light"] #guide-btn { color:#555; border-color:#ccc; background:#f0f0f0; }
+[data-theme="light"] #guide-btn:hover { background:#e0e0e0; color:#111; }
+.guide-toc { background:rgba(34,211,238,0.04); border:1px solid rgba(34,211,238,0.12); border-radius:10px; padding:16px 20px; margin-bottom:28px; }
+.guide-toc a { display:block; font-size:12px; color:rgba(34,211,238,0.7); text-decoration:none; padding:3px 0; }
+.guide-toc a:hover { color:#22d3ee; }
+</style>
 </head>
 <body>
 
@@ -1781,6 +1829,7 @@
       <button id="fetch-btn" onclick="fetchAllData()" style="padding:10px 24px;border:1px solid var(--cyan);border-radius:8px;background:rgba(34,211,238,0.1);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);text-transform:uppercase;letter-spacing:1.5px;transition:all 0.2s">
         ⟳ Fetch Latest Data
       </button>
+      <button id="guide-btn" onclick="openGuide()">? Guide</button>
       <span id="live-badge" class="live-badge" style="display:none">● LIVE</span>
       <span id="ar-countdown" style="display:none;font-size:10px;color:#22c55e;font-family:var(--mono);font-weight:600"></span>
       <span id="fetch-status" style="font-size:10px;color:rgba(255,255,255,0.3)">Click to fetch live data from free APIs</span>
@@ -10924,6 +10973,315 @@ fetchAllData();
   setInterval(syncMega, 2000);
   syncMega();
 })();
+</script>
+
+<!-- ============ GUIDE MODAL ============ -->
+<div id="guide-modal" onclick="if(event.target===this)closeGuide()">
+  <div id="guide-inner">
+    <button id="guide-close" onclick="closeGuide()" title="Close">✕</button>
+
+    <h1>Contrarian Toolkit</h1>
+    <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:20px;text-transform:uppercase;letter-spacing:2px">Complete Beginner's Guide</p>
+
+    <div class="guide-toc">
+      <p style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:2px;margin:0 0 10px">Contents</p>
+      <a href="#g-concept">The Core Concept</a>
+      <a href="#g-order">Preferred Reading Order</a>
+      <a href="#g-score">1 — The Score (0–10)</a>
+      <a href="#g-clusters">2 — The 4 Clusters</a>
+      <a href="#g-state">3 — Bottom State Machine</a>
+      <a href="#g-signals">4 — The 15 Signals</a>
+      <a href="#g-m2">5 — M2 Liquidity</a>
+      <a href="#g-tc">6 — Triple Confluence</a>
+      <a href="#g-fred">7 — FRED Economic Panel</a>
+      <a href="#g-vix">8 — VIX / Fear Panel</a>
+      <a href="#g-history">9 — Historical Pullback Table</a>
+      <a href="#g-sizer">10 — Position Sizer</a>
+      <a href="#g-framework">Step-by-Step Decision Framework</a>
+      <a href="#g-mistakes">Common Mistakes</a>
+      <a href="#g-ref">Quick Reference</a>
+      <a href="#g-glossary">Glossary</a>
+    </div>
+
+    <h2 id="g-concept">What Is This Dashboard?</h2>
+    <p>This is a <strong>contrarian market timing tool</strong>. The core idea: the best time to buy stocks is when everyone else is terrified and selling. When panic peaks, prices are cheapest and the risk of permanent loss is lowest. The dashboard collects every major fear and stress signal in one place, scores them, and tells you how close the market is to a genuine bottom.</p>
+    <p>It does <strong>not</strong> predict the future. It measures how much fear and structural stress exist right now, then compares that to historical bottoms.</p>
+    <h3>Why Contrarian?</h3>
+    <ul>
+      <li><strong>Panic = Forced Selling</strong> — even investors who don't want to sell are forced to (margin calls, redemptions). This creates artificial overshoots below fair value.</li>
+      <li><strong>Fear = Low Prices</strong> — the more people hate an asset, the cheaper it is.</li>
+      <li><strong>Recovery is Asymmetric</strong> — a market that falls 20% needs only a 25% gain to fully recover. Buying the dip captures that entire move.</li>
+    </ul>
+    <p>The hard part: bottoms feel terrible. You must act when the news is worst, not best.</p>
+
+    <h2 id="g-order">Preferred Reading Order</h2>
+    <p>Work top to bottom in this sequence — each layer adds context to the one before it.</p>
+    <pre><code>1. Score + Verdict          (Is there a signal at all?)
+2. Cluster Badges A B C D   (Which categories are firing?)
+3. Bottom State Machine      (How confirmed is it?)
+4. 15 Signal Breakdown       (What exactly is firing?)
+5. M2 Liquidity              (Is there fuel for recovery?)
+6. Triple Confluence         (Which markets confirming?)
+7. FRED Economic Panel       (Macro backdrop)
+8. VIX / Fear Panel          (Panic temperature)
+9. Historical Pullback Table (Compare to past bottoms)
+10. Position Sizer           (How much to buy and when)</code></pre>
+
+    <h2 id="g-score">1 — The Contrarian Score (0–10)</h2>
+    <p>The large number at the top of the page. It summarises every signal into one number.</p>
+    <table>
+      <tr><th>Score</th><th>Verdict</th><th>What It Means</th></tr>
+      <tr><td><span class="g-tag g-wait">0 – 3.9</span></td><td><strong>WAIT</strong></td><td>No signal. Market is complacent. Do nothing.</td></tr>
+      <tr><td><span class="g-tag g-watch">4.0 – 6.4</span></td><td><strong>WATCH</strong></td><td>Fear building. Monitor closely. Not yet actionable.</td></tr>
+      <tr><td><span class="g-tag g-buy">6.5 – 8.4</span></td><td><strong>BUY</strong></td><td>Multiple clusters firing. Historical setup forming.</td></tr>
+      <tr><td><span class="g-tag g-strong">8.5 – 10</span></td><td><strong>STRONG BUY</strong></td><td>Extreme across all clusters. Rare. Best risk/reward.</td></tr>
+    </table>
+    <h3>How the Score Is Calculated</h3>
+    <pre><code>Final Score = (weighted cluster signals × M2 multiplier)
+            + AI boost + triple confluence bonus + velocity boost</code></pre>
+    <p>The M2 multiplier can amplify <em>or</em> cut the score — see Section 5. The 30-day sparkline below the score shows whether fear is building (rising) or fading (falling). The best entry is often right at the rollover from peak back down.</p>
+
+    <h2 id="g-clusters">2 — The 4 Clusters</h2>
+    <p>Four coloured letter badges below the main score. Think of them as four independent judges. For maximum confidence you need most of them to agree.</p>
+
+    <h3><span class="cluster-badge ca">A</span> Cluster A — Fear Level &nbsp;<small style="color:rgba(255,255,255,0.3);font-size:10px">Weight 20%</small></h3>
+    <p>How scared are ordinary investors right now?</p>
+    <table>
+      <tr><th>Signal</th><th>Strong Buy Zone</th><th>Why It Matters</th></tr>
+      <tr><td>CNN Fear &amp; Greed (0–100)</td><td>≤ 14</td><td>Broad market panic at extreme levels</td></tr>
+      <tr><td>Crypto Fear &amp; Greed (0–100)</td><td>≤ 10</td><td>Crypto leads stocks into capitulation</td></tr>
+      <tr><td>AAII Bear %</td><td>≥ 55%</td><td>Individual investors maximally pessimistic = no sellers left</td></tr>
+      <tr><td>StockTwits Bear %</td><td>≥ 65%</td><td>Social media panic = retail has already sold</td></tr>
+    </table>
+
+    <h3><span class="cluster-badge cb">B</span> Cluster B — Vol Structure &nbsp;<small style="color:rgba(255,255,255,0.3);font-size:10px">Weight 35% — Most Important</small></h3>
+    <p>Has panic peaked? This cluster has the highest weight because vol structure is the most objective measure.</p>
+    <table>
+      <tr><th>Signal</th><th>Strong Buy Zone</th><th>Why It Matters</th></tr>
+      <tr><td>VIX / VIX3M Ratio ⚡</td><td>&gt; 1.05</td><td><strong>Backwardation</strong> — near-term fear exceeds long-term. Only at genuine bottoms: GFC, 2011, 2018, COVID.</td></tr>
+      <tr><td>VIX Level</td><td>≥ 45</td><td>Full capitulation panic</td></tr>
+      <tr><td>SKEW Index</td><td>&lt; 115</td><td>Crash insurance surrendered = fear exhausted</td></tr>
+    </table>
+    <p><strong>Backwardation</strong> means investors are more scared of <em>today</em> than of the future. This inversion has appeared only at genuine market lows.</p>
+
+    <h3><span class="cluster-badge cc">C</span> Cluster C — Flow &amp; Positioning &nbsp;<small style="color:rgba(255,255,255,0.3);font-size:10px">Weight 25%</small></h3>
+    <p>What are institutions and fund managers actually doing with money?</p>
+    <table>
+      <tr><th>Signal</th><th>Strong Buy Zone</th><th>Why It Matters</th></tr>
+      <tr><td>SPY Volume vs 20d Average</td><td>≥ 3×</td><td>Capitulation selling — forced liquidations exhausting</td></tr>
+      <tr><td>Put/Call Ratio (manual)</td><td>≥ 1.3</td><td>Institutions heavily hedging downside</td></tr>
+      <tr><td>NAAIM Exposure Index</td><td>≤ 25%</td><td>Fund managers almost fully de-risked = dry powder building</td></tr>
+      <tr><td>Money Market Assets</td><td>≥ $6.5T</td><td>Massive cash on sidelines ready to re-enter</td></tr>
+    </table>
+
+    <h3><span class="cluster-badge cd">D</span> Cluster D — Credit &amp; Macro &nbsp;<small style="color:rgba(255,255,255,0.3);font-size:10px">Weight 20%</small></h3>
+    <p>Is there systemic financial stress that forces central bank intervention?</p>
+    <table>
+      <tr><th>Signal</th><th>Strong Buy Zone</th><th>Why It Matters</th></tr>
+      <tr><td>NFCI (Chicago Fed)</td><td>≥ 0.5</td><td>Financial conditions tight enough to force Fed pivot</td></tr>
+      <tr><td>HY Spreads</td><td>≥ 500 bps</td><td>Junk bond fear = genuine credit stress</td></tr>
+      <tr><td>IG Spreads</td><td>≥ 150 bps</td><td>Stress spreading to quality bonds = systemic</td></tr>
+      <tr><td>Yield Curve (10Y–2Y)</td><td>≤ −0.5%</td><td>Recession priced in — bottom often near re-steepening</td></tr>
+    </table>
+
+    <h3>The Buy Gate</h3>
+    <p>For <strong>STRONG BUY</strong>, all three must fire simultaneously:</p>
+    <ul>
+      <li><span class="cluster-badge ca">A</span> Fear is real and widespread</li>
+      <li><span class="cluster-badge cb">B</span> Panic has peaked (vol structure confirming)</li>
+      <li><span class="cluster-badge cc">C</span> OR <span class="cluster-badge cd">D</span> Structural flow or credit confirmation</li>
+    </ul>
+
+    <h2 id="g-state">3 — Bottom State Machine</h2>
+    <table>
+      <tr><th>State</th><th>Meaning</th><th>Action</th></tr>
+      <tr><td><code>SCANNING</code></td><td>Normal monitoring, no elevated signals</td><td>Nothing</td></tr>
+      <tr><td><code>POTENTIAL</code></td><td>1–2 clusters firing, fear elevated</td><td>Watch daily</td></tr>
+      <tr><td><code>CONFIRMING</code></td><td>3+ clusters firing, buy gate partially met</td><td>Small initial position possible</td></tr>
+      <tr><td><code>✅ CONFIRMED</code></td><td>All conditions met, buy gate satisfied</td><td>Full scale-in deployment</td></tr>
+    </table>
+    <p>Many investors wait for CONFIRMED — but by then price has often recovered 5–10%. The Position Sizer handles this with a scale-in plan.</p>
+
+    <h2 id="g-signals">4 — Signal Breakdown (The 15 Signals)</h2>
+    <p>The detailed table below the cluster badges. Each signal shows a live reading and colour bar:</p>
+    <ul>
+      <li><strong style="color:#ef4444">Red</strong> — fully firing (extreme reading, highest conviction)</li>
+      <li><strong style="color:#f59e0b">Amber</strong> — partially firing (approaching threshold)</li>
+      <li><strong style="color:#94a3b8">Gray</strong> — quiet (no signal)</li>
+    </ul>
+    <p>Look for multiple red signals <em>across different clusters</em> — especially A and B together. Two signals from the same cluster add less conviction than two from different clusters.</p>
+    <p><strong>Manual inputs required:</strong> CNN Fear &amp; Greed and Put/Call Ratio must be entered by hand. Everything else fetches automatically.</p>
+
+    <h2 id="g-m2">5 — M2 Liquidity Section</h2>
+    <p>M2 is the economy's fuel tank. The contrarian score tells you when fear is extreme. M2 tells you whether fuel exists to power a recovery.</p>
+    <table>
+      <tr><th>Event</th><th>M2 State</th><th>Outcome</th></tr>
+      <tr><td>Mar 2020 COVID Crash</td><td style="color:#22c55e">+25% (QE∞)</td><td>Fastest bear recovery ever — generational buy</td></tr>
+      <tr><td>2022 Rate Hike Bear</td><td style="color:#ef4444">−3.3% YoY</td><td>Multiple false bottoms — trapped every buyer</td></tr>
+    </table>
+    <p>Same extreme fear conditions appeared in both. M2 was the difference between a genuine bottom and a trap.</p>
+    <table>
+      <tr><th>M2 Card</th><th>Reading</th><th>What It Means</th></tr>
+      <tr><td rowspan="4"><strong>M2 YoY %</strong></td><td style="color:#22c55e">&gt; +8%</td><td>STRONG TAILWIND — amplifies buy signal</td></tr>
+      <tr><td style="color:#86efac">+4–8%</td><td>Neutral — normal liquidity</td></tr>
+      <tr><td style="color:#f59e0b">0–4%</td><td>HEADWIND — reduce buy confidence</td></tr>
+      <tr><td style="color:#ef4444">Negative</td><td>CONTRACTION — fear dips may be traps</td></tr>
+      <tr><td><strong>Real M2</strong></td><td colspan="2">M2 YoY minus CPI. Positive = genuinely supportive. Negative = inflation eating the liquidity.</td></tr>
+      <tr><td rowspan="4"><strong>M2 Multiplier ×</strong></td><td>× 1.25</td><td>M2 &gt; +8% — score amplified</td></tr>
+      <tr><td>× 1.00</td><td>M2 +4–8% — neutral</td></tr>
+      <tr><td>× 0.80</td><td>M2 0–4% — score reduced</td></tr>
+      <tr><td>× 0.55</td><td>M2 negative — score heavily discounted</td></tr>
+    </table>
+    <p><strong>Example:</strong> Raw score of 7.0 with M2 contracting → 7.0 × 0.55 = 3.85 (WAIT). Same fear, no liquidity = don't buy.</p>
+
+    <h2 id="g-tc">6 — Triple Confluence Detector</h2>
+    <p>Checks if multiple markets (SPY, QQQ, IWM, ES, NQ) are simultaneously hitting conditions that historically mark bottoms.</p>
+    <table>
+      <tr><th>Condition</th><th>What It Checks</th><th>Why It Matters</th></tr>
+      <tr><td>🟢 Structural Support</td><td>Price within 3% of a known support level</td><td>Where institutional buyers historically step in</td></tr>
+      <tr><td>🟢 RSI Oversold</td><td>Daily RSI &lt; 35 or Weekly RSI &lt; 40</td><td>Momentum so stretched that mean reversion is likely</td></tr>
+      <tr><td>🟢 Volume Spike</td><td>Volume ≥ 1.5× 20-day average</td><td>Forced selling — sellers exhausting themselves</td></tr>
+    </table>
+    <ul>
+      <li><strong>🟢🟢🟢 Triple</strong> = +1.5 bonus points. All three conditions met. Highest conviction.</li>
+      <li><strong>Multiple triples</strong> across markets = +2.0. Extremely rare. Broad-based panic = historically the best setups.</li>
+    </ul>
+
+    <h2 id="g-fred">7 — FRED Economic Panel</h2>
+    <p>The macro backdrop — is this a buying opportunity or the start of something worse?</p>
+    <table>
+      <tr><th>Indicator</th><th>Bullish Reading</th><th>Bearish Reading</th></tr>
+      <tr><td><strong>NFCI</strong></td><td>&lt; 0 (loose, easy money)</td><td>≥ +0.5 (tight — Fed forced to act eventually)</td></tr>
+      <tr><td><strong>HY Spreads</strong></td><td>&lt; 350 bps</td><td>≥ 500 bps (genuine credit stress = buy signal)</td></tr>
+      <tr><td><strong>IG Spreads</strong></td><td>&lt; 120 bps</td><td>≥ 150 bps (systemic stress)</td></tr>
+      <tr><td><strong>Yield Curve</strong></td><td>&gt; 0% (normal)</td><td>≤ −0.5% (recession priced in)</td></tr>
+    </table>
+    <p>When NFCI is elevated and starts turning lower, the Fed is usually forced to ease — that pivot often transforms a fear bottom into a sustained rally.</p>
+
+    <h2 id="g-vix">8 — VIX / Fear Panel</h2>
+    <table>
+      <tr><th>Metric</th><th>Reading</th><th>Interpretation</th></tr>
+      <tr><td rowspan="4"><strong>VIX Level</strong></td><td>&lt; 15</td><td>Complacency — do not buy dips here</td></tr>
+      <tr><td>15–25</td><td>Normal range — monitor</td></tr>
+      <tr><td>35–45</td><td>High fear — signals developing</td></tr>
+      <tr><td>&gt; 45</td><td>Panic / capitulation — historical buy zone</td></tr>
+      <tr><td><strong>VIX / VIX3M ⚡</strong></td><td>&gt; 1.05</td><td>BACKWARDATION — strongest single signal. Only at genuine bottoms.</td></tr>
+      <tr><td rowspan="2"><strong>SKEW</strong></td><td>&lt; 115</td><td>Crash insurance surrendered = fear exhausted</td></tr>
+      <tr><td>&gt; 145</td><td>Market still expecting more pain — caution</td></tr>
+      <tr><td rowspan="2"><strong>CNN F&amp;G</strong></td><td>≤ 14</td><td>Extreme fear — historical buy zone</td></tr>
+      <tr><td>&gt; 60</td><td>Greed — not the time to buy dips</td></tr>
+    </table>
+
+    <h2 id="g-history">9 — Historical Pullback Table</h2>
+    <p>Shows major market pullbacks since 1987 with exact conditions at the bottom. Use it to answer: <em>does what I'm seeing now look like a real bottom?</em></p>
+    <table>
+      <tr><th>Bottom Type</th><th>How Fast It Resolves</th><th>Sizing Approach</th></tr>
+      <tr><td><strong>Capitulation</strong></td><td>Days to weeks — very fast</td><td>Buy immediately, full size</td></tr>
+      <tr><td><strong>Mechanical</strong></td><td>Weeks — rule-based forced selling</td><td>Buy immediately</td></tr>
+      <tr><td><strong>Stealth</strong></td><td>Weeks to months</td><td>Scale in: 40% → 60% → 80% → 100%</td></tr>
+      <tr><td><strong>Geopolitical</strong></td><td>Unpredictable — resolves on news</td><td>Small initial, add on catalyst</td></tr>
+      <tr><td><strong>Fundamental Bear</strong></td><td>Months to years</td><td>Very small initial, very patient</td></tr>
+      <tr><td><strong>Credit Contagion</strong></td><td>Months — needs intervention</td><td><strong>WAIT</strong> for Fed/govt action first</td></tr>
+    </table>
+    <p><strong>2022 lesson:</strong> A Fundamental Bear produced multiple false bottoms — Fed still tightening, M2 contracting. Every spike in fear resolved lower. Knowing the bottom type saves you from averaging into an extended decline.</p>
+
+    <h2 id="g-sizer">10 — Position Sizer</h2>
+    <p>Calculates exactly how many shares or contracts to buy based on your risk tolerance. Removes emotion from sizing.</p>
+    <ol>
+      <li>Enter your <strong>account size</strong></li>
+      <li>Select <strong>risk %</strong> — 1% conservative, 2% standard, 3% aggressive</li>
+      <li>Read SPY shares, MES contracts, and QQQ shares from the output</li>
+      <li>Follow the <strong>scale-in schedule</strong> for your bottom type</li>
+    </ol>
+    <p><strong>R:R Ratio rule:</strong> Only take trades where Reward ÷ Risk ≥ 2:1.</p>
+    <ul>
+      <li><strong style="color:#22c55e">≥ 2:1</strong> — take the trade</li>
+      <li><strong style="color:#f59e0b">1–2:1</strong> — marginal, only if conviction is very high</li>
+      <li><strong style="color:#ef4444">&lt; 1:1</strong> — skip regardless of score</li>
+    </ul>
+    <p><strong>Always set your stop-loss the moment you buy.</strong> If price closes below structural support, the thesis is broken — exit, no exceptions.</p>
+
+    <h2 id="g-framework">Step-by-Step Decision Framework</h2>
+    <p>Click <strong>Refresh Data</strong> and work through these steps in order:</p>
+    <ol>
+      <li><strong>Score &lt; 4.0?</strong> Come back in a week. Nothing to do.</li>
+      <li><strong>Score 4.0–6.4?</strong> Set a daily reminder. Don't act yet.</li>
+      <li><strong>Score ≥ 6.5?</strong> Count active cluster badges. Need A + B + (C or D) for the Buy Gate.</li>
+      <li><strong>Check M2 Multiplier.</strong> × 0.80 or lower? Reduce intended size by 25–50%. × 0.55? Consider waiting.</li>
+      <li><strong>Check Triple Confluence.</strong> Any triples? Adds structural confirmation beyond sentiment alone.</li>
+      <li><strong>Match bottom type</strong> to Historical Table. Capitulation = act. Credit Contagion = wait for intervention.</li>
+      <li><strong>Use Position Sizer.</strong> Confirm R:R ≥ 2:1. Enter per scale-in schedule. Set stop-loss immediately.</li>
+    </ol>
+
+    <h2 id="g-mistakes">Common Mistakes to Avoid</h2>
+    <ul>
+      <li><strong>Acting on fear (Cluster A) without vol confirmation (Cluster B).</strong> Fear can persist for months without a vol peak.</li>
+      <li><strong>Ignoring M2 when it's negative.</strong> 2022 had extreme fear readings every few weeks. Each bounce failed. The ×0.55 multiplier exists for this.</li>
+      <li><strong>Going all-in at CONFIRMING.</strong> Follow the scale-in schedule.</li>
+      <li><strong>Skipping the stop-loss.</strong> Without a stop, a buy-the-dip trade can become a catastrophic loss.</li>
+      <li><strong>Using this for individual stocks.</strong> This is calibrated for SPY and QQQ only.</li>
+    </ul>
+
+    <h2 id="g-ref">Quick Reference — Signal Thresholds</h2>
+    <table>
+      <tr><th>Signal</th><th style="color:#22c55e">Strong Buy</th><th style="color:#f59e0b">Watch</th><th style="color:#94a3b8">No Signal</th></tr>
+      <tr><td>CNN Fear &amp; Greed</td><td>≤ 14</td><td>15–40</td><td>&gt; 40</td></tr>
+      <tr><td>Crypto Fear &amp; Greed</td><td>≤ 10</td><td>11–30</td><td>&gt; 30</td></tr>
+      <tr><td>AAII Bear %</td><td>≥ 55%</td><td>40–54%</td><td>&lt; 38%</td></tr>
+      <tr><td>VIX Level</td><td>≥ 45</td><td>25–35</td><td>&lt; 20</td></tr>
+      <tr><td>VIX / VIX3M ⚡</td><td>&gt; 1.05</td><td>0.95–1.0</td><td>&lt; 0.95</td></tr>
+      <tr><td>SKEW Index</td><td>&lt; 115</td><td>115–125</td><td>&gt; 130</td></tr>
+      <tr><td>SPY Volume Spike</td><td>≥ 3× avg</td><td>1.5–2×</td><td>&lt; 1.3×</td></tr>
+      <tr><td>NAAIM Exposure</td><td>≤ 25%</td><td>26–50%</td><td>&gt; 60%</td></tr>
+      <tr><td>Money Market Assets</td><td>≥ $6.5T</td><td>$5.5–6.0T</td><td>&lt; $5.5T</td></tr>
+      <tr><td>HY Spreads</td><td>≥ 500 bps</td><td>350–499</td><td>&lt; 350</td></tr>
+      <tr><td>NFCI</td><td>≥ 0.5</td><td>0–0.5</td><td>&lt; 0</td></tr>
+      <tr><td>M2 YoY</td><td>≥ +8%</td><td>+4–8%</td><td>&lt; 0%</td></tr>
+      <tr><td><strong>Overall Score</strong></td><td><strong>≥ 6.5</strong></td><td><strong>4.0–6.4</strong></td><td><strong>&lt; 4.0</strong></td></tr>
+    </table>
+
+    <h2 id="g-glossary">Glossary</h2>
+    <table>
+      <tr><th>Term</th><th>Plain English</th></tr>
+      <tr><td><strong>Backwardation</strong></td><td>When near-term fear (VIX) exceeds long-term fear (VIX3M). Rare. Historically marks bottoms.</td></tr>
+      <tr><td><strong>Basis Points (bps)</strong></td><td>Unit for interest rates. 100 bps = 1%.</td></tr>
+      <tr><td><strong>Capitulation</strong></td><td>When panic sellers exhaust themselves and volume spikes to extreme levels. Often the final low.</td></tr>
+      <tr><td><strong>Contrarian</strong></td><td>An investor who buys when others are panic-selling.</td></tr>
+      <tr><td><strong>Credit Spread</strong></td><td>Extra interest premium on corporate bonds vs. government bonds. Widens when investors fear defaults.</td></tr>
+      <tr><td><strong>Dry Powder</strong></td><td>Cash sitting in money market funds waiting to be deployed. Large dry powder = fuel for recovery.</td></tr>
+      <tr><td><strong>FRED</strong></td><td>Federal Reserve Economic Data — the US Fed's free public database of economic statistics.</td></tr>
+      <tr><td><strong>M2</strong></td><td>Measure of money supply. Proxy for liquidity in the economy.</td></tr>
+      <tr><td><strong>NFCI</strong></td><td>National Financial Conditions Index. Above 0 = tight financial conditions.</td></tr>
+      <tr><td><strong>Put/Call Ratio</strong></td><td>Ratio of bets on decline vs. rise. High = institutions heavily hedging.</td></tr>
+      <tr><td><strong>R:R Ratio</strong></td><td>Risk/Reward. 3:1 means $300 potential gain for every $100 risked.</td></tr>
+      <tr><td><strong>RSI</strong></td><td>Momentum indicator. Below 30 = oversold. Above 70 = overbought.</td></tr>
+      <tr><td><strong>SKEW</strong></td><td>Cost of crash insurance options. Low = fear exhausted.</td></tr>
+      <tr><td><strong>Stop-Loss</strong></td><td>Pre-set exit price to limit losses if the trade goes wrong.</td></tr>
+      <tr><td><strong>Triple Confluence</strong></td><td>Support + RSI oversold + volume spike all firing on the same instrument simultaneously.</td></tr>
+      <tr><td><strong>VIX</strong></td><td>The "fear gauge." 30-day implied volatility. Rises when investors fear near-term drops.</td></tr>
+      <tr><td><strong>Yield Curve</strong></td><td>Short vs. long-term rates. Inverted (short &gt; long) = recession signal.</td></tr>
+    </table>
+
+  </div>
+</div>
+
+<script>
+function openGuide(){
+  document.getElementById('guide-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeGuide(){
+  document.getElementById('guide-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGuide(); });
+document.getElementById('guide-modal').addEventListener('click',function(e){
+  const a=e.target.closest('a[href^="#g-"]');
+  if(!a) return;
+  e.preventDefault();
+  const t=document.getElementById(a.getAttribute('href').slice(1));
+  if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
+});
 </script>
 </body>
 </html>
