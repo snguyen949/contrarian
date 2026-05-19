@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTFD.AI — Lite</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fafaf7;
+    --paper:#ffffff;
+    --ink:#0f0f0f;
+    --ink-2:#3a3a3a;
+    --ink-3:#7a7a7a;
+    --line:#e6e6e2;
+    --line-strong:#cfcfc9;
+    --buy:#1f8a4c;
+    --buy-bg:#e8f4ec;
+    --wait:#a06b00;
+    --wait-bg:#fbf2e0;
+    --sell:#b3261e;
+    --sell-bg:#fbe7e6;
+    --neutral:#0f0f0f;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --sans:'Inter',-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11";}
+  body{min-height:100vh;padding:32px 20px 80px;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+
+  .wrap{max-width:880px;margin:0 auto;}
+
+  /* Top bar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:18px;gap:16px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:22px;height:22px;border:1.5px solid var(--ink);
+    display:grid;place-items:center;border-radius:4px;font-weight:800;font-size:11px;
+    font-family:var(--mono);}
+  .brand-name{font-size:13px;font-weight:700;letter-spacing:0.04em;}
+  .brand-name span{color:var(--ink-3);font-weight:500;}
+  .topbar-right{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-3);}
+  .topbar-left{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-3);
+    font-family:var(--mono);letter-spacing:0.02em;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--buy);
+    box-shadow:0 0 0 3px rgba(31,138,76,0.15);}
+  .switch-btn{display:inline-flex;align-items:center;gap:8px;
+    padding:8px 14px;border-radius:999px;border:1px solid var(--line-strong);
+    background:var(--paper);color:var(--ink);font-size:12px;font-weight:600;
+    text-decoration:none;transition:background .15s,border-color .15s;}
+  .switch-btn:hover{background:#f0f0ec;border-color:#aaa;}
+  .switch-btn .arrow{font-family:var(--mono);font-weight:700;}
+
+  /* Hero verdict */
+  .hero{background:var(--paper);border:1px solid var(--line);border-radius:18px;
+    padding:36px 36px 32px;margin-bottom:28px;position:relative;overflow:hidden;}
+  .hero-tag{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+  .hero-tag .ts{font-family:var(--mono);font-weight:500;}
+  .hero-grid{display:grid;grid-template-columns:auto 1fr auto;gap:36px;align-items:center;}
+  @media (max-width:680px){
+    .hero{padding:26px 22px;}
+    .hero-grid{grid-template-columns:1fr;gap:22px;}
+  }
+  .hero-score{font-family:var(--mono);font-weight:600;font-size:128px;
+    line-height:0.9;letter-spacing:-0.04em;color:var(--ink);}
+  @media (max-width:680px){.hero-score{font-size:96px;}}
+  .hero-score-of{font-size:18px;color:var(--ink-3);font-weight:500;margin-left:4px;}
+  .hero-mid{display:flex;flex-direction:column;gap:14px;}
+  .verdict-pill{display:inline-flex;align-items:center;gap:10px;
+    padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;
+    letter-spacing:0.06em;text-transform:uppercase;align-self:flex-start;}
+  .verdict-pill[data-v="buy"]{background:var(--buy-bg);color:var(--buy);}
+  .verdict-pill[data-v="wait"]{background:var(--wait-bg);color:var(--wait);}
+  .verdict-pill[data-v="sell"]{background:var(--sell-bg);color:var(--sell);}
+  .verdict-pill[data-v="waiting"]{background:#eee;color:var(--ink-3);}
+  .verdict-pill::before{content:"";width:7px;height:7px;border-radius:50%;
+    background:currentColor;}
+  .hero-headline{font-size:22px;font-weight:600;letter-spacing:-0.01em;
+    line-height:1.25;}
+  .hero-headline em{font-style:normal;color:var(--ink-3);font-weight:500;}
+  .hero-sub{font-size:13px;color:var(--ink-3);line-height:1.55;max-width:42ch;}
+  .hero-right{text-align:right;display:flex;flex-direction:column;gap:6px;}
+  @media (max-width:680px){.hero-right{text-align:left;}}
+  .hero-grade{font-family:var(--mono);font-size:64px;font-weight:600;line-height:1;}
+  .hero-grade-label{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;}
+
+  /* Gauge bar under score */
+  .gauge{margin-top:24px;}
+  .gauge-track{position:relative;height:8px;background:#efefea;border-radius:999px;
+    overflow:hidden;}
+  .gauge-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ink);
+    border-radius:999px;transition:width .6s cubic-bezier(.2,.7,.2,1),background .3s;}
+  .gauge-ticks{display:flex;justify-content:space-between;margin-top:8px;
+    font-family:var(--mono);font-size:10px;color:var(--ink-3);}
+  .gauge-legend{display:flex;justify-content:space-between;margin-top:4px;
+    font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);
+    font-weight:600;}
+
+  /* Metric cards */
+  .section-title{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin:8px 4px 14px;}
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:28px;}
+  @media (max-width:560px){.metrics{grid-template-columns:1fr;}}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;display:flex;flex-direction:column;gap:14px;
+    transition:border-color .15s,transform .15s;}
+  .card:hover{border-color:var(--line-strong);}
+  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .card-name{font-size:13px;font-weight:700;letter-spacing:-0.005em;}
+  .card-help{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.4;}
+  .grade{font-family:var(--mono);font-weight:600;font-size:28px;line-height:1;
+    padding:6px 12px;border-radius:10px;min-width:54px;text-align:center;
+    border:1px solid var(--line);background:#fafaf7;}
+  .grade[data-g="A"]{color:var(--buy);background:var(--buy-bg);border-color:#cbe7d6;}
+  .grade[data-g="B"]{color:#2a7a3e;background:#eef6f0;border-color:#d8e8de;}
+  .grade[data-g="C"]{color:var(--wait);background:var(--wait-bg);border-color:#eedfb8;}
+  .grade[data-g="D"]{color:#b5530b;background:#fbeadb;border-color:#ecd4b7;}
+  .grade[data-g="F"]{color:var(--sell);background:var(--sell-bg);border-color:#eccdcb;}
+  .grade[data-g="—"]{color:var(--ink-3);}
+  .card-value{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .v-num{font-family:var(--mono);font-size:28px;font-weight:600;letter-spacing:-0.02em;}
+  .v-unit{font-size:13px;color:var(--ink-3);font-weight:500;}
+  .v-tag{margin-left:auto;font-size:11px;color:var(--ink-3);font-family:var(--mono);}
+  .v-tag.up{color:var(--sell);}
+  .v-tag.down{color:var(--buy);}
+  .meter{height:6px;background:#efefea;border-radius:999px;overflow:hidden;
+    position:relative;}
+  .meter-fill{position:absolute;left:0;top:0;bottom:0;
+    background:var(--ink);border-radius:999px;
+    transition:width .6s cubic-bezier(.2,.7,.2,1),background .3s;}
+  .meter-fill[data-g="A"]{background:var(--buy);}
+  .meter-fill[data-g="B"]{background:#2a7a3e;}
+  .meter-fill[data-g="C"]{background:var(--wait);}
+  .meter-fill[data-g="D"]{background:#b5530b;}
+  .meter-fill[data-g="F"]{background:var(--sell);}
+  .meter-marks{position:absolute;inset:0;display:flex;
+    justify-content:space-between;pointer-events:none;}
+  .meter-marks span{width:1px;background:rgba(0,0,0,0.07);}
+  .meter-marks span:first-child,.meter-marks span:last-child{background:transparent;}
+  .card-foot{font-size:11px;color:var(--ink-3);line-height:1.5;}
+  .card-foot b{color:var(--ink-2);font-weight:600;}
+
+  /* Plan strip */
+  .plan{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    padding:22px 24px;margin-bottom:28px;}
+  .plan-title{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin-bottom:14px;}
+  .plan-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+    border-top:1px solid var(--line);border-left:1px solid var(--line);}
+  @media (max-width:680px){.plan-steps{grid-template-columns:1fr;}}
+  .step{padding:18px 20px;border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;}
+  .step-num{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-weight:600;}
+  .step-headline{font-size:14px;font-weight:700;letter-spacing:-0.005em;}
+  .step-body{font-size:12px;color:var(--ink-2);line-height:1.5;}
+
+  /* Action bar */
+  .action{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;
+    border-radius:10px;border:1px solid var(--ink);background:var(--ink);
+    color:#fff;font-size:13px;font-weight:600;letter-spacing:0.01em;
+    transition:transform .12s, background .15s;}
+  .btn:hover{background:#222;}
+  .btn:active{transform:translateY(1px);}
+  .btn-ghost{background:transparent;color:var(--ink);}
+  .btn-ghost:hover{background:#f0f0ec;}
+  .btn[disabled]{opacity:0.5;cursor:not-allowed;}
+  .btn .spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;
+    border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .status{font-size:11px;color:var(--ink-3);font-family:var(--mono);}
+
+  /* Empty / loading state */
+  .empty .v-num,.empty .grade{color:var(--ink-3);}
+  .skel{display:inline-block;background:#eee;color:transparent;border-radius:6px;
+    animation:skel 1.4s ease-in-out infinite;}
+  @keyframes skel{0%,100%{opacity:1;}50%{opacity:0.55;}}
+
+  /* Footer */
+  .foot{text-align:center;font-size:11px;color:var(--ink-3);margin-top:30px;
+    line-height:1.6;}
+  .foot b{color:var(--ink-2);font-weight:600;}
+
+  /* Dark mode */
+  [data-theme="dark"]{
+    --bg:#0c0d10;--paper:#15171c;--ink:#f3f3ef;--ink-2:#c8c8c4;--ink-3:#888884;
+    --line:#23252c;--line-strong:#33363e;
+    --buy:#3fd47b;--buy-bg:rgba(63,212,123,0.10);
+    --wait:#f0b04a;--wait-bg:rgba(240,176,74,0.10);
+    --sell:#ef5a4d;--sell-bg:rgba(239,90,77,0.10);
+  }
+  [data-theme="dark"] .meter,[data-theme="dark"] .gauge-track{background:#23252c;}
+  [data-theme="dark"] .grade{background:#1b1d23;border-color:#2b2e36;}
+  [data-theme="dark"] .grade[data-g="A"]{background:rgba(63,212,123,0.08);border-color:rgba(63,212,123,0.25);}
+  [data-theme="dark"] .grade[data-g="B"]{background:rgba(63,212,123,0.05);border-color:rgba(63,212,123,0.18);}
+  [data-theme="dark"] .grade[data-g="C"]{background:rgba(240,176,74,0.08);border-color:rgba(240,176,74,0.25);}
+  [data-theme="dark"] .grade[data-g="D"]{background:rgba(240,176,74,0.05);border-color:rgba(240,176,74,0.18);}
+  [data-theme="dark"] .grade[data-g="F"]{background:rgba(239,90,77,0.08);border-color:rgba(239,90,77,0.25);}
+  [data-theme="dark"] .skel{background:#23252c;}
+  [data-theme="dark"] .switch-btn:hover,[data-theme="dark"] .btn-ghost:hover{background:#1b1d23;}
+  [data-theme="dark"] .btn{background:#f3f3ef;color:#0c0d10;border-color:#f3f3ef;}
+  [data-theme="dark"] .btn:hover{background:#fff;}
+
+  .theme-toggle{width:34px;height:34px;border-radius:10px;border:1px solid var(--line-strong);
+    background:var(--paper);display:grid;place-items:center;cursor:pointer;
+    color:var(--ink-3);transition:color .15s,border-color .15s;}
+  .theme-toggle:hover{color:var(--ink);border-color:var(--ink);}
+
+  /* BTFD hero logo — calm/minimal variant */
+  .btfd-logo{display:flex;align-items:center;gap:22px;
+    padding:22px 24px;border:1px solid var(--line);border-radius:18px;
+    background:var(--paper);margin-bottom:28px;}
+  .btfd-logo-photo{width:96px;height:96px;flex:0 0 96px;border-radius:14px;
+    background-image:url('btfd-photo.png');background-size:cover;background-position:center;
+    background-color:#1a1a1a;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.06);}
+  .btfd-logo-text{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;flex:1;}
+  .btfd-logo-tag{font-family:var(--mono);font-size:10px;font-weight:600;
+    letter-spacing:0.18em;text-transform:uppercase;
+    display:flex;align-items:center;gap:9px;color:var(--ink-3);}
+  .btfd-logo-tag .dot{width:7px;height:7px;border-radius:50%;
+    background:#e63946;box-shadow:0 0 0 3px rgba(230,57,70,0.15);flex:0 0 7px;}
+  .btfd-logo-wordmark{font-family:'Inter',sans-serif;font-weight:900;
+    font-size:clamp(40px,7vw,68px);line-height:0.95;letter-spacing:-0.04em;
+    margin:2px 0 4px;display:flex;align-items:baseline;color:var(--ink);}
+  .btfd-logo-wordmark .ai{color:#e63946;}
+  .btfd-logo-wordmark .lite{font-family:var(--mono);font-weight:500;font-size:0.22em;
+    color:var(--ink-3);letter-spacing:0.16em;text-transform:uppercase;margin-left:14px;
+    align-self:center;padding:5px 10px;border:1px solid var(--line-strong);border-radius:999px;}
+  .btfd-logo-sub{font-family:var(--mono);font-size:10px;font-weight:500;
+    letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-3);}
+  @media (max-width:560px){
+    .btfd-logo{gap:14px;padding:16px;}
+    .btfd-logo-photo{width:72px;height:72px;flex:0 0 72px;border-radius:10px;}
+    .btfd-logo-wordmark{font-size:clamp(34px,11vw,54px);}
+    .btfd-logo-wordmark .lite{font-size:9px;padding:3px 8px;margin-left:8px;}
+    .btfd-logo-tag,.btfd-logo-sub{font-size:9px;letter-spacing:0.14em;}
+  }
+  [data-theme="dark"] .btfd-logo-photo{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="ts-now">—</span>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <a href="buy.html" class="switch-btn" title="Open the full advance dashboard">
+        Advance view <span class="arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- BTFD hero logo -->
+  <div class="btfd-logo">
+    <div class="btfd-logo-photo" role="img" aria-label="BTFD mascot"></div>
+    <div class="btfd-logo-text">
+      <div class="btfd-logo-tag">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Buy &middot; The &middot; Fear</span>
+      </div>
+      <div class="btfd-logo-wordmark">
+        <span>BTFD</span><span class="ai">.AI</span>
+        <span class="lite">Lite</span>
+      </div>
+      <div class="btfd-logo-sub">One score &middot; six gauges &middot; one plan</div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-tag">
+      <span>Should I buy the dip?</span>
+      <span>·</span>
+      <span class="ts" id="ts-asof">no data yet</span>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <div class="hero-score">
+          <span id="hero-score">—</span><span class="hero-score-of">/10</span>
+        </div>
+      </div>
+      <div class="hero-mid">
+        <span class="verdict-pill" data-v="waiting" id="hero-pill">Waiting</span>
+        <div class="hero-headline" id="hero-headline">
+          Tap <em>Refresh</em> to read the market.
+        </div>
+        <div class="hero-sub" id="hero-sub">
+          We score six widely-watched market metrics and roll them into a single 0–10 dip score.
+          No jargon, no charts to read — just one number and a plan.
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="hero-grade" id="hero-grade">—</div>
+        <div class="hero-grade-label">Grade</div>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <div class="gauge-track"><div class="gauge-fill" id="gauge-fill" style="width:0%"></div></div>
+      <div class="gauge-legend">
+        <span>Wait</span><span>Watch</span><span>Buy</span><span>Strong buy</span>
+      </div>
+      <div class="gauge-ticks">
+        <span>0</span><span>3</span><span>5</span><span>7</span><span>10</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action -->
+  <div class="action">
+    <button class="btn" id="refresh-btn" onclick="loadData()">
+      <span id="btn-label">Refresh</span>
+    </button>
+    <button class="btn btn-ghost" onclick="document.getElementById('plan').scrollIntoView({behavior:'smooth',block:'start'})">What should I do?</button>
+    <span class="status" id="status">Free data — Yahoo Finance · CNN · Crypto F&amp;G</span>
+  </div>
+
+  <!-- Metrics -->
+  <div class="section-title">The 6 things that matter</div>
+  <div class="metrics" id="metrics">
+    <!-- cards injected below as defaults; updated by JS -->
+    <div class="card empty" data-key="fng">
+      <div class="card-head">
+        <div>
+          <div class="card-name">Fear &amp; Greed</div>
+          <div class="card-help">CNN's daily 0–100 mood index. Below 25 = extreme fear (good for buyers).</div>
+        </div>
+        <div class="grade" data-g="—">—</div>
+      </div>
+      <div class="card-value">
+        <span class="v-num">—</span><span class="v-unit">/ 100</span>
+        <span class="v-tag" data-role="tag"></span>
+      </div>
+      <div class="meter"><div class="meter-fill" style="width:0%"></div>
+        <div class="meter-marks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="card-foot" data-role="foot">Waiting for data…</div>
+    </div>
+
+    <div class="card empty" data-key="vix">
+      <div class="card-head">
+        <div>
+          <div class="card-name">VIX — fear gauge</div>
+          <div class="card-help">Options-implied 30-day volatility. Above 30 = real panic; under 15 = calm.</div>
+        </div>
+        <div class="grade" data-g="—">—</div>
+      </div>
+      <div class="card-value">
+        <span class="v-num">—</span><span class="v-unit">level</span>
+        <span class="v-tag" data-role="tag"></span>
+      </div>
+      <div class="meter"><div class="meter-fill" style="width:0%"></div>
+        <div class="meter-marks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="card-foot" data-role="foot">Waiting for data…</div>
+    </div>
+
+    <div class="card empty" data-key="vixratio">
+      <div class="card-head">
+        <div>
+          <div class="card-name">Short-term panic</div>
+          <div class="card-help">VIX ÷ VIX3M. Above 1.0 means traders are more scared right now than about the next 3 months — usually a buy.</div>
+        </div>
+        <div class="grade" data-g="—">—</div>
+      </div>
+      <div class="card-value">
+        <span class="v-num">—</span><span class="v-unit">ratio</span>
+        <span class="v-tag" data-role="tag"></span>
+      </div>
+      <div class="meter"><div class="meter-fill" style="width:0%"></div>
+        <div class="meter-marks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="card-foot" data-role="foot">Waiting for data…</div>
+    </div>
+
+    <div class="card empty" data-key="drawdown">
+      <div class="card-head">
+        <div>
+          <div class="card-name">S&amp;P off its high</div>
+          <div class="card-help">How far SPY is below the all-time high. The bigger the dip, the better the entry — usually.</div>
+        </div>
+        <div class="grade" data-g="—">—</div>
+      </div>
+      <div class="card-value">
+        <span class="v-num">—</span><span class="v-unit">%</span>
+        <span class="v-tag" data-role="tag"></span>
+      </div>
+      <div class="meter"><div class="meter-fill" style="width:0%"></div>
+        <div class="meter-marks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="card-foot" data-role="foot">Waiting for data…</div>
+    </div>
+
+    <div class="card empty" data-key="breadth">
+      <div class="card-head">
+        <div>
+          <div class="card-name">Market breadth</div>
+          <div class="card-help">% of S&amp;P 500 stocks above their 200-day average. Below 25% = wash-out lows.</div>
+        </div>
+        <div class="grade" data-g="—">—</div>
+      </div>
+      <div class="card-value">
+        <span class="v-num">—</span><span class="v-unit">%</span>
+        <span class="v-tag" data-role="tag"></span>
+      </div>
+      <div class="meter"><div class="meter-fill" style="width:0%"></div>
+        <div class="meter-marks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="card-foot" data-role="foot">Waiting for data…</div>
+    </div>
+
+    <div class="card empty" data-key="cryptofng">
+      <div class="card-head">
+        <div>
+          <div class="card-name">Crypto fear</div>
+          <div class="card-help">Same idea, for crypto. Risk assets often bottom together — extreme crypto fear can lead stocks.</div>
+        </div>
+        <div class="grade" data-g="—">—</div>
+      </div>
+      <div class="card-value">
+        <span class="v-num">—</span><span class="v-unit">/ 100</span>
+        <span class="v-tag" data-role="tag"></span>
+      </div>
+      <div class="meter"><div class="meter-fill" style="width:0%"></div>
+        <div class="meter-marks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="card-foot" data-role="foot">Waiting for data…</div>
+    </div>
+  </div>
+
+  <!-- Plan -->
+  <section class="plan" id="plan">
+    <div class="plan-title">Your plan, in plain English</div>
+    <div class="plan-steps">
+      <div class="step"><div class="step-num">01</div>
+        <div class="step-headline" id="plan-1-h">Wait for fear</div>
+        <div class="step-body" id="plan-1-b">A score of 7 or higher means most of these gauges are flashing fear at the same time. That's when contrarian buys usually pay off.</div>
+      </div>
+      <div class="step"><div class="step-num">02</div>
+        <div class="step-headline" id="plan-2-h">Buy in tranches</div>
+        <div class="step-body" id="plan-2-b">Split your buy into 3–4 chunks. Don't try to nail the exact bottom — you almost never will.</div>
+      </div>
+      <div class="step"><div class="step-num">03</div>
+        <div class="step-headline" id="plan-3-h">Stick to the rules</div>
+        <div class="step-body" id="plan-3-b">If the score drops back under 5, slow down. If credit markets crack, stop. Boring beats brave.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    For a deeper look at signals, regimes, history and tools, switch to the <a href="buy.html"><b>Advance view</b></a>.<br>
+    Educational — not financial advice. Numbers reload from public free sources each click.
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   buy-lite.html — minimalist amateur view
+   Re-uses the same free data sources buy.html taps:
+     - Yahoo Finance (SPY, ^VIX, ^VIX3M, ^SPXA200R) via CORS proxies
+     - CNN Fear & Greed via allorigins
+     - alternative.me crypto F&G
+   ===================================================================== */
+
+// ---------- THEME ----------
+(function(){
+  const saved = localStorage.getItem('btfd-lite-theme');
+  if(saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('btfd-lite-theme', next);
+}
+
+// ---------- TIME ----------
+function tickClock(){
+  const d = new Date();
+  const fmt = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+  document.getElementById('ts-now').textContent = fmt + ' local';
+}
+tickClock(); setInterval(tickClock, 1000*30);
+
+// ---------- FETCH HELPERS ----------
+const PROXIES = [
+  u => u,
+  u => 'https://corsproxy.io/?'+encodeURIComponent(u),
+  u => 'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+];
+
+async function fetchTimeout(url, ms=8000){
+  const c = new AbortController();
+  const t = setTimeout(()=>c.abort(), ms);
+  try{ return await fetch(url,{signal:c.signal}); }
+  finally{ clearTimeout(t); }
+}
+
+async function yahoo(ticker){
+  const hosts = ['query1.finance.yahoo.com','query2.finance.yahoo.com'];
+  for(const host of hosts){
+    for(const px of PROXIES){
+      try{
+        const u = 'https://'+host+'/v8/finance/chart/'+ticker+'?range=5d&interval=1d';
+        const r = await fetchTimeout(px(u), 7000);
+        if(!r.ok) continue;
+        const j = await r.json();
+        const res = j?.chart?.result?.[0];
+        const closes = res?.indicators?.quote?.[0]?.close?.filter(x=>x!=null);
+        const price = res?.meta?.regularMarketPrice ?? closes?.[closes.length-1];
+        if(price!=null) return { price, closes:closes||[] };
+      }catch(_){}
+    }
+  }
+  return null;
+}
+
+async function cnnFng(){
+  for(const px of PROXIES){
+    try{
+      const u = 'https://production.dataviz.cnn.io/index/fearandgreed/graphdata';
+      const r = await fetchTimeout(px(u), 7000);
+      if(!r.ok) continue;
+      const j = await r.json();
+      const v = j?.fear_and_greed?.score;
+      if(v!=null) return Math.round(v);
+    }catch(_){}
+  }
+  return null;
+}
+
+async function cryptoFng(){
+  try{
+    const r = await fetchTimeout('https://api.alternative.me/fng/?limit=1',7000);
+    if(!r.ok) return null;
+    const j = await r.json();
+    return parseInt(j?.data?.[0]?.value);
+  }catch(_){ return null; }
+}
+
+// ---------- SCORING ----------
+// Each metric: { value, grade A/B/C/D/F, pct (0-100 for meter), tag, foot, points (0-10 contrib to score) }
+function gradeFng(v){
+  if(v==null) return null;
+  // contrarian: lower = better for buyers
+  let grade, pts;
+  if(v<=15)      { grade='A'; pts=10; }
+  else if(v<=25) { grade='A'; pts=9;  }
+  else if(v<=40) { grade='B'; pts=7;  }
+  else if(v<=55) { grade='C'; pts=5;  }
+  else if(v<=70) { grade='D'; pts=3;  }
+  else           { grade='F'; pts=1;  }
+  const tag = v<=25?'EXTREME FEAR':v<=45?'FEAR':v<=55?'NEUTRAL':v<=75?'GREED':'EXTREME GREED';
+  const foot = v<=25?'Best buying environment.':v<=45?'Sellers tiring. Watching.':v<=55?'No edge here.':v<=75?'Crowd is greedy — be careful.':'Crowd is euphoric — danger.';
+  return { value:v, unit:'/ 100', pct: 100 - Math.min(100,Math.max(0,v)), grade, pts, tag, foot };
+}
+
+function gradeVix(v){
+  if(v==null) return null;
+  let grade, pts;
+  if(v>=40)      { grade='A'; pts=10; }
+  else if(v>=30) { grade='A'; pts=9;  }
+  else if(v>=22) { grade='B'; pts=7;  }
+  else if(v>=17) { grade='C'; pts=5;  }
+  else if(v>=13) { grade='D'; pts=3;  }
+  else           { grade='F'; pts=1;  }
+  const tag  = v>=30?'PANIC':v>=22?'ELEVATED':v>=15?'NORMAL':'COMPLACENT';
+  const foot = v>=30?'Real fear — classic dip-buyer territory.':v>=22?'Nervous market. Watch closely.':v>=15?'Average vol. No urgency.':'Too calm — wait.';
+  return { value:v.toFixed(1), raw:v, unit:'level', pct: Math.min(100,(v/45)*100), grade, pts, tag, foot };
+}
+
+function gradeVixRatio(r){
+  if(r==null) return null;
+  let grade, pts;
+  if(r>=1.10)      { grade='A'; pts=10; }
+  else if(r>=1.05) { grade='A'; pts=8;  }
+  else if(r>=1.00) { grade='B'; pts=7;  }
+  else if(r>=0.95) { grade='C'; pts=5;  }
+  else if(r>=0.90) { grade='D'; pts=3;  }
+  else             { grade='F'; pts=1;  }
+  const tag  = r>=1.05?'BACKWARDATION':r>=1.00?'INVERTED':r>=0.95?'FLAT':'CONTANGO';
+  const foot = r>=1.05?'Strong panic peak signal.':r>=1.00?'Front-month panic — usually a low.':r>=0.95?'Pinch point. Watch.':'Calm structure. Wait.';
+  // meter: 0.85 -> 0%, 1.15 -> 100%
+  const pct  = Math.min(100, Math.max(0, ((r-0.85)/0.30)*100));
+  return { value:r.toFixed(2), unit:'ratio', pct, grade, pts, tag, foot };
+}
+
+function gradeDrawdown(pct){ // negative number, e.g. -8.5 means SPY -8.5% from ATH
+  if(pct==null) return null;
+  const dd = Math.abs(pct);
+  let grade, pts;
+  if(dd>=20)      { grade='A'; pts=10; }
+  else if(dd>=12) { grade='A'; pts=9;  }
+  else if(dd>=7)  { grade='B'; pts=7;  }
+  else if(dd>=4)  { grade='C'; pts=5;  }
+  else if(dd>=2)  { grade='D'; pts=3;  }
+  else            { grade='F'; pts=1;  }
+  const tag = dd>=15?'BEAR ZONE':dd>=8?'CORRECTION':dd>=4?'DIP':dd>=1?'PULLBACK':'AT HIGHS';
+  const foot= dd>=15?'Generational entry territory — but stay disciplined.':dd>=8?'Classic correction. Tranches make sense.':dd>=4?'Healthy reset.':'Nothing on sale yet.';
+  const meterPct = Math.min(100, (dd/25)*100);
+  return { value:'-'+dd.toFixed(1), unit:'%', pct:meterPct, grade, pts, tag, foot };
+}
+
+function gradeBreadth(v){
+  if(v==null) return null;
+  let grade, pts;
+  if(v<=20)      { grade='A'; pts=10; }
+  else if(v<=35) { grade='A'; pts=8;  }
+  else if(v<=50) { grade='B'; pts=6;  }
+  else if(v<=65) { grade='C'; pts=4;  }
+  else if(v<=80) { grade='D'; pts=2;  }
+  else           { grade='F'; pts=1;  }
+  const tag = v<=25?'WASHED OUT':v<=45?'WEAK':v<=60?'MIXED':v<=75?'STRONG':'EUPHORIC';
+  const foot= v<=25?'Almost everything is broken — washouts mark lows.':v<=45?'Damage spreading. Getting interesting.':v<=60?'Mixed. No edge.':v<=75?'Most stocks healthy — no fear.':'Frothy breadth — late cycle.';
+  return { value:v.toFixed(0), unit:'%', pct: 100 - v, grade, pts, tag, foot };
+}
+
+// SPY ATH for drawdown calc (mirror buy.html constant)
+const SPY_ATH = 698;
+
+// ---------- RENDER ----------
+function setCard(key, m){
+  const card = document.querySelector('.card[data-key="'+key+'"]');
+  if(!card) return;
+  const gradeEl = card.querySelector('.grade');
+  const vNum    = card.querySelector('.v-num');
+  const tagEl   = card.querySelector('[data-role="tag"]');
+  const footEl  = card.querySelector('[data-role="foot"]');
+  const fill    = card.querySelector('.meter-fill');
+  if(!m){
+    gradeEl.textContent = '—'; gradeEl.setAttribute('data-g','—');
+    vNum.textContent = '—'; tagEl.textContent = ''; footEl.textContent = 'No data.';
+    fill.style.width = '0%'; fill.setAttribute('data-g','—');
+    card.classList.add('empty'); return;
+  }
+  card.classList.remove('empty');
+  gradeEl.textContent = m.grade; gradeEl.setAttribute('data-g', m.grade);
+  vNum.textContent = m.value;
+  tagEl.textContent = m.tag;
+  footEl.innerHTML = '<b>'+m.tag+'</b> — '+m.foot;
+  fill.style.width = m.pct.toFixed(0)+'%';
+  fill.setAttribute('data-g', m.grade);
+}
+
+function setHero(score, metrics){
+  // score 0-10
+  const el = document.getElementById('hero-score');
+  const pillEl = document.getElementById('hero-pill');
+  const headlineEl = document.getElementById('hero-headline');
+  const subEl = document.getElementById('hero-sub');
+  const gradeEl = document.getElementById('hero-grade');
+  const gauge = document.getElementById('gauge-fill');
+
+  if(score == null){
+    el.textContent = '—'; pillEl.textContent = 'Waiting'; pillEl.dataset.v='waiting';
+    gradeEl.textContent = '—'; gauge.style.width='0%'; return;
+  }
+  el.textContent = score.toFixed(1);
+  gauge.style.width = (score*10).toFixed(0)+'%';
+
+  let v='wait', label='Wait', headline='', sub='', grade='C';
+  if(score>=8)      { v='buy';  label='Strong buy'; grade='A'; gauge.style.background='var(--buy)';
+                      headline='Fear is loud across the board. <em>Start your tranches.</em>';
+                      sub='Most of the six gauges are flashing at once — historically the highest-conviction zone for adding risk. Buy in steps, not all at once.'; }
+  else if(score>=7) { v='buy';  label='Buy';        grade='B'; gauge.style.background='var(--buy)';
+                      headline='Real fear in the data. <em>Begin scaling in.</em>';
+                      sub='Several gauges are stretched. A starter tranche makes sense; keep dry powder in case it gets worse before it gets better.'; }
+  else if(score>=5) { v='wait'; label='Watch';      grade='C'; gauge.style.background='var(--wait)';
+                      headline='Some cracks, not a panic. <em>Patience.</em>';
+                      sub='A couple of gauges are interesting but the crowd isn\'t scared yet. Build a shopping list and wait for the score to push past 7.'; }
+  else if(score>=3) { v='wait'; label='Wait';       grade='D'; gauge.style.background='var(--wait)';
+                      headline='Calm waters. <em>Nothing on sale.</em>';
+                      sub='Markets feel fine. There\'s no contrarian edge to harvest here — sit on your hands and let opportunities come to you.'; }
+  else              { v='sell'; label='Caution';    grade='F'; gauge.style.background='var(--sell)';
+                      headline='Crowd is greedy. <em>Don\'t chase.</em>';
+                      sub='Sentiment is hot and breadth is stretched. This is when bad entries happen. Wait for fear to come back before adding risk.'; }
+
+  pillEl.textContent = label; pillEl.dataset.v=v;
+  headlineEl.innerHTML = headline;
+  subEl.textContent = sub;
+  gradeEl.textContent = grade;
+
+  // Update plan to match
+  const plan = {
+    'A': {h1:'Buy now, in tranches', b1:'Score 7+ with widespread fear. This is the setup. Place your first buy today, the next 1–2 days from now, and a final one if it drops further.'},
+    'B': {h1:'Buy now, in tranches', b1:'Score 7+ with widespread fear. This is the setup. Place your first buy today, the next 1–2 days from now, and a final one if it drops further.'},
+    'C': {h1:'Build your list, don\'t buy', b1:'Score 5–7 means partial fear. Write down what you\'d buy and the level you\'d buy it. Don\'t click yet.'},
+    'D': {h1:'Sit on your hands', b1:'Below 5 the contrarian edge isn\'t there. Patience is a position.'},
+    'F': {h1:'Sit on your hands', b1:'Below 5 the contrarian edge isn\'t there. Patience is a position. Resist FOMO.'},
+  }[grade];
+  document.getElementById('plan-1-h').textContent = plan.h1;
+  document.getElementById('plan-1-b').textContent = plan.b1;
+}
+
+// ---------- SHARED CACHE WITH ADVANCE VIEW ----------
+// Both views read/write `contrarianCache` in localStorage. buy.html's pulseState
+// uses fields like spyPrice, vix, vix3m, vixRatio, pctAbove200dma, cnnFG, cryptoFG —
+// we mirror those so either view benefits from the other's last fetch.
+const SHARED_CACHE_KEY = 'contrarianCache';
+const CACHE_FRESH_MS = 10 * 60 * 1000;     // <10 min → render straight from cache, no fetch
+const CACHE_USABLE_MS = 6 * 60 * 60 * 1000; // <6h    → show stale first, then refresh
+
+function readSharedCache(){
+  try{
+    const raw = localStorage.getItem(SHARED_CACHE_KEY);
+    if(!raw) return null;
+    const j = JSON.parse(raw);
+    if(!j || !j.data) return null;
+    return { data: j.data, ts: j.ts || 0, age: Date.now() - (j.ts || 0) };
+  }catch(_){ return null; }
+}
+
+function writeSharedCache(values){
+  try{
+    const existing = readSharedCache();
+    const merged = { ...(existing && existing.data || {}), ...values };
+    localStorage.setItem(SHARED_CACHE_KEY,
+      JSON.stringify({ data: merged, ts: Date.now() }));
+  }catch(_){}
+}
+
+function renderFromCache(cache, label){
+  const d = cache.data;
+  const fngM   = gradeFng(d.cnnFG ?? null);
+  const vixM   = gradeVix(d.vix ?? null);
+  const ratioM = d.vixRatio != null ? gradeVixRatio(d.vixRatio)
+                : (d.vix != null && d.vix3m != null ? gradeVixRatio(d.vix / d.vix3m) : null);
+  const ddM    = d.spyPrice != null ? gradeDrawdown(((d.spyPrice - SPY_ATH)/SPY_ATH)*100) : null;
+  const brM    = gradeBreadth(d.pctAbove200dma ?? null);
+  const cfngM  = gradeFng(d.cryptoFG ?? null);
+
+  setCard('fng',       fngM);
+  setCard('vix',       vixM);
+  setCard('vixratio',  ratioM);
+  setCard('drawdown',  ddM);
+  setCard('breadth',   brM);
+  setCard('cryptofng', cfngM);
+
+  const items = [fngM, vixM, ratioM, ddM, brM, cfngM].filter(Boolean);
+  const score = items.length ? items.reduce((a,b)=>a+b.pts,0)/items.length : null;
+  setHero(score, items);
+
+  const ageMin = Math.round(cache.age/60000);
+  const ageStr = ageMin < 1 ? 'just now' : (ageMin + ' min ago');
+  document.getElementById('ts-asof').textContent =
+    (label || 'cached') + ' · ' + ageStr + ' · ' + items.length + '/6 metrics';
+  return items.length;
+}
+
+// ---------- LOAD ----------
+let isLoading = false;
+async function loadData(force){
+  if(isLoading) return;
+
+  // 1) If a recent shared cache exists, render it immediately
+  const cache = readSharedCache();
+  const cacheFresh = cache && cache.age < CACHE_FRESH_MS;
+  const cacheUsable = cache && cache.age < CACHE_USABLE_MS;
+
+  if(cache && cacheUsable){
+    const n = renderFromCache(cache, cacheFresh ? 'fresh from advance view' : 'last reading');
+    document.getElementById('status').textContent =
+      cacheFresh
+        ? 'Using fresh data from the advance view — click Refresh to re-pull.'
+        : (n + '/6 metrics shown from last reading. Refreshing…');
+    // If cache is fresh and we weren't forced, skip the network fetch.
+    if(cacheFresh && !force) return;
+  }
+
+  isLoading = true;
+  const btn = document.getElementById('refresh-btn');
+  const lbl = document.getElementById('btn-label');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  lbl.innerHTML = '<span class="spin"></span>&nbsp;Reading the market…';
+  if(!cache) status.textContent = 'Fetching from free public sources…';
+
+  try {
+    const [spy, vix, vix3m, breadth, cnn, crypto] = await Promise.all([
+      yahoo('SPY'),
+      yahoo('%5EVIX'),
+      yahoo('%5EVIX3M'),
+      yahoo('%5ESPXA200R'),
+      cnnFng(),
+      cryptoFng(),
+    ]);
+
+    // Compute metrics
+    const fngM   = gradeFng(cnn);
+    const vixM   = gradeVix(vix?.price ?? null);
+    const ratioM = (vix?.price && vix3m?.price) ? gradeVixRatio(vix.price / vix3m.price) : null;
+    const ddM    = spy?.price ? gradeDrawdown(((spy.price - SPY_ATH)/SPY_ATH)*100) : null;
+    const brM    = gradeBreadth(breadth?.price ?? null);
+    const cfngM  = gradeFng(crypto); // same scale, contrarian
+
+    // Render metric cards
+    setCard('fng',       fngM);
+    setCard('vix',       vixM);
+    setCard('vixratio',  ratioM);
+    setCard('drawdown',  ddM);
+    setCard('breadth',   brM);
+    setCard('cryptofng', cfngM);
+
+    // Average weighted score
+    const items = [fngM, vixM, ratioM, ddM, brM, cfngM].filter(Boolean);
+    const score = items.length ? items.reduce((a,b)=>a+b.pts,0)/items.length : null;
+    setHero(score, items);
+
+    // Push our values to the shared cache so advance view benefits too
+    const sharePayload = {};
+    if(spy?.price != null)     sharePayload.spyPrice = spy.price;
+    if(vix?.price != null)     sharePayload.vix = vix.price;
+    if(vix3m?.price != null)   sharePayload.vix3m = vix3m.price;
+    if(vix?.price && vix3m?.price) sharePayload.vixRatio = vix.price / vix3m.price;
+    if(breadth?.price != null) sharePayload.pctAbove200dma = breadth.price;
+    if(cnn != null)            sharePayload.cnnFG = cnn;
+    if(crypto != null)         sharePayload.cryptoFG = crypto;
+    if(Object.keys(sharePayload).length) writeSharedCache(sharePayload);
+
+    // Timestamp
+    const now = new Date();
+    document.getElementById('ts-asof').textContent =
+      'updated ' + now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) +
+      ' · ' + items.length + '/6 metrics live';
+
+    status.textContent = items.length === 6
+      ? 'All six metrics fresh. Shared with the advance view.'
+      : (items.length + ' of 6 fresh — some sources rate-limited. Try again in a moment.');
+  } catch (e){
+    status.textContent = 'Couldn\'t reach the data sources. Retry in a moment.';
+    console.warn(e);
+  } finally {
+    isLoading = false;
+    btn.disabled = false;
+    lbl.textContent = 'Refresh';
+  }
+}
+
+// Refresh button is "force refresh"
+document.addEventListener('DOMContentLoaded', () => {
+  const b = document.getElementById('refresh-btn');
+  if(b) b.onclick = () => loadData(true);
+});
+
+// Auto-load on first paint — uses cache if fresh, else fetches
+window.addEventListener('load', () => setTimeout(() => loadData(false), 250));
+</script>
+</body>
+</html>
