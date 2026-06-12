@@ -2629,6 +2629,7 @@ const signals = [
   {id:'cryptoFG', cluster:'A', name:'Crypto Fear & Greed', type:'auto', threshold:'≤ 15', score:()=>{ const v=pulseState.cryptoFG; return v!==null&&v<=10?1:v!==null&&v<=20?0.75:v!==null&&v<=30?0.25:0; }, reading:()=>pulseState.cryptoFG, color:()=>pulseState.cryptoFG<=15?'#ef4444':pulseState.cryptoFG<=25?'#f97316':pulseState.cryptoFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cryptoFG<=15?'EXTREME FEAR — historically 80% positive 30d returns':pulseState.cryptoFG<=25?'FEAR — crypto sentiment very negative':'Not extreme enough'},
   {id:'aaii', cluster:'A', name:'AAII Bear %', type:'auto', threshold:'Bear ≥ 50%', score:()=>{ const v=pulseState.aaiiBear; return v!==null&&v>=55?1:v!==null&&v>=45?0.75:v!==null&&v>=38?0.25:0; }, reading:()=>pulseState.aaiiBear!==null?pulseState.aaiiBear+'%':null, color:()=>{ const v=pulseState.aaiiBear; return v>=50?'#ef4444':v>=40?'#f97316':v>=35?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.aaiiBear; return v>=50?'EXTREME bearish — historically strong contrarian buy':v>=40?'Very bearish — approaching signal':'Mildly bearish — not extreme'; }},
   {id:'stockTwits', cluster:'A', name:'StockTwits Bear %', type:'auto', threshold:'Bear ≥ 55%', score:()=>{ const b=pulseState.stwSpy?.bear; return b>=65?1:b>=55?0.75:b>=45?0.25:0; }, reading:()=>pulseState.stwSpy?pulseState.stwSpy.bear+'%':null, color:()=>{ const b=pulseState.stwSpy?.bear; return b>=60?'#ef4444':b>=45?'#f97316':'#22c55e'; }, interpret:()=>{ const b=pulseState.stwSpy?.bear; return b>=60?'Retail heavily bearish — crowded short, fuel for squeeze':b>=45?'Bearish lean — fear building':'Neutral or bullish retail sentiment'; }},
+  {id:'polyRecession', cluster:'A', name:'Polymarket Recession Odds', type:'auto', threshold:'≥ 50%', score:()=>{ const v=pulseState.polyRecession?.pct; return v!=null&&v>=65?1:v!=null&&v>=50?0.75:v!=null&&v>=35?0.25:0; }, reading:()=>pulseState.polyRecession?pulseState.polyRecession.pct+'%':null, color:()=>{ const v=pulseState.polyRecession?.pct; return v==null?'#94a3b8':v>=50?'#ef4444':v>=35?'#f97316':'#22c55e'; }, interpret:()=>{ const v=pulseState.polyRecession?.pct; return v==null?'No market data':v>=65?'Crowd pricing recession as base case — peak macro fear, contrarian zone':v>=50?'Recession odds elevated — real-money fear in prediction markets':v>=35?'Moderate recession pricing — fear building':'Low recession odds — no macro panic priced'; }},
   // ===== CLUSTER B — Vol Structure (weight 0.35) =====
   {id:'vixTermStructure', cluster:'B', name:'VIX/VIX3M Ratio ★', type:'auto', threshold:'> 1.0 (backwardation)', score:()=>{ const r=pulseState.vixRatio; return r!==null&&r>1.05?1:r!==null&&r>1.0?0.75:r!==null&&r>0.95?0.5:0; }, reading:()=>pulseState.vixRatio!==null?pulseState.vixRatio.toFixed(3):null, color:()=>{ const r=pulseState.vixRatio; return r>1.0?'#ef4444':r>0.92?'#f97316':'#22c55e'; }, interpret:()=>{ const r=pulseState.vixRatio; return r>1.0?'⚡ BACKWARDATION — strongest contrarian buy signal. Only 4 times since 2005 (GFC, 2011, Vol, COVID). All preceded massive rallies.':r>0.92?'Flattening — approaching signal. Near-term fear rising faster than long-term.':'Contango — normal. No term structure signal.'; }},
   {id:'vix', cluster:'B', name:'VIX', type:'auto', threshold:'≥ 35', score:()=>{ const v=pulseState.vix; return v!==null&&v>=45?1:v!==null&&v>=35?0.75:v!==null&&v>=28?0.25:0; }, reading:()=>pulseState.vix, color:()=>pulseState.vix>=45?'#ef4444':pulseState.vix>=35?'#f97316':pulseState.vix>=25?'#f59e0b':'#22c55e', interpret:()=>pulseState.vix>=45?'PANIC — capitulation level VIX':pulseState.vix>=35?'HIGH FEAR — approaching capitulation':pulseState.vix>=25?'Elevated but not extreme':'Low vol — complacent market'},
@@ -2638,6 +2639,7 @@ const signals = [
   {id:'putcall', cluster:'C', name:'Put/Call Ratio', type:'manual', threshold:'≥ 1.2', score:()=>{ const v=pulseState.putCallRatio; return v!==null&&v>=1.3?1:v!==null&&v>=1.1?0.75:v!==null&&v>=0.95?0.25:0; }, reading:()=>pulseState.putCallRatio, color:()=>{ const v=pulseState.putCallRatio; return v>=1.2?'#ef4444':v>=1.0?'#f97316':v>=0.8?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.putCallRatio; return v>=1.2?'Heavy put buying — maximum fear hedging':v>=1.0?'Elevated hedging activity':'Normal or low hedging'; }},
   {id:'naaim', cluster:'C', name:'NAAIM Exposure Index', type:'auto', threshold:'≤ 40', score:()=>{ const v=pulseState.naaimExposure; return v!==null&&v<=25?1:v!==null&&v<=40?0.75:v!==null&&v<=60?0.25:0; }, reading:()=>pulseState.naaimExposure, color:()=>{ const v=pulseState.naaimExposure; return v<=30?'#ef4444':v<=50?'#f97316':v<=70?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.naaimExposure; return v<=30?'Fund managers fully de-risked — contrarian buy':v<=50?'Low exposure — approaching signal':'Managers still allocated — not washed out'; }},
   {id:'moneyMarket', cluster:'C', name:'Money Market Assets', type:'auto', threshold:'≥ $6.0T', score:()=>{ const v=parseFloat(pulseState.moneyMarket); return v>=6.5?1:v>=6.0?0.75:v>=5.5?0.25:0; }, reading:()=>pulseState.moneyMarket?'$'+parseFloat(pulseState.moneyMarket).toFixed(1)+'T':null, color:()=>{ const v=parseFloat(pulseState.moneyMarket); return v>=6.0?'#ef4444':v>=5.5?'#f97316':'#22c55e'; }, interpret:()=>{ const v=parseFloat(pulseState.moneyMarket); return v>=6.0?'Cash flood — retail hiding in money markets, dry powder for eventual return':v>=5.5?'Elevated cash on sidelines':'Normal cash levels — no panic hoarding'; }},
+  {id:'breadth200', cluster:'C', name:'Breadth — % S&P > 200-DMA', type:'auto', threshold:'≤ 30%', score:()=>{ const v=pulseState.pctAbove200dma; return v!==null&&v<=20?1:v!==null&&v<=30?0.75:v!==null&&v<=40?0.25:0; }, reading:()=>pulseState.pctAbove200dma!==null?pulseState.pctAbove200dma+'%':null, color:()=>{ const v=pulseState.pctAbove200dma; return v===null?'#94a3b8':v<=20?'#ef4444':v<=30?'#f97316':v<=40?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.pctAbove200dma; return v===null?'No breadth data':v<=20?'WASHOUT — <20% above 200-DMA marked the 2011, 2020 and 2022 lows':v<=30?'Deep breadth damage — washout forming':v<=40?'Breadth weak — internals deteriorating':'Breadth healthy — no internal washout'; }},
   // ===== CLUSTER D — Credit / Macro (weight 0.20) =====
   {id:'nfci', cluster:'D', name:'Chicago Fed NFCI', type:'auto', threshold:'> 0 (tightening)', score:()=>{ const v=pulseState.nfci; return v!==null&&v>=0.5?1:v!==null&&v>=0.1?0.75:v!==null&&v>=0?0.25:0; }, reading:()=>pulseState.nfci!==null?pulseState.nfci.toFixed(2):null, color:()=>{ const v=pulseState.nfci; return v>=0.5?'#ef4444':v>=0.1?'#f97316':v>=0?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.nfci; const d=pulseState.nfciPrev!==undefined?(v>pulseState.nfciPrev?' ↑ tightening':' ↓ loosening'):''; return v>=0.5?'TIGHT'+d+' — credit stress. Above 0.5 = recession proximity.':v>=0.1?'Slightly tight'+d+' — watch for further tightening.':v>=0?'Near neutral'+d:'Loose'+d+' — accommodative.'; }},
   {id:'hySpreads', cluster:'D', name:'HY Credit Spreads', type:'auto', threshold:'≥ 500 bps', score:()=>{ const v=pulseState.hySpreads; return v!==null&&v>=600?1:v!==null&&v>=500?0.75:v!==null&&v>=400?0.25:0; }, reading:()=>pulseState.hySpreads!==null?Math.round(pulseState.hySpreads)+' bps':null, color:()=>{ const v=pulseState.hySpreads; return v>=500?'#ef4444':v>=400?'#f97316':v>=350?'#f59e0b':'#22c55e'; }, interpret:()=>{ const v=pulseState.hySpreads; return v>=500?'CREDIT STRESS — real fear in bond markets':v>=400?'Widening — credit market worried':'Spreads contained — no panic in credit'; }},
@@ -2650,6 +2652,14 @@ const signals = [
     reading:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence).length,db=r.filter(x=>x.confluenceCount>=2).length; return tr>0?tr+' triple'+(tr>1?'s':''):db>0?db+' double'+(db>1?'s':''):'0'; }catch(e){return null;} },
     color:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence).length,db=r.filter(x=>x.confluenceCount>=2).length; return tr>=2?'#22c55e':tr>=1?'#4ade80':db>=3?'#f59e0b':db>=2?'#fb923c':'#94a3b8'; }catch(e){return '#94a3b8';} },
     interpret:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence),db=r.filter(x=>x.confluenceCount>=2); if(tr.length>=2) return '🟢🟢🟢 STRONGEST BUY — '+tr.length+' instruments at triple confluence. Historically 100% hit rate.'; if(tr.length>=1) return '🟢🟢🟢 TRIPLE CONFLUENCE on '+tr.map(x=>x.inst.ticker).join(', ')+' — support+oversold+vol spike aligned. High conviction buy.'; if(db.length>=3) return '🟢🟢⚪ CROSS-DOUBLE ('+db.length+'/5 instruments) — broad-based signal, treated as triple.'; if(db.length>=2) return '🟢🟢⚪ DOUBLE CONFLUENCE on '+db.length+' instruments — strong signal, watch for third condition.'; return '⚪⚪⚪ NO CONFLUENCE — conditions not yet aligned across instruments.'; }catch(e){return 'No data';} }
+  },
+  // Geopolitical resolution catalyst — ceasefire odds rising while SPY still discounted.
+  // This is the March-2026 lesson: geopolitical dips resolve on news, not exhaustion.
+  {id:'geoCatalyst', cluster:null, name:'Resolution Catalyst ★', type:'auto', threshold:'Ceasefire odds ≥45% + SPY ≥8% off ATH',
+    score:()=>{ const c=pulseState.polyIranCeasefire?.pct, dd=pulseState.spyPctFromATH; if(c==null||dd==null) return 0; if(c>=60&&dd>=6) return 1.0; if(c>=45&&dd>=8) return 0.75; if(c>=35&&dd>=12) return 0.5; return 0; },
+    reading:()=>{ const c=pulseState.polyIranCeasefire?.pct; return c!=null?c+'% odds / −'+(pulseState.spyPctFromATH!=null?pulseState.spyPctFromATH.toFixed(1):'--')+'% SPY':null; },
+    color:()=>{ const c=pulseState.polyIranCeasefire?.pct, dd=pulseState.spyPctFromATH; if(c==null||dd==null) return '#94a3b8'; if(c>=60&&dd>=6) return '#22c55e'; if(c>=45&&dd>=8) return '#4ade80'; if(c>=35&&dd>=12) return '#f59e0b'; return '#94a3b8'; },
+    interpret:()=>{ const c=pulseState.polyIranCeasefire?.pct, dd=pulseState.spyPctFromATH; if(c==null) return 'No active conflict-resolution market'; if(dd==null) return 'No drawdown data'; if(c>=60&&dd>=6) return '⚡ RESOLUTION IMMINENT — crowd prices ceasefire as likely while SPY still discounted. The gap IS the trade.'; if(c>=45&&dd>=8) return 'Resolution odds rising, price hasn\'t repriced — asymmetric geopolitical entry.'; if(c>=35&&dd>=12) return 'Deep discount with resolution becoming plausible — early-stage catalyst.'; return dd<6?'No meaningful discount — catalyst irrelevant at these prices':'Odds too low — resolution not yet priced as likely'; }
   },
 ];
 
@@ -2783,9 +2793,18 @@ function recalcScore(){
   const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
   // Velocity boost: +0.5 when previous fetch confirmed score rollover (lag-1 design)
   const velBoost=(pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
+  // Geopolitical resolution catalyst — ceasefire odds vs drawdown gap (max +1.0)
+  const geoBonus=(signals.find(s=>s.id==='geoCatalyst')?.score())||0;
+  // Bottom state machine bonus — same values calcBuyRating uses, so the two ratings agree
+  let bsBonus=0;
+  try{
+    const _bs=bottomStateManager.load();
+    if(_bs.state===BS_STATES.CONFIRMED) bsBonus=2.0;
+    else if(_bs.state===BS_STATES.CONFIRMING && _bs.days && _bs.days.length-1>=3) bsBonus=1.0;
+  }catch(e){}
   const m2Mult=calcM2Multiplier();
   pulseState.m2Multiplier=m2Mult;
-  const total=Math.min(10, rawScore*10*m2Mult + boost + tcBonus + velBoost);
+  const total=Math.min(10, rawScore*10*m2Mult + boost + tcBonus + velBoost + geoBonus + bsBonus);
   pulseState.score=total;
   // BUY gate: A + B + (C or D) must all be > 0.5
   const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
@@ -2807,7 +2826,9 @@ function recalcScore(){
     const badges=['A','B','C','D'].map(c=>`<span class="cluster-badge cluster-${c}" style="opacity:${clusterMax[c]>0.5?1:0.25}">${c}</span>`).join('');
     const boostNote=boost>0?` &nbsp;<span style="color:#a855f7;font-size:9px">+${boost.toFixed(1)} AI boost (${pulseState.contrarianPct}% contrarian)</span>`:'';
     const m2Note=pulseState.m2YoY!==null?` &nbsp;<span style="font-size:9px;color:${m2Mult>=1.2?'#22c55e':m2Mult>=1.0?'#94a3b8':m2Mult>=0.8?'#f59e0b':'#ef4444'}">M2 ×${m2Mult.toFixed(2)} (${pulseState.m2YoY>=0?'+':''}${pulseState.m2YoY?.toFixed(1)}% YoY)</span>`:'';
-    clusterStatusEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;${badges}${boostNote}${m2Note}`;
+    const geoNote=geoBonus>0?` &nbsp;<span style="color:#22d3ee;font-size:9px">+${geoBonus.toFixed(1)} resolution catalyst</span>`:'';
+    const bsNote=bsBonus>0?` &nbsp;<span style="color:#22c55e;font-size:9px">+${bsBonus.toFixed(1)} bottom-state</span>`:'';
+    clusterStatusEl.innerHTML=`${activeClusters}/4 clusters active &nbsp;${badges}${boostNote}${m2Note}${geoNote}${bsNote}`;
   }
 
   // Regime-adjusted thresholds
@@ -9141,8 +9162,9 @@ function calcBuyRating() {
 
   const boost = pulseState.contrarianBoost || 0;
   const ftMult = pulseState.followThrough?.multiplier || 1.0;
+  const geoBonus = (signals.find(s => s.id === 'geoCatalyst')?.score()) || 0;
 
-  let adjustedScore = (sentimentRaw + tcScore + boost) * ftMult;
+  let adjustedScore = (sentimentRaw + tcScore + boost + geoBonus) * ftMult;
 
   // Bottom state bonus
   let bsBonus = 0, bsState = 0, bsDays = 0;
