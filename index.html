@@ -2795,19 +2795,35 @@ function recalcScore(){
   const velBoost=(pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
   // Geopolitical resolution catalyst — ceasefire odds vs drawdown gap (max +1.0)
   const geoBonus=(signals.find(s=>s.id==='geoCatalyst')?.score())||0;
-  // Bottom state machine bonus — same values calcBuyRating uses, so the two ratings agree
-  let bsBonus=0;
+  // Bottom state machine bonus
+  let bsBonus=0, bsState=0, bsDays=0;
   try{
     const _bs=bottomStateManager.load();
-    if(_bs.state===BS_STATES.CONFIRMED) bsBonus=2.0;
-    else if(_bs.state===BS_STATES.CONFIRMING && _bs.days && _bs.days.length-1>=3) bsBonus=1.0;
+    bsState=_bs.state||0;
+    bsDays=_bs.days ? Math.max(0,_bs.days.length-1) : 0;
+    if(bsState===BS_STATES.CONFIRMED) bsBonus=2.0;
+    else if(bsState===BS_STATES.CONFIRMING && bsDays>=3) bsBonus=1.0;
   }catch(e){}
   const m2Mult=calcM2Multiplier();
+  // ftMult (follow-through quality): applies to macro-adjusted cluster + additive bonuses but not state-machine/velocity
+  const ftMult=pulseState.followThrough?.multiplier||1.0;
   pulseState.m2Multiplier=m2Mult;
-  const total=Math.min(10, rawScore*10*m2Mult + boost + tcBonus + velBoost + geoBonus + bsBonus);
+  const total=Math.min(10, (rawScore*10*m2Mult + boost + tcBonus + geoBonus)*ftMult + velBoost + bsBonus);
   pulseState.score=total;
+  // Expose all intermediates — Conviction Meter and Action Card read from here, no recomputation
+  pulseState.scoreSentiment=rawScore*10*m2Mult;
+  pulseState.scoreClusterMax={...clusterMax};
+  pulseState.scoreTcBonus=tcBonus;
+  pulseState.scoreGeoBonus=geoBonus;
+  pulseState.scoreBsBonus=bsBonus;
+  pulseState.scoreBsState=bsState;
+  pulseState.scoreBsDays=bsDays;
+  pulseState.scoreVelBoost=velBoost;
+  pulseState.scoreBoost=boost;
+  pulseState.scoreFtMult=ftMult;
   // BUY gate: A + B + (C or D) must all be > 0.5
   const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
+  pulseState.scoreBuyGate=buyGate;
   const activeClusters=['A','B','C','D'].filter(c=>clusterMax[c]>0.5).length;
   const pct=Math.min(100,total*10);
 
@@ -2983,19 +2999,10 @@ function updateActionCard(){
   const el=document.getElementById('action-card');
   if(!el) return;
 
-  // Recompute cluster state (cheap — just calls each signal.score())
-  const clusterMax={A:0,B:0,C:0,D:0};
-  signals.forEach(s=>{
-    const sc=Math.min(1,s.score());
-    if(s.cluster&&clusterMax[s.cluster]!==undefined&&sc>clusterMax[s.cluster]) clusterMax[s.cluster]=sc;
-  });
-  const _cw2=_clusterWeights();
-  const rawScore=clusterMax.A*_cw2.A+clusterMax.B*_cw2.B+clusterMax.C*_cw2.C+clusterMax.D*_cw2.D;
-  const boost=pulseState.contrarianBoost||0;
-  const ftMult=pulseState.followThrough?.multiplier||1.0;
-  const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
-  const total=Math.min(10,rawScore*10*ftMult+boost+tcBonus);
-  const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
+  // Read from recalcScore() — single source of truth
+  const total=pulseState.score||0;
+  const clusterMax=pulseState.scoreClusterMax||{A:0,B:0,C:0,D:0};
+  const buyGate=pulseState.scoreBuyGate||false;
   const regKey=classifyRegime();
   const reg=REGIMES[regKey];
   const buyThr=reg.threshold;
@@ -9147,37 +9154,22 @@ const CONVICTION_THRESHOLDS = {
 const CLUSTER_WEIGHTS = {A:0.20, B:0.35, C:0.25, D:0.20};
 
 function calcBuyRating() {
-  // Re-run cluster aggregation (same as recalcScore, cheap)
-  const clusterMax = {A:0, B:0, C:0, D:0};
-  signals.forEach(s => {
-    const sc = Math.min(1, s.score());
-    if (s.cluster && clusterMax[s.cluster] !== undefined && sc > clusterMax[s.cluster]) clusterMax[s.cluster] = sc;
-  });
-  const _cw3=_clusterWeights();
-  const sentimentRaw = (clusterMax.A*_cw3.A + clusterMax.B*_cw3.B + clusterMax.C*_cw3.C + clusterMax.D*_cw3.D) * 10;
+  // Single source of truth — reads from recalcScore() intermediates stored on pulseState
+  const finalRating = pulseState.score || 0;
+  const sentimentRaw = pulseState.scoreSentiment || 0;
+  const tcScore = pulseState.scoreTcBonus || 0;
+  const boost = pulseState.scoreBoost || 0;
+  const geoBonus = pulseState.scoreGeoBonus || 0;
+  const velBoost = pulseState.scoreVelBoost || 0;
+  const bsBonus = pulseState.scoreBsBonus || 0;
+  const bsState = pulseState.scoreBsState || 0;
+  const bsDays = pulseState.scoreBsDays || 0;
+  const ftMult = pulseState.scoreFtMult || 1.0;
+  const clusterMax = pulseState.scoreClusterMax || {A:0,B:0,C:0,D:0};
 
-  // Triple confluence uncapped bonus
-  const tcSig = signals.find(s => s.id === 'tripleConfluence');
-  const tcScore = tcSig ? tcSig.score() : 0;
+  const conviction = Math.min(100, Math.round(finalRating / 10 * 60 + tcScore / 2.0 * 40));
 
-  const boost = pulseState.contrarianBoost || 0;
-  const ftMult = pulseState.followThrough?.multiplier || 1.0;
-  const geoBonus = (signals.find(s => s.id === 'geoCatalyst')?.score()) || 0;
-
-  let adjustedScore = (sentimentRaw + tcScore + boost + geoBonus) * ftMult;
-
-  // Bottom state bonus
-  let bsBonus = 0, bsState = 0, bsDays = 0;
-  try {
-    const bsData = bottomStateManager.load();
-    bsState = bsData.state || 0;
-    bsDays = bsData.days ? Math.max(0, bsData.days.length - 1) : 0;
-    if (bsState === BS_STATES.CONFIRMED) bsBonus = 2.0;
-    else if (bsState === BS_STATES.CONFIRMING && bsDays >= 3) bsBonus = 1.0;
-  } catch(e) {}
-  adjustedScore += bsBonus;
-
-  // Detected bottom type for threshold lookup
+  // Bottom type — classification logic only, no scoring
   let detectedType = null;
   try {
     const result = classifyBottomType(buildClassifyConditions());
@@ -9185,10 +9177,7 @@ function calcBuyRating() {
   } catch(e) {}
   const thr = CONVICTION_THRESHOLDS[detectedType] || {buy:7.0, strongBuy:8.5, confidence:'—', n:0, avgReturn:null};
 
-  const finalRating = Math.max(0, Math.min(10, adjustedScore));
-  const conviction = Math.min(100, Math.round(finalRating / 10 * 60 + tcScore / 2.0 * 40));
-
-  return { finalRating, conviction, sentimentRaw, tcScore, ftMult, bsBonus, bsState, bsDays, boost, detectedType, thr, clusterMax };
+  return { finalRating, conviction, sentimentRaw, tcScore, ftMult, geoBonus, velBoost, bsBonus, bsState, bsDays, boost, detectedType, thr, clusterMax };
 }
 
 function renderConvictionMeter() {
@@ -9196,7 +9185,7 @@ function renderConvictionMeter() {
   if (!el) return;
   let rating;
   try { rating = calcBuyRating(); } catch(e) { return; }
-  const { finalRating, conviction, sentimentRaw, tcScore, ftMult, bsBonus, bsState, bsDays, boost, detectedType, thr } = rating;
+  const { finalRating, conviction, sentimentRaw, tcScore, ftMult, geoBonus, velBoost, bsBonus, bsState, bsDays, boost, detectedType, thr } = rating;
 
   const isStrongBuy = finalRating >= thr.strongBuy;
   const isBuy = finalRating >= thr.buy;
@@ -9251,14 +9240,16 @@ function renderConvictionMeter() {
     });
   } catch(e) {}
 
-  // Breakdown line
+  // Breakdown line: (Sentiment + Confluence + AI + Geo) × FT + Vel + State → Total
   const bkd = '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'
     + '<span>Sentiment <span style="font-family:var(--mono);color:rgba(255,255,255,0.65)">' + sentimentRaw.toFixed(1) + '</span></span>'
     + '<span style="opacity:0.3">+</span>'
     + '<span>Confluence <span style="font-family:var(--mono);color:rgba(255,255,255,0.65)">' + tcScore.toFixed(2) + '</span></span>'
     + (boost > 0 ? '<span style="opacity:0.3">+</span><span>AI <span style="font-family:var(--mono);color:#a855f7">' + boost.toFixed(1) + '</span></span>' : '')
+    + (geoBonus > 0 ? '<span style="opacity:0.3">+</span><span>Geo <span style="font-family:var(--mono);color:#22d3ee">' + geoBonus.toFixed(2) + '</span></span>' : '')
     + '<span style="opacity:0.3">×</span>'
     + '<span>FT <span style="font-family:var(--mono);color:rgba(255,255,255,0.65)">' + ftMult + '×</span></span>'
+    + (velBoost > 0 ? '<span style="opacity:0.3">+</span><span>Vel <span style="font-family:var(--mono);color:#f59e0b">+' + velBoost.toFixed(1) + '</span></span>' : '')
     + (bsBonus > 0 ? '<span style="opacity:0.3">+</span><span>State <span style="font-family:var(--mono);color:#22c55e">+' + bsBonus.toFixed(1) + '</span></span>' : '')
     + '<span style="opacity:0.3">→</span>'
     + '<span style="font-weight:800;color:' + verdictColor + '">' + finalRating.toFixed(1) + '</span>'
@@ -9625,7 +9616,18 @@ function calcSimulatedScore(overrides){
     let tcBonus = 0;
     try { tcBonus = (signals.find(s=>s.id==='tripleConfluence')?.score()) || 0; } catch(e) {}
     const velBoost = (pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
-    const total = Math.min(10, rawScore*10 + boost + tcBonus + velBoost);
+    let geoBonus2 = 0;
+    try { geoBonus2 = (signals.find(s=>s.id==='geoCatalyst')?.score()) || 0; } catch(e) {}
+    let bsBonus2 = 0;
+    try {
+      const _bs2 = bottomStateManager.load();
+      const _bsDays2 = _bs2.days ? Math.max(0, _bs2.days.length-1) : 0;
+      if(_bs2.state === BS_STATES.CONFIRMED) bsBonus2 = 2.0;
+      else if(_bs2.state === BS_STATES.CONFIRMING && _bsDays2 >= 3) bsBonus2 = 1.0;
+    } catch(e) {}
+    const m2Mult2 = calcM2Multiplier();
+    const ftMult2 = pulseState.followThrough?.multiplier || 1.0;
+    const total = Math.min(10, (rawScore*10*m2Mult2 + boost + tcBonus + geoBonus2)*ftMult2 + velBoost + bsBonus2);
     result = { score: total, rawScore, clusterMax, contribs: contribs.sort((a,b)=>b.score - a.score) };
   } finally {
     keys.forEach(k => { pulseState[k] = saved[k]; });
@@ -10134,11 +10136,7 @@ function recordSignalOutcome(){
   try { prevScore = JSON.parse(localStorage.getItem('btf-prev-notif-state')||'{}').score; } catch(e){}
   const regKey = (typeof classifyRegime==='function') ? classifyRegime() : 'RANGE';
   const buyThr = (typeof REGIMES!=='undefined' && REGIMES[regKey]) ? REGIMES[regKey].threshold : 7;
-  const buyGate = (()=>{
-    const cm={A:0,B:0,C:0,D:0};
-    signals.forEach(s=>{ try{ const sc=Math.min(1,s.score()||0); if(s.cluster&&cm[s.cluster]!==undefined&&sc>cm[s.cluster])cm[s.cluster]=sc; }catch(e){} });
-    return cm.A>0.5 && cm.B>0.5 && (cm.C>0.5||cm.D>0.5);
-  })();
+  const buyGate = pulseState.scoreBuyGate || false;
 
   // Only fire on threshold crossing (prev below, now at/above) + buyGate
   const justCrossed = prevScore != null && prevScore < buyThr && p.score >= buyThr;
