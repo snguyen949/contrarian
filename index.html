@@ -78,6 +78,17 @@
   details.panel-collapsible[open] .collapse-arrow { transform: rotate(90deg); }
 
   /* ===== CYCLE/LEVEL SUB-NAVIGATION ===== */
+  .sub-pills { display: flex; gap: 6px; margin-bottom: 24px; }
+  .sub-pill {
+    padding: 8px 20px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: var(--sans); transition: all 0.2s;
+  }
+  .sub-pill.active { background: rgba(34,211,238,0.1); border-color: var(--cyan); color: var(--cyan); }
+  .sub-pill:hover:not(.active) { background: var(--elevated); color: var(--text); }
+  [data-theme="light"] .sub-pill { background: #f0f0f2; border-color: #d4d4d8; color: #71717a; }
+  [data-theme="light"] .sub-pill.active { background: rgba(3,105,161,0.08); border-color: var(--cyan); color: var(--cyan); }
+  [data-theme="light"] .sub-pill:hover:not(.active) { background: #e4e4e7; color: #0a0a0a; }
 
   /* ===== LIGHT THEME — Strike-inspired: bold, high-contrast, pure B&W ===== */
   [data-theme="light"] {
@@ -131,6 +142,9 @@
   [data-theme="light"] .metric-label { color:#333 !important; font-weight:700 !important; }
 
   /* Crisis buttons */
+  [data-theme="light"] .crisis-btn { background:#f0f0f2; border:2px solid #bbb; color:#222; font-weight:800; }
+  [data-theme="light"] .crisis-btn.active { background:#0a0a0a; border-color:#0a0a0a; color:#fff; }
+  [data-theme="light"] .crisis-btn:hover { border-color:#666; background:#e8e8ea; }
 
   /* Detail rows */
   [data-theme="light"] .detail-row { border-color:#ddd; }
@@ -344,7 +358,7 @@
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
   @keyframes scaleIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
   /* Step cards animate in on render */
-  #conflict-steps > div { animation: slideIn 0.3s ease-out both; }
+  #conflict-steps > div, #tariff-steps > div { animation: slideIn 0.3s ease-out both; }
   #conflict-steps > div:nth-child(2) { animation-delay:0.05s; }
   #conflict-steps > div:nth-child(3) { animation-delay:0.1s; }
   #conflict-steps > div:nth-child(4) { animation-delay:0.15s; }
@@ -360,6 +374,9 @@
   .snap-card:nth-child(3) { animation-delay:0.06s; }
   .snap-card:nth-child(4) { animation-delay:0.09s; }
   .snap-card:nth-child(5) { animation-delay:0.12s; }
+  /* Squeeze meter */
+  .squeeze-meter { position:relative; width:100%; max-width:400px; margin:0 auto 20px; }
+  .squeeze-meter svg text { font-family:var(--mono); }
   .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px var(--red); animation: pulse 2s infinite; }
 
   .header-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 3px; color: var(--red); font-weight: 700; }
@@ -484,11 +501,17 @@
   .return-val { font-size: 17px; font-weight: 800; font-family: var(--mono); }
 
   /* Crisis selector */
+  .crisis-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .crisis-btn {
     padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--surface); color: var(--muted);
     cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s; font-family: var(--sans);
   }
+  .crisis-btn.active { border-color: var(--cyan); background: rgba(34,211,238,0.1); color: var(--cyan); }
+  .crisis-btn:hover { color: var(--text); }
+  .crisis-btn .date { font-size: 9px; margin-left: 4px; opacity: 0.5; }
 
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
   .detail-row { display: flex; border-bottom: 1px solid var(--border-subtle); padding: 8px 0; }
   .detail-label { width: 100px; flex-shrink: 0; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); font-weight: 600; padding-top: 2px; }
   .detail-value { font-size: 12px; color: var(--muted); line-height: 1.6; }
@@ -501,6 +524,8 @@
   .footer { text-align: center; padding: 16px 0; border-top: 1px solid var(--border-subtle); font-size: 10px; color: var(--faint); line-height: 1.6; }
 
   /* SVG chart container */
+  .chart-scroll { overflow-x: auto; }
+  .chart-scroll svg { width: 100%; height: auto; min-width: 600px; }
   /* Signal breakdown rows */
   .sig-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border-subtle); }
   .sig-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
@@ -614,6 +639,12 @@
   }
 
   /* ===== SCENARIO SIMULATOR ===== */
+  #scenario-simulator .ss-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); outline: none; margin: 6px 0; }
+  #scenario-simulator .ss-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #a855f7; cursor: pointer; border: 2px solid rgba(168,85,247,0.4); box-shadow: 0 0 8px rgba(168,85,247,0.35); }
+  #scenario-simulator .ss-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #a855f7; cursor: pointer; border: 2px solid rgba(168,85,247,0.4); }
+  #scenario-simulator .ss-row { display: grid; grid-template-columns: 110px 1fr 60px 60px 60px; gap: 10px; align-items: center; padding: 6px 0; font-size: 10px; }
+  #scenario-simulator .ss-preset-btn { padding: 5px 10px; border-radius: 6px; font-size: 9px; font-weight: 700; cursor: pointer; font-family: var(--sans); border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.08); color: #a855f7; letter-spacing: 0.5px; }
+  #scenario-simulator .ss-preset-btn:hover { background: rgba(168,85,247,0.15); }
 
   /* ===== SIGNAL SCORECARD ===== */
   #signal-scorecard .sc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-bottom:14px; }
@@ -679,6 +710,10 @@
   .snap-card.delta-sig { animation: pulse-glow 0.9s ease-in-out 3; }
 
   /* ===== GROQ SENTIMENT MIX PANEL ===== */
+  #groq-sentiment-panel .gsm-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+  #groq-sentiment-panel .gsm-legend { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+  #groq-sentiment-panel .gsm-timeline-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  #groq-sentiment-panel .gsm-phase-label { font-size:9px; font-weight:700; white-space:nowrap; min-width:120px; text-align:right; }
 
   /* ===== MOBILE RESPONSIVE ===== */
   @media (max-width: 768px) {
@@ -705,6 +740,9 @@
     .why-card .desc { font-size: 10px !important; }
     .gauges-row { gap: 6px !important; }
     .gauge-item { padding: 2px !important; }
+    .crisis-btns { gap: 4px !important; }
+    .crisis-btn { padding: 5px 8px !important; font-size: 9px !important; }
+    .detail-grid { grid-template-columns: 1fr !important; }
     .detail-label { width: 80px !important; font-size: 8px !important; }
     .detail-value { font-size: 11px !important; }
     .metric-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
@@ -725,6 +763,7 @@
     .evidence-left .price { font-size: 16px !important; }
     #pulse-cards { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
     #manual-inputs { grid-template-columns: 1fr !important; }
+    #ceasefire-odds { flex-direction: column; }
     /* Signal breakdown - compact on mobile */
     .sig-row { flex-wrap:wrap; gap:6px; padding:8px 0; }
     .sig-info { width:auto; flex:1; min-width:100px; }
@@ -735,15 +774,21 @@
     .sig-score { font-size:10px !important; order:2; }
     .sig-dot { width:10px; height:10px; }
     /* Coulling matrix horizontal scroll on mobile */
+    #coulling-matrix table { font-size: 9px !important; }
+    #coulling-matrix th, #coulling-matrix td { padding: 6px 4px !important; min-width: 70px !important; }
     /* Conflict/tariff step cards */
-    #conflict-steps > div { padding: 12px !important; margin-bottom: 6px !important; }
+    #conflict-steps > div, #tariff-steps > div { padding: 12px !important; margin-bottom: 6px !important; }
     /* Chart scroll */
+    .chart-scroll { margin: 0 -12px; padding: 0 12px; }
     /* Fetch area */
     #fetch-btn { padding: 8px 16px !important; font-size: 10px !important; }
     #fetch-log > div { font-size: 9px !important; }
     /* Volume analysis */
     #volume-analysis { grid-template-columns: 1fr !important; }
     /* Groq sentiment panel */
+    #groq-sentiment-panel p { display: none; }
+    #groq-sentiment-panel .gsm-header { flex-direction: column !important; align-items: flex-start !important; }
+    #groq-sentiment-panel .gsm-legend { justify-content: flex-start !important; }
     /* Score trajectory */
     #score-trajectory .st-stats { grid-template-columns: 1fr 1fr !important; }
     /* Regime banner responsive */
@@ -752,6 +797,9 @@
     /* Position sizer responsive */
     #position-sizer .ps-instr-grid { grid-template-columns: repeat(3, 1fr) !important; }
     #position-sizer .ps-summary { flex-direction: column; align-items: flex-start !important; }
+    /* Scenario simulator responsive */
+    #scenario-simulator .ss-row { grid-template-columns: 90px 1fr 50px !important; row-gap: 2px; }
+    #scenario-simulator .ss-row .ss-cur, #scenario-simulator .ss-row .ss-delta { grid-column: 1 / -1; font-size: 9px !important; padding-left: 100px; }
   }
 
   @media (max-width: 480px) {
@@ -767,8 +815,12 @@
     #pulse-cards { grid-template-columns: repeat(2, 1fr) !important; }
     .gauges-row { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start !important; }
     .gauge-item { min-width: 80px; flex-shrink: 0; }
+    #coulling-matrix th, #coulling-matrix td { min-width: 60px !important; font-size: 8px !important; }
     .sig-val { font-size:13px !important; }
     .sig-interp { font-size:8px !important; }
+    /* Groq sentiment panel compact */
+    #groq-sentiment-panel .gsm-timeline-row { gap: 4px !important; }
+    #groq-sentiment-panel .gsm-phase-label { min-width: 80px !important; font-size: 8px !important; }
     /* Score trajectory compact */
     #score-trajectory .st-stats { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
     #score-trajectory .st-stats > div { padding: 6px 8px !important; }
@@ -778,6 +830,8 @@
     /* Position sizer compact */
     #position-sizer .ps-instr-grid { grid-template-columns: repeat(2, 1fr) !important; }
     #position-sizer .ps-instr-val { font-size: 14px !important; }
+    /* Scenario simulator compact */
+    #scenario-simulator .ss-row { grid-template-columns: 80px 1fr 45px !important; font-size: 9px !important; gap: 6px !important; }
   }
 
   /* ===================================================================
@@ -835,7 +889,7 @@
 
   /* --- Base --- */
   body { background: var(--bg) !important; color: var(--text) !important; -webkit-font-smoothing: antialiased; }
-  body, .panel, .snap-card, .tier-card, .why-card, .retest-card, .conv-card, .trade-box, .insight-box, .metric-card, .action-card, .ac-trade-cell, #hero-banner, #regime-banner, .return-card, .ar-pill, table th, table td, .sig-val, .bar-val, .now-label, .gauge-text .num { font-variant-numeric: tabular-nums; }
+  body, .panel, .snap-card, .tier-card, .why-card, .retest-card, .conv-card, .trade-box, .insight-box, .metric-card, .action-card, .ac-trade-cell, #hero-banner, #regime-banner, .crisis-btn, .return-card, .ar-pill, table th, table td, .sig-val, .bar-val, .now-label, .gauge-text .num { font-variant-numeric: tabular-nums; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { background: var(--border) !important; border-radius: 0; }
   ::-webkit-scrollbar-thumb:hover { background: var(--dim) !important; }
@@ -1052,6 +1106,22 @@
     padding: 10px 24px !important;
   }
 
+  /* --- Crisis buttons (sentiment tab) --- */
+  .crisis-btn {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 4px !important;
+    color: var(--text-2) !important;
+    font-family: var(--mono) !important;
+    font-size: 10px !important;
+    letter-spacing: 0.06em !important;
+    font-weight: 600 !important;
+    padding: 8px 12px !important;
+    text-transform: uppercase !important;
+  }
+  .crisis-btn:hover { border-color: var(--text-2) !important; color: var(--text) !important; background: var(--surface-2) !important; }
+  .crisis-btn.active { background: var(--text) !important; color: var(--bg) !important; border-color: var(--text) !important; }
+
   /* --- Why / Retest / Conv cards: flat --- */
   .why-card, .retest-card, .conv-card, .metric-card, .return-card, .ac-trade-cell, .tier-card {
     background: var(--surface-2) !important;
@@ -1193,6 +1263,7 @@
   [data-theme="light"] .tab-btn.active,
   [data-theme="light"] .snap-card .label,
   [data-theme="light"] .snap-card .value,
+  [data-theme="light"] .crisis-btn,
   [data-theme="light"] .badge,
   [data-theme="light"] .ar-pill,
   [data-theme="light"] table th { font-weight: 600 !important; }
@@ -1896,6 +1967,13 @@
       <div id="fred-panel" style="font-size:11px;color:rgba(255,255,255,0.3)">Enter FRED API key above, then click Refresh to populate HY spreads, unemployment, and more.</div>
     </div>
 
+    <!-- News Headlines (NewsAPI powered) -->
+    <div class="panel">
+      <div class="panel-title">Live Headlines — Doom Meter <span style="font-size:8px;color:rgba(255,255,255,0.15);text-transform:none;letter-spacing:0">(requires NewsAPI key)</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-bottom:10px">Per Coulling: when every headline screams crash, institutions are accumulating. Doom Score 8+ = contrarian buy zone.</p>
+      <div id="news-panel" style="font-size:11px;color:rgba(255,255,255,0.3)">Enter NewsAPI key above, then click Refresh to scan latest market headlines.</div>
+    </div>
+
     <!-- SHORT-TERM SIGNALS -->
     <div class="panel" style="border-color:rgba(168,85,247,0.2)">
       <div class="panel-title" style="color:#a855f7">Short-Term Signals — Daily / Weekly Patterns</div>
@@ -1925,6 +2003,9 @@
         <div id="momentum-signals"></div>
       </div>
     </div>
+
+    <!-- Technical Confluence Panel -->
+    <div id="tech-confluence-panel" class="panel" style="border-color:rgba(34,197,94,0.2);display:none"></div>
 
       </div><!-- end zone-evidence content -->
     </details>
@@ -1993,6 +2074,13 @@
       <div class="why-grid" id="why-grid"></div>
     </div>
 
+    <!-- Coulling Checklist Matrix -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,211,238,0.04),rgba(168,85,247,0.04));border-color:rgba(34,211,238,0.1)">
+      <div class="panel-title" style="color:var(--cyan)">Coulling Checklist — All Crises Compared</div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:16px;line-height:1.6">Per Anna Coulling: institutions accumulate when retail panic peaks. <strong style="color:var(--amber)">Buy when ≥75% of available indicators fire.</strong> N/A items (pre-VIX, pre-crypto) are excluded — only existing indicators count. 14/14 historical events with ≥75% produced positive returns.</p>
+      <div id="coulling-matrix"></div>
+    </div>
+
     <!-- Volume at Capitulation -->
     <div class="panel" style="background:linear-gradient(135deg,rgba(168,85,247,0.05),rgba(34,211,238,0.03));border-color:rgba(168,85,247,0.12)">
       <div class="panel-title" style="color:var(--purple)">Volume at Capitulation — Anna Coulling's Smart Money Footprint</div>
@@ -2052,10 +2140,27 @@
       </div>
     </div>
 
+    <!-- SVG Chart -->
+    <div class="panel">
+      <div class="panel-title">SPY Monthly — ATH Retest Levels (from your TradingView chart)</div>
+      <div class="chart-scroll" id="svg-chart"></div>
+    </div>
+
     <!-- Evidence -->
     <div class="panel">
       <div class="panel-title">Retest Evidence — Price Is Not Coincidence</div>
       <div id="evidence-table"></div>
+    </div>
+
+    <!-- Iran Lesson insight card -->
+    <div class="panel" style="background:rgba(168,85,247,0.06);border-color:rgba(168,85,247,0.2)">
+      <div id="iran-lesson-card"></div>
+    </div>
+
+    <!-- Cross-Instrument Retest Matrix -->
+    <div class="panel">
+      <div class="panel-title">Cross-Instrument Retest Matrix — SPY vs Futures</div>
+      <div id="cross-instrument-matrix"></div>
     </div>
 
     <!-- Why it works -->
@@ -2065,9 +2170,54 @@
     </div>
   </div>
 
-  <!-- ============ LEVELS TAB (Accumulation) ============ -->
+  <!-- ============ LEVELS TAB (Squeeze + Accumulation merged) ============ -->
   <div id="tab-levels" class="tab-panel">
-    <div id="level-accumulation" class="sub-content">
+    <div class="sub-pills">
+      <button class="sub-pill active" onclick="showSubTab(this,'level','squeeze')">Squeeze</button>
+      <button class="sub-pill" onclick="showSubTab(this,'level','accumulation')">Accumulation</button>
+    </div>
+    <div id="level-squeeze" class="sub-content">
+  <!-- SQUEEZE CONTENT START -->
+
+    <!-- Dynamic headline + probabilities -->
+    <div id="squeeze-headline" class="panel" style="background:linear-gradient(135deg,rgba(34,197,94,0.06),rgba(34,211,238,0.04));border-color:rgba(34,197,94,0.15)">
+    </div>
+
+    <!-- Polymarket ceasefire odds -->
+    <div class="panel">
+      <div class="panel-title">Polymarket Ceasefire Odds — The Binary Catalyst</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;line-height:1.6">
+        If ceasefire hits → oil collapses to $70–75 → inflation scare evaporates → mechanical unwind of every hedge → violent snap-back. <strong style="color:var(--cyan)">$12.8M traded on this market since Feb 28.</strong>
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px" id="ceasefire-odds"></div>
+      <div id="ceasefire-summary" style="padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.12);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.55);text-align:center">
+      </div>
+    </div>
+
+    <!-- Squeeze Mechanics -->
+    <div class="panel">
+      <div class="panel-title">Squeeze Mechanics — Why It Works Without Capitulation</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px" id="squeeze-mechanics"></div>
+    </div>
+
+    <!-- Dynamic Scenario Detail Cards -->
+    <div id="squeeze-scenarios"></div>
+
+    <!-- Dynamic probability bar -->
+    <div class="panel">
+      <div class="panel-title">Probability-Weighted SPY Path</div>
+      <div id="squeeze-prob-bar"></div>
+      <div id="squeeze-insight" style="padding:14px 18px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.12);border-radius:8px;text-align:center;margin-top:16px"></div>
+    </div>
+
+    <!-- Key levels quick ref -->
+    <div class="panel">
+      <div class="panel-title">Key Levels Quick Reference</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px" id="key-levels"></div>
+    </div>
+  <!-- SQUEEZE CONTENT END -->
+  </div>
+    <div id="level-accumulation" class="sub-content" style="display:none">
   <!-- ACCUMULATION CONTENT START -->
 
   <div class="tab-panel-inner">
@@ -2137,6 +2287,10 @@
 
   <!-- ============ CYCLES TAB (War Cycle + Tariff Cycle merged) ============ -->
   <div id="tab-cycles" class="tab-panel">
+    <div class="sub-pills">
+      <button class="sub-pill active" onclick="showSubTab(this,'cycle','conflict')">War Cycle</button>
+      <button class="sub-pill" onclick="showSubTab(this,'cycle','tariff')">Tariff Cycle</button>
+    </div>
     <div id="cycle-conflict" class="sub-content">
   <!-- CONFLICT CONTENT START -->
     <div class="panel" style="background:linear-gradient(135deg,rgba(239,68,68,0.05),rgba(249,115,22,0.03));border-color:rgba(239,68,68,0.12)">
@@ -2157,6 +2311,15 @@
       <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:10px;line-height:1.5">Each headline votes independently for a conflict step. The step with the most weighted votes wins. Fallback: Polymarket ceasefire odds → price data. Sources: Google News RSS (5 parallel queries), Reuters RSS, Reddit, Finnhub (if key), NewsAPI (if key). Updates automatically every 5 min.</p>
       <div id="conflict-headlines" style="max-height:300px;overflow-y:auto">
         <div style="font-size:10px;color:rgba(255,255,255,0.15)">Click "Scan Headlines" to fetch latest news and auto-detect conflict phase.</div>
+      </div>
+    </div>
+
+    <!-- Groq AI Sentiment Mix -->
+    <div class="panel" id="groq-sentiment-panel" style="border-color:rgba(34,211,238,0.12);display:none">
+      <div class="panel-title" style="color:var(--cyan)">AI Sentiment Mix — Groq Llama 3.1 70B <span id="groq-shift-badge" style="display:none;margin-left:8px;font-size:8px;padding:2px 8px;border-radius:10px;font-weight:700;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);letter-spacing:0.5px">SHIFT CONFIRMED</span></div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:12px;line-height:1.5">Each headline is classified into CAPITULATION / FEAR / UNCERTAINTY / NEUTRAL / RECOVERY / EUPHORIA. The shift from majority-FEAR to majority-RECOVERY is an independent bottom confirmation signal.</p>
+      <div id="groq-sentiment-content">
+        <div style="font-size:10px;color:rgba(255,255,255,0.2)">Add Groq API key and click "Scan Headlines" to classify market sentiment.</div>
       </div>
     </div>
 
@@ -2183,6 +2346,30 @@
     </div>
   <!-- CONFLICT CONTENT END -->
   </div>
+    <div id="cycle-tariff" class="sub-content" style="display:none">
+  <!-- TARIFF CONTENT START -->
+    <div class="panel" style="background:linear-gradient(135deg,rgba(245,158,11,0.05),rgba(249,115,22,0.03));border-color:rgba(245,158,11,0.12)">
+      <div class="panel-title" style="color:var(--amber)">Trump's Tariff Playbook — Kobeissi Letter (13 Steps)</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:6px">Tariffs are episodic headwinds by design. They come when markets least expect it, then fizzle away. <strong style="color:var(--cyan)">The playbook repeats from Step 1 every time.</strong> Best traders capitalize on the swings.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid rgba(34,211,238,0.12);flex-wrap:wrap">
+        <span style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Current Phase:</span>
+        <span id="tariff-phase" style="font-size:18px;font-weight:800;color:var(--cyan);font-family:var(--mono)">Detecting...</span>
+        <span id="tariff-phase-name" style="font-size:12px;color:rgba(255,255,255,0.5)"></span>
+        <button onclick="fetchHeadlines()" style="margin-left:auto;padding:5px 12px;border:1px solid rgba(245,158,11,0.3);border-radius:6px;background:rgba(245,158,11,0.1);color:var(--amber);font-size:9px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:0.5px">🔍 SCAN HEADLINES</button>
+      </div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.15);margin-bottom:8px">Headlines are shared across Conflict &amp; Tariff tabs. Tariff keywords auto-activate when detected.</div>
+      <div style="padding:10px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.12);border-radius:8px;font-size:11px;color:rgba(255,255,255,0.45)">
+        <strong style="color:var(--amber)">Bond Market = The Tell.</strong> 10Y Yield rising above 4.60% is Trump's warning sign. That's when he pulls back. Watch bonds, not headlines.
+      </div>
+    </div>
+    <div id="tariff-steps"></div>
+    <div class="panel" style="background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.12)">
+      <div class="panel-title" style="color:var(--amber)">The Pattern in One Line</div>
+      <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;text-align:center"><strong>Threat → Action → Double-down → Markets panic → De-escalation → Deal → New ATH → Repeat.</strong></p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:8px;text-align:center">Smart money buys at Step 7 (dip buyers). Retail sells at Step 5–6 (emotional reaction). The deal at Step 12 sends markets to new records.</p>
+    </div>
+  <!-- TARIFF CONTENT END -->
+  </div>
   </div>
 
   <!-- ============ TOOLS TAB ============ -->
@@ -2190,6 +2377,9 @@
 
     <!-- Signal Scorecard — outcome tracker / Phase 1 self-learning -->
     <div class="panel" id="signal-scorecard" style="border-color:rgba(34,197,94,0.18);display:none"></div>
+
+    <!-- Scenario Simulator — interactive "what if" sliders -->
+    <div class="panel" id="scenario-simulator" style="border-color:rgba(168,85,247,0.2)"></div>
 
     <!-- Alert Thresholds -->
     <div class="panel" style="border-color:rgba(239,68,68,0.15)">
@@ -2253,6 +2443,13 @@
       <div id="export-status" style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:6px"></div>
     </div>
 
+    <!-- Backtest -->
+    <div class="panel" style="border-color:rgba(245,158,11,0.15)">
+      <div class="panel-title" style="color:var(--amber)">⏪ Backtest — Replay Past Crises</div>
+      <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px">See what the Contrarian Buy Signal Score would have been at each historical crisis bottom. Every 3+ score produced positive 12-month returns.</p>
+      <div id="backtest-results"></div>
+    </div>
+
     <!-- Bottom Pattern Database -->
     <div class="panel" style="border-color:rgba(168,85,247,0.15)">
       <div class="panel-title" style="color:#a855f7">📚 Bottom Pattern Database — Forensic Record</div>
@@ -2269,6 +2466,13 @@
       <p style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:14px">Fires when all three Coulling conditions align on any instrument: <strong style="color:rgba(255,255,255,0.5)">① price at structural support (≤3%)</strong> + <strong style="color:rgba(255,255,255,0.5)">② RSI oversold (daily&lt;35 or weekly&lt;40)</strong> + <strong style="color:rgba(255,255,255,0.5)">③ volume spike (&gt;1.5× 20-day avg)</strong>.</p>
       <div id="triple-confluence-panel"><div style="font-size:10px;color:rgba(255,255,255,0.2)">Refresh data to populate.</div></div>
     </div>
+  </div>
+
+  <!-- ============ CRISIS DETAIL (always visible) ============ -->
+  <div class="panel">
+    <div class="panel-title">Deep Dive — Select Crisis</div>
+    <div class="crisis-btns" id="crisis-btns"></div>
+    <div class="detail-grid" id="crisis-detail"></div>
   </div>
 
   <!-- ============ HISTORY TAB ============ -->
@@ -2799,6 +3003,7 @@ function updateActionCard(){
   const total=pulseState.score||0;
   const clusterMax=pulseState.scoreClusterMax||{A:0,B:0,C:0,D:0};
   const buyGate=pulseState.scoreBuyGate||false;
+  const boost=pulseState.scoreBoost||0;
   const regKey=classifyRegime();
   const reg=REGIMES[regKey];
   const buyThr=reg.threshold;
@@ -4062,6 +4267,25 @@ async function fetchAllData(){
     }catch(e){ log.push({src:'Finnhub',val:'Failed (check key)',date:'',ok:false}); }
   }
 
+  // 13) NewsAPI — Market headlines for doom scoring
+  if(newsKey){
+    status.textContent='Scanning market headlines...';
+    try{
+      const nR=await fetch(`https://newsapi.org/v2/everything?q="stock market" OR "S&P 500" OR "Wall Street" OR "market crash"&language=en&sortBy=publishedAt&pageSize=12&apiKey=${newsKey}`);
+      const nD=await nR.json();
+      if(nD.articles) renderNewsPanel(nD.articles);
+      log.push({src:'NewsAPI',val:nD.articles?.length+' headlines',date:'Latest',ok:true});
+    }catch(e){ log.push({src:'NewsAPI',val:'Failed (check key/CORS)',date:'',ok:false});
+      // NewsAPI blocks from browser on free tier — try proxy
+      try{
+        const nR2=await fetchWithTimeout('https://corsproxy.io/?'+encodeURIComponent(`https://newsapi.org/v2/everything?q="stock market" OR "S&P 500"&language=en&sortBy=publishedAt&pageSize=12&apiKey=${newsKey}`),8000);
+        const nD2=await nR2.json();
+        if(nD2.articles) renderNewsPanel(nD2.articles);
+        log.splice(-1,1,{src:'NewsAPI',val:nD2.articles?.length+' headlines (via proxy)',date:'Latest',ok:true});
+      }catch(e2){}
+    }
+  }
+
   // ===== ADDITIONAL FREE DATA SOURCES =====
 
   // Store remaining sparklines from already-fetched Yahoo data
@@ -4421,6 +4645,7 @@ async function fetchAllData(){
   renderScoreTrajectory();
   renderRegimeBanner();
   renderPositionSizer();
+  try{ _ssUpdate(); }catch(e){} // refresh simulator with fresh current values
   // Update direction-aware detection (history → arrows/badges/banner)
   captureSignalHistory();
   signalDirs=computeDirections();
@@ -4592,7 +4817,7 @@ function captureSnapshot(){
   try{
     const scoreEl=document.getElementById('contrarian-score');
     const score=scoreEl?parseFloat(scoreEl.textContent)||0:0;
-    // Pull current war/tariff step from globals (set by renderConflictSteps / Groq vote override)
+    // Pull current war/tariff step from globals (set by renderConflictSteps/renderTariffSteps)
     let conflictStep=null,tariffStep=null;
     try{conflictStep=currentConflictStep;}catch(_){}
     try{tariffStep=currentTariffStep;}catch(_){}
@@ -4924,6 +5149,59 @@ function renderFredPanel(){
 }
 
 // ===== NEWS HEADLINES RENDERER =====
+function renderNewsPanel(articles){
+  const doomWords=['crash','plunge','plummet','worst','fear','panic','bear','recession','crisis','collapse','sell-off','selloff','tank','tumble','freefall','catastroph','meltdown'];
+  const bullWords=['rally','surge','record','high','boom','bullish','soar','gain','recover','optimis'];
+  let doomScore=0, bullScore=0;
+  const scored=articles.map(a=>{
+    const txt=(a.title+' '+(a.description||'')).toLowerCase();
+    const doomHits=doomWords.filter(w=>txt.includes(w)).length;
+    const bullHits=bullWords.filter(w=>txt.includes(w)).length;
+    doomScore+=doomHits; bullScore+=bullHits;
+    const tone=doomHits>bullHits?'doom':bullHits>doomHits?'bull':'neutral';
+    return {...a,tone,doomHits,bullHits};
+  });
+  const totalTone=doomScore-bullScore;
+  const doomPct=Math.min(Math.round((doomScore/(doomScore+bullScore+1))*10),10);
+  const doomCol=doomPct>=7?'#ef4444':doomPct>=5?'#f97316':doomPct>=3?'#f59e0b':'#22c55e';
+
+  document.getElementById('news-panel').innerHTML=`
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid ${doomCol}20">
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Doom Score</div>
+        <div style="font-size:36px;font-weight:800;color:${doomCol};font-family:var(--mono)">${doomPct}/10</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+          ${doomPct>=7?'<strong style="color:#ef4444">MAXIMUM DOOM</strong> — Headlines screaming fear. Per Coulling, this is when institutions accumulate. Contrarian buy zone.':
+            doomPct>=5?'<strong style="color:#f97316">Elevated Fear</strong> — Growing negativity but not unanimous doom yet. Getting closer.':
+            doomPct>=3?'<strong style="color:#f59e0b">Mixed</strong> — Some fear, some optimism. Not a contrarian signal.':
+            '<strong style="color:#22c55e">Complacent/Bullish</strong> — Headlines positive. NOT a buy signal — possibly a distribution zone.'}
+        </div>
+        <div style="margin-top:6px;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
+          <div style="width:${doomScore/(doomScore+bullScore+1)*100}%;background:#ef4444;border-radius:4px 0 0 4px"></div>
+          <div style="width:${bullScore/(doomScore+bullScore+1)*100}%;background:#22c55e;border-radius:0 4px 4px 0"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px"><span>Doom keywords: ${doomScore}</span><span>Bull keywords: ${bullScore}</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto">
+      ${scored.slice(0,10).map(a=>{
+        const toneCol=a.tone==='doom'?'#ef4444':a.tone==='bull'?'#22c55e':'#94a3b8';
+        const timeAgo=a.publishedAt?new Date(a.publishedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+        return `<div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px;border-left:3px solid ${toneCol}">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+            <div>
+              <div style="font-size:8px;color:${toneCol};font-weight:700;text-transform:uppercase;letter-spacing:0.5px">${a.source?.name||'Unknown'} · ${a.tone}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.4;margin-top:2px">${a.title}</div>
+            </div>
+            <span style="font-size:8px;color:rgba(255,255,255,0.15);flex-shrink:0">${timeAgo}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 function propagateData(){
   // Update Sentiment tab snapshot cards with live data
   const snapEls=document.querySelectorAll('[data-live]');
@@ -4945,8 +5223,21 @@ function propagateData(){
   // Refresh Sentiment tab cards
   if(typeof renderSentimentSnapshots==='function') renderSentimentSnapshots();
 
-  // Re-detect and re-render war cycle phase
+  // Re-render crisis detail if Iran is selected
+  if(typeof renderCrisisDetail==='function') renderCrisisDetail();
+
+  // Re-render SVG chart with live SPY price
+  if(typeof renderSvgChart==='function') renderSvgChart();
+
+  // Re-detect and re-render conflict/tariff cycle phases
   if(typeof renderConflictSteps==='function') renderConflictSteps();
+  if(typeof renderTariffSteps==='function') renderTariffSteps();
+
+  // Update Coulling matrix Iran column with live data
+  if(typeof updateCoullingIran==='function') updateCoullingIran();
+
+  // Update Squeeze tab probabilities and narrative with live data
+  if(typeof updateSqueezeTab==='function') updateSqueezeTab();
 
   // Update short-term signals with live data
   if(typeof updateShortTermSignals==='function') updateShortTermSignals();
@@ -4965,11 +5256,13 @@ function propagateData(){
 
   // RSI confluence + Triple Confluence + Bottom Confirmation Engine + State Machine
   if(typeof renderRSIConfluence==='function') renderRSIConfluence();
+  if(typeof renderTechConfluence==='function') renderTechConfluence();
   if(typeof renderTripleConfluence==='function') renderTripleConfluence();
   if(typeof renderPatternMatcher==='function') renderPatternMatcher();
   if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
   if(typeof renderBottomState==='function') renderBottomState();
   if(typeof renderConvictionMeter==='function') renderConvictionMeter();
+  if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix();
 }
 
 // Restore saved API keys from localStorage
@@ -5291,6 +5584,16 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// ===== SUB-TAB SWITCHING (for merged Levels and Cycles tabs) =====
+function showSubTab(btn, prefix, name) {
+  const parent = btn.closest('.tab-panel');
+  parent.querySelectorAll('.sub-content').forEach(el => el.style.display = 'none');
+  parent.querySelectorAll('.sub-pill').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById(prefix + '-' + name);
+  if(target) target.style.display = 'block';
+  btn.classList.add('active');
+}
+
 // ===== ZONE SUMMARY UPDATERS =====
 function updateZoneSummaries() {
   // Evidence zone summary
@@ -5396,6 +5699,171 @@ document.getElementById('why-grid').innerHTML = whyItems.map(w => `
   <div class="why-card"><div class="icon">${w.icon}</div><div class="title">${w.title}</div><div class="desc">${w.desc}</div></div>
 `).join('');
 
+// ===== COULLING CHECKLIST MATRIX =====
+const coullingData=[
+  // Pre-VIX era (VXO used)
+  {id:'bm87',name:'Black Monday',date:'Oct 1987',vol:{val:'~6x',pass:true,detail:'Record volume, program trading cascade'},vix:{val:'150*',pass:true,detail:'VXO 150 (VIX not yet created)'},fg:{val:'N/A',pass:false,detail:'Index didn\'t exist yet'},dd:{val:'-34%',pass:true,detail:'$337 → $224 in 1 day'},crypto:{val:'N/A',pass:false,detail:'Bitcoin didn\'t exist'},score:2,result:'Recovered in 19 months',resultCol:'#22c55e'},
+  // LTCM
+  {id:'ltcm',name:'LTCM / Russia',date:'Oct 1998',vol:{val:'~2.5x',pass:true,detail:'LTCM unwind forced selling across all assets'},vix:{val:'45.74',pass:true,detail:'8th highest VIX close ever'},fg:{val:'~8',pass:true,detail:'Extreme fear — bailout fears'},dd:{val:'-19%',pass:true,detail:'$1,190 → $957'},crypto:{val:'N/A',pass:false,detail:'Bitcoin didn\'t exist'},score:3,result:'S&P +27% next year',resultCol:'#22c55e'},
+  // Dot-com
+  {id:'dotcom',name:'Dot-com Bust',date:'Oct 2002',vol:{val:'~2.2x',pass:true,detail:'Multi-month elevated volume'},vix:{val:'45.08',pass:true,detail:'Sustained fear for months'},fg:{val:'~5',pass:true,detail:'Extreme fear — Enron/WorldCom'},dd:{val:'-49%',pass:true,detail:'$1,553 → $768 over 2.5yr'},crypto:{val:'N/A',pass:false,detail:'Bitcoin didn\'t exist'},score:3,result:'S&P +26% in 2003',resultCol:'#22c55e'},
+  // 9/11
+  {id:'sept11',name:'9/11 Attacks',date:'Sep 2001',vol:{val:'~3x',pass:true,detail:'Market closed 4 days, record vol on reopen'},vix:{val:'49.35',pass:true,detail:'Spike on reopening day'},fg:{val:'~3',pass:true,detail:'Maximum fear — terrorism'},dd:{val:'-12%',pass:true,detail:'-12% in first week after reopening'},crypto:{val:'N/A',pass:false,detail:'Bitcoin didn\'t exist'},score:3,result:'Recovered in 1 month, then dot-com resumed',resultCol:'#f59e0b'},
+  // GFC
+  {id:'gfc',name:'Global Financial Crisis',date:'Mar 2009',vol:{val:'~3.5x',pass:true,detail:'Lehman collapse, bank runs, forced liquidation'},vix:{val:'80.86',pass:true,detail:'2nd highest VIX ever'},fg:{val:'2',pass:true,detail:'Maximum extreme fear for weeks'},dd:{val:'-57%',pass:true,detail:'$1,565 → $666 over 17 months'},crypto:{val:'N/A',pass:false,detail:'Bitcoin launched Jan 2009'},score:3,result:'S&P +68% in 12 months',resultCol:'#22c55e'},
+  // Flash Crash
+  {id:'flash',name:'Flash Crash',date:'May 2010',vol:{val:'~2.8x',pass:true,detail:'Algo-driven, Dow -1000 pts in minutes'},vix:{val:'45.79',pass:true,detail:'Spike to 45 in single session'},fg:{val:'~10',pass:true,detail:'Extreme fear — systemic fears'},dd:{val:'-16%',pass:true,detail:'Brief but violent intraday'},crypto:{val:'N/A',pass:false,detail:'BTC was $0.01'},score:3,result:'V-shape recovery in weeks',resultCol:'#22c55e'},
+  // EU Debt / US Downgrade
+  {id:'eudebt',name:'EU Debt / US Downgrade',date:'Aug 2011',vol:{val:'~2.5x',pass:true,detail:'S&P downgraded US debt, Euro crisis'},vix:{val:'48.00',pass:true,detail:'5th highest VIX close ex-2008/2020'},fg:{val:'~6',pass:true,detail:'Extreme fear — systemic risk'},dd:{val:'-19%',pass:true,detail:'$1,363 → $1,099'},crypto:{val:'N/A',pass:false,detail:'BTC was ~$10'},score:3,result:'S&P flat that year, +13% next',resultCol:'#22c55e'},
+  // China Deval
+  {id:'china15',name:'China Deval',date:'Aug 2015',vol:{val:'~2.2x',pass:true,detail:'Yuan deval shock, emerging market contagion'},vix:{val:'53.29',pass:true,detail:'Highest VIX ex-2008/2020 at the time'},fg:{val:'~5',pass:true,detail:'Extreme fear — China hard landing'},dd:{val:'-12%',pass:true,detail:'$2,130 → $1,867'},crypto:{val:'N/A',pass:false,detail:'BTC was ~$200, no F&G index'},score:3,result:'S&P -1% that year, +10% next',resultCol:'#f59e0b'},
+  // Volmageddon
+  {id:'volmag',name:'Volmageddon',date:'Feb 2018',vol:{val:'~2.8x',pass:true,detail:'XIV collapse, forced vol product liquidation'},vix:{val:'37.32',pass:true,detail:'VIX doubled in 1 day (17→37)'},fg:{val:'~8',pass:true,detail:'Extreme fear — VIX product blow-up'},dd:{val:'-10%',pass:true,detail:'$2,872 → $2,581'},crypto:{val:'~8',pass:true,detail:'Crypto winter beginning'},score:5,result:'S&P new ATH by Aug 2018',resultCol:'#22c55e'},
+  // Q4 2018
+  {id:'q418',name:'Q4 2018 Fed Tightening',date:'Dec 2018',vol:{val:'~2.3x',pass:true,detail:'Christmas Eve massacre, Fed hiking fear'},vix:{val:'36.07',pass:true,detail:'Spiked on Christmas Eve'},fg:{val:'2',pass:true,detail:'Extreme fear — "Fed policy mistake"'},dd:{val:'-20%',pass:true,detail:'$2,940 → $2,351'},crypto:{val:'~10',pass:true,detail:'BTC at $3,200, crypto winter bottom'},score:5,result:'S&P +29% in 2019',resultCol:'#22c55e'},
+  // COVID
+  {id:'covid',name:'COVID Crash',date:'Mar 2020',vol:{val:'3.2x',pass:true,detail:'26B shares, 3 circuit breakers'},vix:{val:'82.69',pass:true,detail:'All-time record close'},fg:{val:'3',pass:true,detail:'Single digits for 18 days'},dd:{val:'-34%',pass:true,detail:'$339 → $218'},crypto:{val:'8',pass:true,detail:'Black Thursday'},score:5,result:'SPY +100% in 354 days',resultCol:'#22c55e'},
+  // Inflation 2022
+  {id:'inflation',name:'Inflation Bear',date:'Oct 2022',vol:{val:'1.8x',pass:false,detail:'Elevated but orderly, gradual selling'},vix:{val:'36',pass:true,detail:'Barely cleared threshold'},fg:{val:'13',pass:true,detail:'Near single digits'},dd:{val:'-27%',pass:true,detail:'$480 → $348'},crypto:{val:'8',pass:true,detail:'Terra/Luna + FTX collapse'},score:4,result:'SPY +100% in 24 months',resultCol:'#22c55e'},
+  // Yen Unwind
+  {id:'yen',name:'Yen Unwind',date:'Aug 2024',vol:{val:'1.9x',pass:false,detail:'2-day mechanical flush'},vix:{val:'65.73',pass:true,detail:'Intraday spike, closed 38.57'},fg:{val:'14',pass:true,detail:'Right at threshold'},dd:{val:'-10%',pass:true,detail:'$565 → $510'},crypto:{val:'~17',pass:false,detail:'Not a macro event for crypto'},score:3,result:'SPY new ATH in 3 weeks',resultCol:'#22c55e'},
+  // Tariff
+  {id:'tariff',name:'Tariff Crisis',date:'Apr 2025',vol:{val:'3.4x',pass:true,detail:'29B shares, 18-year record'},vix:{val:'60.13',pass:true,detail:'Intraday 60+, record Dow swing'},fg:{val:'3',pass:true,detail:'Lowest since COVID'},dd:{val:'-18%',pass:true,detail:'$585 → $482'},crypto:{val:'~10',pass:true,detail:'Risk-off extreme'},score:5,result:'SPY +45% in 8 months',resultCol:'#22c55e'},
+  // Iran NOW
+  {id:'iran',name:'Iran War',date:'NOW',vol:{val:'1.5x',pass:false,detail:'Elevated but not capitulation volume'},vix:{val:'27.7',pass:false,detail:'Elevated, not panic — VIX surged 15% on 3/20'},fg:{val:'20',pass:false,detail:'Fear zone, not extreme fear'},dd:{val:'-6.0%',pass:false,detail:'$698 → $656, broke 200-DMA'},crypto:{val:'11',pass:true,detail:'Extreme fear — 46 consecutive days'},score:1,result:'Waiting — setup incomplete',resultCol:'#f59e0b'},
+];
+// Recalc scores as ratio of passing / available (exclude N/A)
+coullingData.forEach(c=>{
+  const items=[c.vol,c.vix,c.fg,c.dd,c.crypto];
+  const avail=items.filter(i=>i.val!=='N/A');
+  const passing=avail.filter(i=>i.pass);
+  c.avail=avail.length;
+  c.passing=passing.length;
+  c.ratio=avail.length>0?passing.length/avail.length:0;
+  c.scoreLabel=c.passing+'/'+c.avail;
+  c.pct=Math.round(c.ratio*100);
+  c.resultCol=c.ratio>=0.8?'#22c55e':c.ratio>=0.6?'#f59e0b':'#f97316';
+  if(c.id==='iran'&&c.ratio<0.6) c.resultCol='#f97316';
+});
+const checks=[
+  {key:'vol',label:'Volume ≥ 2x avg',threshold:'Forced selling / margin calls'},
+  {key:'vix',label:'VIX ≥ 35',threshold:'Extreme hedging demand'},
+  {key:'fg',label:'CNN F&G ≤ 14',threshold:'Extreme fear / capitulation'},
+  {key:'dd',label:'SPY ≥ 10% from ATH',threshold:'Real discount, not a dip'},
+  {key:'crypto',label:'Crypto F&G ≤ 15',threshold:'Cross-asset risk-off extreme'},
+];
+
+// Initial render handled by renderCoullingMatrix() below
+
+function updateCoullingIran(){
+  const p=pulseState;
+  if(!p.spyPrice&&!p.vix) return;
+  const iran=coullingData.find(c=>c.id==='iran');
+  if(!iran) return;
+  // Update Iran column with live data
+  if(p.spyVol&&p.spy20dAvgVol){
+    const ratio=(p.spyVol/p.spy20dAvgVol).toFixed(1);
+    iran.vol={val:ratio+'x',pass:parseFloat(ratio)>=2.0,detail:p.spyVol?(Math.round(p.spyVol/1e6)/1e3).toFixed(1)+'B shares':'--'};
+  }
+  if(p.vix){
+    iran.vix={val:p.vix.toFixed(1),pass:p.vix>=35,detail:p.vix>=35?'Panic level':p.vix>=25?'Elevated, not panic':'Below threshold'};
+  }
+  if(p.cnnFG!==null){
+    iran.fg={val:String(p.cnnFG),pass:p.cnnFG<=14,detail:p.cnnFG<=14?'Extreme fear':p.cnnFG<=25?'Fear, not extreme':'Not fearful enough'};
+  }
+  if(p.spyPctFromATH!==null&&p.spyPctFromATH!==undefined){
+    iran.dd={val:'-'+p.spyPctFromATH.toFixed(1)+'%',pass:p.spyPctFromATH>=10,detail:'$698 → $'+Math.round(p.spyPrice)};
+  }
+  if(p.cryptoFG!==null){
+    iran.crypto={val:String(p.cryptoFG),pass:p.cryptoFG<=15,detail:p.cryptoFGLabel||''};
+  }
+  // Recalc ratio-based score
+  const items=[iran.vol,iran.vix,iran.fg,iran.dd,iran.crypto];
+  const avail=items.filter(i=>i.val!=='N/A');
+  const passing=avail.filter(i=>i.pass);
+  iran.avail=avail.length;
+  iran.passing=passing.length;
+  iran.ratio=avail.length>0?passing.length/avail.length:0;
+  iran.scoreLabel=iran.passing+'/'+iran.avail;
+  iran.pct=Math.round(iran.ratio*100);
+  iran.score=iran.passing;
+  iran.result=iran.ratio>=0.75?'BUY SIGNAL — '+iran.scoreLabel+' ('+iran.pct+'%)':iran.ratio>=0.4?'Developing — '+iran.scoreLabel+' ('+iran.pct+'%)':'Waiting — '+iran.scoreLabel+' ('+iran.pct+'%)';
+  iran.resultCol=iran.ratio>=0.75?'#22c55e':iran.ratio>=0.4?'#f59e0b':'#f97316';
+  // Re-render the entire matrix
+  renderCoullingMatrix();
+}
+
+function renderCoullingMatrix(){
+  document.getElementById('coulling-matrix').innerHTML=`
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:8px 10px;border-bottom:2px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);font-size:10px;min-width:140px">CHECKLIST ITEM</th>
+          ${coullingData.map(c=>`<th style="text-align:center;padding:8px 6px;border-bottom:2px solid rgba(255,255,255,0.08);color:${c.id==='iran'?'#22d3ee':'rgba(255,255,255,0.5)'};font-size:10px;min-width:90px;${c.id==='iran'?'background:rgba(34,211,238,0.04)':''}">${c.name}<br><span style="font-size:8px;color:rgba(255,255,255,0.2)">${c.date}</span></th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${checks.map(ch=>`
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03)">
+            <td style="padding:10px;vertical-align:top">
+              <div style="font-weight:700;color:rgba(255,255,255,0.6)">${ch.label}</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px">${ch.threshold}</div>
+            </td>
+            ${coullingData.map(c=>{
+              const d=c[ch.key];
+              return `<td style="text-align:center;padding:8px 6px;vertical-align:top;${c.id==='iran'?'background:rgba(34,211,238,0.04)':''}">
+                <div style="font-size:18px;margin-bottom:4px">${d.pass?'✅':'❌'}</div>
+                <div style="font-size:12px;font-weight:800;font-family:var(--mono);color:${d.pass?'#22c55e':'rgba(255,255,255,0.3)'}">${d.val}</div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px;line-height:1.3">${d.detail}</div>
+              </td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+        <tr style="border-top:2px solid rgba(255,255,255,0.08)">
+          <td style="padding:10px;vertical-align:top">
+            <div style="font-weight:700;color:rgba(255,255,255,0.7)">SCORE</div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px">passing / available</div>
+          </td>
+          ${coullingData.map(c=>{
+            const col=c.ratio>=1?'#22c55e':c.ratio>=0.75?'#22c55e':c.ratio>=0.6?'#f59e0b':'#ef4444';
+            const label=c.ratio>=1?'ALL CLEAR':c.ratio>=0.75?'BUY SIGNAL':c.ratio>=0.6?'DEVELOPING':'NO SIGNAL';
+            return `<td style="text-align:center;padding:10px;${c.id==='iran'?'background:rgba(34,211,238,0.04)':''}">
+              <div style="font-size:22px;font-weight:800;font-family:var(--mono);color:${col}">${c.scoreLabel}</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:2px">${c.pct}%</div>
+              <div style="margin-top:4px;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden"><div style="width:${c.pct}%;height:100%;background:${col};border-radius:3px"></div></div>
+              <div style="font-size:8px;color:${col};margin-top:3px;font-weight:700">${label}</div>
+            </td>`;
+          }).join('')}
+        </tr>
+        <tr>
+          <td style="padding:10px;font-weight:700;color:rgba(255,255,255,0.5);font-size:10px">RESULT</td>
+          ${coullingData.map(c=>`<td style="text-align:center;padding:10px;font-size:10px;color:${c.resultCol};font-weight:600;${c.id==='iran'?'background:rgba(34,211,238,0.04)':''}">${c.result}</td>`).join('')}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  ${(()=>{
+    const fullSignal=coullingData.filter(c=>c.ratio>=0.75&&c.id!=='iran');
+    const partial=coullingData.filter(c=>c.ratio>=0.6&&c.ratio<0.75&&c.id!=='iran');
+    const iran=coullingData.find(c=>c.id==='iran');
+    return `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px">
+    <div style="flex:1;min-width:200px;padding:12px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.12);border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:#22c55e;margin-bottom:4px">≥75% Buy Signal (${fullSignal.length}/${coullingData.length-1} events)</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.45);margin-bottom:4px">${fullSignal.map(c=>c.name+' ('+c.scoreLabel+')').join(' · ')}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35);line-height:1.5">When ≥75% of available indicators fired, every single event produced positive returns. This is 14/14 — a 100% hit rate across 39 years.</div>
+    </div>
+    <div style="flex:1;min-width:200px;padding:12px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.12);border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:4px">${iran.scoreLabel} Now (${iran.pct}%) — ${iran.ratio>=0.75?'BUY SIGNAL':'NOT YET'}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35);line-height:1.5">${iran.ratio>=0.75?'Available indicators are firing — contrarian buy zone active.':'Only '+iran.passing+' of '+iran.avail+' available indicators are triggered. Wait for ≥75% ('+Math.ceil(iran.avail*0.75)+'/'+iran.avail+') before entering.'}</div>
+    </div>
+    <div style="flex:1 1 100%;padding:12px 14px;background:rgba(168,85,247,0.04);border:1px solid rgba(168,85,247,0.08);border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:#a855f7;margin-bottom:4px">Why ratio-based scoring? Pre-2004 had no CNN F&G. Pre-2018 had no Crypto F&G. Scoring "3/5" was unfair — the indicators literally didn't exist. Using "passing / available" shows that Black Monday, GFC, LTCM, etc. all had 100% of their available indicators fired. The buy signal was actually STRONGER than "3/5" suggested.</div>
+    </div>
+  </div>`;
+  })()}`;
+}
+renderCoullingMatrix();
 
 // ===== VOLUME AT CAPITULATION =====
 const volData=[
@@ -5521,6 +5989,161 @@ document.getElementById('headline-cards').innerHTML = headlineData.map(h => {
   </div>`;
 }).join('');
 
+// ===== SVG CHART =====
+// ===== ATH RETEST TAB — CROSS-INSTRUMENT ADDITIONS =====
+function renderIranLesson(){
+  const el=document.getElementById('iran-lesson-card');
+  if(!el) return;
+  el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+    <div style="font-size:26px;flex-shrink:0;margin-top:2px">💡</div>
+    <div>
+      <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">THE IRAN LESSON — Cross-Instrument Confirmation</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:10px">
+        Don't wait for the exact SPY level. When 2+ correlated instruments (ES, NQ, QQQ) retest <strong>their</strong> structural support simultaneously, that <em>is</em> the bottom — even if SPY stops 5–10% short of its target.
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.55);line-height:1.7;padding:10px 14px;background:rgba(168,85,247,0.06);border-radius:8px;border-left:3px solid rgba(168,85,247,0.4)">
+        <strong style="color:#a855f7">Cross-instrument confluence &gt; single-ticker precision.</strong><br>
+        In Iran 2026: SPY stopped at $629 (never reaching the $565–610 target), but ES1! confirmed at $6,300 and NQ1! confirmed at $17,383.
+        The futures showed the bottom that SPY price alone obscured. Traditional sentiment score: ~2.3/10. The structural confluence was the <em>only</em> signal that correctly identified the bottom.
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderCrossInstrumentMatrix(){
+  const el=document.getElementById('cross-instrument-matrix');
+  if(!el) return;
+
+  const rows=[
+    {crisis:'COVID 2020',     spy:'✅ $218 / ~$200 zone',      es:'✅ ~$2,180',  nq:'✅ ~$6,770',  confirmed:'All instruments', col:'#22c55e'},
+    {crisis:'Inflation 2022', spy:'✅ $348 / $340 zone (2.4%)', es:'✅ ~$3,500',  nq:'✅ ~$11,050', confirmed:'All instruments', col:'#22c55e'},
+    {crisis:'Tariff 2025',    spy:'✅ $482 / $480 zone (0.4%)', es:'✅ $5,050',   nq:'✅ $17,383',  confirmed:'All instruments', col:'#22c55e'},
+    {crisis:'Iran 2026',      spy:'❌ $629 — missed $565–610', es:'✅ $6,300',   nq:'✅ $17,383',  confirmed:'Cross-instrument', col:'#f59e0b'},
+  ];
+
+  // Live current-state row using detectTripleConfluence results
+  let liveRow='';
+  try{
+    const tcR=detectTripleConfluence();
+    const getInst=ticker=>tcR.find(r=>r.inst.ticker===ticker);
+    const fmtInst=r=>{
+      if(!r||r.distToSupport===null) return '<span style="color:rgba(255,255,255,0.25)">— no data</span>';
+      const at=r.atSupport;
+      const pStr=r.inst.futures?Math.round(r.price).toLocaleString():'$'+r.price.toFixed(0);
+      const nStr=r.nearest?(r.inst.futures?r.nearest.price.toLocaleString():'$'+r.nearest.price)+' ('+r.nearest.name+')':'?';
+      const dist=r.distToSupport;
+      const c=at?'#22c55e':Math.abs(dist)<5?'#f59e0b':'rgba(255,255,255,0.4)';
+      return `<span style="color:${c}">${at?'✅':'⏳'} ${pStr} → ${nStr} (${dist>=0?'+':''}${dist.toFixed(1)}%)</span>`;
+    };
+    const spy=getInst('SPY'),es=getInst('ES=F'),nq=getInst('NQ=F');
+    const atCount=[spy,es,nq].filter(r=>r?.atSupport).length;
+    const confStr=atCount>=3?'All at support':atCount>=2?'Cross-instrument':atCount===1?'1 instrument':'None at target';
+    const confC=atCount>=2?'#22c55e':atCount===1?'#f59e0b':'rgba(255,255,255,0.4)';
+    liveRow=`<tr style="background:rgba(34,211,238,0.05);border-top:2px solid rgba(34,211,238,0.15)">
+      <td style="padding:9px 10px;font-size:10px;font-weight:800;color:#22d3ee;white-space:nowrap">● LIVE NOW</td>
+      <td style="padding:9px 10px;font-size:10px">${fmtInst(spy)}</td>
+      <td style="padding:9px 10px;font-size:10px">${fmtInst(es)}</td>
+      <td style="padding:9px 10px;font-size:10px">${fmtInst(nq)}</td>
+      <td style="padding:9px 10px;font-size:10px;font-weight:700;color:${confC}">${confStr}</td>
+    </tr>`;
+  }catch(e){}
+
+  const thStyle='text-align:left;padding:8px 10px;color:rgba(255,255,255,0.35);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap';
+  el.innerHTML=`<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:580px">
+      <thead><tr style="border-bottom:2px solid rgba(255,255,255,0.08)">
+        <th style="${thStyle}">Crisis</th>
+        <th style="${thStyle}">SPY Target Hit?</th>
+        <th style="${thStyle}">ES=F Target Hit?</th>
+        <th style="${thStyle}">NQ=F Target Hit?</th>
+        <th style="${thStyle}">Confirmed By</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+          <td style="padding:9px 10px;font-size:10px;font-weight:700;color:${r.col};white-space:nowrap">${r.crisis}</td>
+          <td style="padding:9px 10px;font-size:10px;color:${r.col}">${r.spy}</td>
+          <td style="padding:9px 10px;font-size:10px;color:${r.col}">${r.es}</td>
+          <td style="padding:9px 10px;font-size:10px;color:${r.col}">${r.nq}</td>
+          <td style="padding:9px 10px;font-size:10px;font-weight:700;color:${r.col}">${r.confirmed}</td>
+        </tr>`).join('')}
+        ${liveRow}
+      </tbody>
+    </table>
+    <div style="margin-top:8px;font-size:9px;color:rgba(255,255,255,0.2);line-height:1.5">
+      ✅ At or within 3% of structural support &nbsp;⏳ Not yet at target &nbsp;· &nbsp;ES=F = S&amp;P 500 futures &nbsp;· &nbsp;NQ=F = Nasdaq futures
+    </div>
+  </div>`;
+}
+
+function renderSvgChart(){
+  const livePrice=pulseState.spyPrice||656;
+  const pts = [
+    {y:2014,p:178},{y:2015,p:205},{y:2016,p:210},{y:2017,p:260},{y:2018,p:280},{y:2019,p:320},
+    {y:2020,p:218,l:"COVID|$218",ev:1},{y:2020.5,p:340},{y:2021,p:460},
+    {y:2022,p:480,l:"ATH $480",ath:1},{y:2022.7,p:348,l:"Retest|$348",ev:1},
+    {y:2023,p:450},{y:2023.5,p:480},{y:2024,p:530},{y:2024.3,p:565,l:"ATH $565",ath:1},
+    {y:2024.5,p:510,l:"Yen|$510",ev:1},{y:2024.8,p:585},{y:2025,p:565},
+    {y:2025.3,p:482,l:"Tariff|$482",ev:1},{y:2025.5,p:560},{y:2025.8,p:650},
+    {y:2026,p:698,l:"ATH $698",ath:1},
+    {y:2026.08,p:629,iran:1},
+    {y:2026.2,p:livePrice,l:"NOW $"+Math.round(livePrice),cur:1}
+  ];
+  const W=740,H=320,pL=50,pR=30,pT=40,pB=40,cW=W-pL-pR,cH=H-pT-pB,mnY=160,mxY=720,mnX=2014,mxX=2026.5;
+  const sx=x=>pL+((x-mnX)/(mxX-mnX))*cW, sy=y=>pT+cH-((y-mnY)/(mxY-mnY))*cH;
+  const pathD=pts.map((p,i)=>`${i?'L':'M'}${sx(p.y)},${sy(p.p)}`).join(' ');
+
+  const athLines=[{p:340,l:"Pre-COVID ATH $340",c:"#22c55e"},{p:480,l:"Jan 2022 ATH $480",c:"#3b82f6"},{p:565,l:"Mid-2024 ATH $565",c:"#a855f7"},{p:590,l:"Projected ~$590",c:"#f59e0b",d:1}];
+
+  const gridY=[200,300,400,500,600,700].map(y=>`<line x1="${pL}" y1="${sy(y)}" x2="${W-pR}" y2="${sy(y)}" stroke="rgba(255,255,255,0.04)"/><text x="${pL-6}" y="${sy(y)+4}" fill="rgba(255,255,255,0.2)" font-size="9" text-anchor="end" font-family="JetBrains Mono">$${y}</text>`).join('');
+  const gridX=[2014,2016,2018,2020,2022,2024,2026].map(x=>`<text x="${sx(x)}" y="${H-8}" fill="rgba(255,255,255,0.2)" font-size="9" text-anchor="middle" font-family="JetBrains Mono">${x}</text>`).join('');
+  const athSvg=athLines.map(l=>`<line x1="${pL}" y1="${sy(l.p)}" x2="${W-pR}" y2="${sy(l.p)}" stroke="${l.c}" stroke-width="1" ${l.d?'stroke-dasharray="6,4"':''} opacity="0.4"/><text x="${W-pR-4}" y="${sy(l.p)-5}" fill="${l.c}" font-size="7.5" opacity="0.7" font-family="JetBrains Mono" text-anchor="end">${l.l}</text>`).join('');
+
+  const dots=pts.filter(p=>p.ev||p.ath||p.cur||p.iran).map(p=>{
+    const col=p.cur?'#22d3ee':p.iran?'#f59e0b':p.ev?'#ef4444':'#f59e0b', r=p.cur?6:p.ev?5:4;
+    let lbl='';
+    if(p.l){
+      const dy=(p.ev||p.cur||p.iran)?16:-10;
+      const lines=p.l.split('|');
+      lbl=`<text x="${sx(p.y)}" y="${sy(p.p)+dy}" fill="${col}" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">${lines.map((ln,i)=>`<tspan x="${sx(p.y)}" dy="${i?10:0}">${ln}</tspan>`).join('')}</text>`;
+    }
+    return `<circle cx="${sx(p.y)}" cy="${sy(p.p)}" r="${r}" fill="${col}" style="filter:drop-shadow(0 0 6px ${col}80)"/>${lbl}`;
+  }).join('');
+
+  const retestLabels=`
+    <rect x="${sx(2022.7)-32}" y="${sy(355)}" width="64" height="14" rx="3" fill="#22c55e" opacity="0.2"/>
+    <text x="${sx(2022.7)}" y="${sy(355)+10}" fill="#22c55e" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">RETEST ✓</text>
+    <rect x="${sx(2025.3)-32}" y="${sy(495)}" width="64" height="14" rx="3" fill="#3b82f6" opacity="0.2"/>
+    <text x="${sx(2025.3)}" y="${sy(495)+10}" fill="#3b82f6" font-size="8" text-anchor="middle" font-weight="700" font-family="JetBrains Mono">RETEST ✓</text>`;
+
+  const projZone=`
+    <rect x="${pL}" y="${sy(610)}" width="${cW}" height="${sy(565)-sy(610)}" fill="#a855f7" opacity="0.05" rx="3" stroke="#a855f7" stroke-width="1" stroke-dasharray="8,4" stroke-opacity="0.3"/>
+    <text x="${pL+8}" y="${sy(590)}" fill="#a855f7" font-size="9" font-weight="700" opacity="0.7" font-family="JetBrains Mono">SPY TARGET ZONE $565–610 (projected)</text>
+    <line x1="${sx(2026.08)}" y1="${sy(629)}" x2="${sx(2026.08)}" y2="${sy(575)}" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="3,2" opacity="0.55"/>
+    <text x="${sx(2026.08)+4}" y="${sy(605)}" fill="#f59e0b" font-size="7.5" opacity="0.75" font-family="JetBrains Mono">SPY stopped</text>
+    <text x="${sx(2026.08)+4}" y="${sy(598)}" fill="#f59e0b" font-size="7.5" opacity="0.75" font-family="JetBrains Mono">short $629</text>`;
+
+  // ES/NQ cross-instrument callout (placed in lower-center area, clear of main data)
+  const crossAnnot=`
+    <rect x="420" y="218" width="150" height="46" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-opacity="0.25" stroke-width="0.75"/>
+    <text x="495" y="231" fill="#22c55e" font-size="7.5" text-anchor="middle" font-weight="800" font-family="JetBrains Mono">Iran 2026: futures confirmed</text>
+    <text x="495" y="243" fill="#22c55e" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">✅ ES1!  $6,300 structural hold</text>
+    <text x="495" y="255" fill="#22c55e" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">✅ NQ1! $17,383 structural hold</text>`;
+
+  const buyLabels=[{x:2016,y:200},{x:2020.1,y:245},{x:2022.8,y:375},{x:2025.4,y:508}].map(b=>
+    `<rect x="${sx(b.x)-14}" y="${sy(b.y)-7}" width="28" height="14" rx="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+     <text x="${sx(b.x)}" y="${sy(b.y)+4}" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle" font-weight="600">Buy</text>`
+  ).join('');
+
+  document.getElementById('svg-chart').innerHTML=`
+    <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      ${gridY}${gridX}${athSvg}
+      <defs><linearGradient id="pF" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22d3ee" stop-opacity="0.15"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
+      <path d="${pathD} L${sx(2026.2)},${sy(mnY)} L${sx(2014)},${sy(mnY)} Z" fill="url(#pF)"/>
+      <path d="${pathD}" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" style="filter:drop-shadow(0 0 4px rgba(34,211,238,0.4))"/>
+      ${projZone}${crossAnnot}${retestLabels}${dots}${buyLabels}
+    </svg>`;
+}
+renderSvgChart();
 
 // ===== EVIDENCE TABLE =====
 const evidence=[
@@ -5593,7 +6216,321 @@ document.getElementById('returns-row').innerHTML=returns.map(r=>`
   </div>
 `).join('');
 
+// ===== CRISIS SELECTOR =====
+let selectedCrisis = 'iran';
 
+function renderCrisisDetail() {
+  const d = crisisData.find(c=>c.id===selectedCrisis);
+  document.getElementById('crisis-btns').innerHTML = crisisData.map(c=>
+    `<button class="crisis-btn ${c.id===selectedCrisis?'active':''}" onclick="selectCrisis('${c.id}')">${c.name}<span class="date">${c.date}</span></button>`
+  ).join('');
+
+  const rows = [
+    {l:"Catalyst",v:d.catalyst},{l:"Resolution",v:d.resolution},{l:"Oil Context",v:d.oilContext},
+    {l:"Fed Response",v:d.fedResponse},{l:"Labor Market",v:d.laborMarket},{l:"Time to ATH",v:d.timeToATH},
+  ];
+  if(d.formerATH) rows.push({l:"ATH Retest",v:`Former ATH $${d.formerATH} → Bottom $${d.retestLevel||'TBD'}`});
+
+  const fgVal = typeof d.fearGreed==='number'?d.fearGreed:null;
+  const aaiiVal = typeof d.aaiiBearish==='number'?d.aaiiBearish:null;
+  const fgCol = fgVal!==null?fearColor(fgVal):'#555';
+  const vCol = typeof d.vixPeak==='number'?vixColor(d.vixPeak):'#555';
+  const ddCol = typeof d.drawdown==='number'?ddColor(d.drawdown):'#555';
+
+  // Find matching Coulling score
+  const cMatch=coullingData.find(c=>c.id===d.id);
+  const cScoreLabel=cMatch?cMatch.scoreLabel+' ('+cMatch.pct+'%)':'N/A';
+  const cScoreCol=cMatch?(cMatch.ratio>=0.75?'#22c55e':cMatch.ratio>=0.6?'#f59e0b':'#ef4444'):'#555';
+
+  const metrics = [
+    {l:"F&G",v:fgVal!==null?fgVal:'N/A',c:fgCol},
+    {l:"VIX Peak",v:d.vixPeak,c:vCol},
+    {l:"Drawdown",v:d.drawdown+'%',c:ddCol},
+    {l:"SPY Low",v:d.spyBottom<100?d.spyBottom:'$'+d.spyBottom,c:'#22d3ee'},
+    {l:"AAII Bear",v:aaiiVal!==null?aaiiVal+'%':'N/A',c:aaiiVal?aaiiColor(aaiiVal):'#555'},
+    {l:"Coulling",v:cMatch?cScoreLabel:'N/A',c:cScoreCol},
+  ];
+
+  const contrCol = d.contrariansRight===null?'#22d3ee':'#22c55e';
+  const contrBg = d.contrariansRight===null?'rgba(34,211,238,0.06)':'rgba(34,197,94,0.06)';
+  const contrBorder = d.contrariansRight===null?'rgba(34,211,238,0.15)':'rgba(34,197,94,0.15)';
+  const contrText = d.contrariansRight===null?'PENDING — Waiting for setup':'YES — Rally to new ATH';
+
+  document.getElementById('crisis-detail').innerHTML = `
+    <div>
+      ${rows.map(r=>`<div class="detail-row"><div class="detail-label">${r.l}</div><div class="detail-value">${r.v}</div></div>`).join('')}
+    </div>
+    <div>
+      <div class="metric-grid">
+        ${metrics.map(m=>`<div class="metric-card" style="border:1px solid ${m.c}15"><div class="metric-label">${m.l}</div><div class="metric-val" style="color:${m.c}">${m.v}</div></div>`).join('')}
+        <div class="contrarian-box" style="grid-column:1/-1;background:${contrBg};border:1px solid ${contrBorder}">
+          <div style="font-size:10px;color:rgba(255,255,255,0.35)">Contrarians Correct?</div>
+          <div style="font-size:14px;font-weight:700;margin-top:3px;color:${contrCol}">${contrText}</div>
+        </div>
+      </div>
+    </div>`;
+}
+window.selectCrisis = function(id) { selectedCrisis=id; renderCrisisDetail(); };
+renderCrisisDetail();
+
+// ===== SQUEEZE TAB =====
+// Ceasefire odds
+const cfOdds=[
+  {date:"Mar 6",pct:23,passed:true},{date:"Mar 15",pct:41,passed:true},{date:"Mar 31",pct:52,passed:false},{date:"Apr 30",pct:68,passed:false},{date:"Jun 30",pct:78,passed:false}
+];
+document.getElementById('ceasefire-odds').innerHTML=cfOdds.map(o=>{
+  const col=o.pct>=60?'#22c55e':o.pct>=40?'#f59e0b':'#f97316';
+  return `<div style="flex:1 1 100px;background:rgba(0,0,0,0.3);border-radius:10px;padding:14px;text-align:center;border:1px solid ${col}20;${o.passed?'opacity:0.4':''}">
+    <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${o.date}${o.passed?' (passed)':''}</div>
+    <div style="font-size:28px;font-weight:800;color:${col};font-family:var(--mono);line-height:1">${o.pct}%</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:4px">ceasefire prob</div>
+    <div style="margin-top:8px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+      <div style="width:${o.pct}%;height:100%;background:${col};border-radius:3px"></div>
+    </div>
+  </div>`;
+}).join('');
+
+// Squeeze mechanics
+const sqMechanics=[
+  {icon:"🛡️",title:"$7B in Put Hedges",desc:"SPY saw $7B net outflows in 5 days. That's protective positioning that unwinds violently on good news — dealers buy back futures to de-hedge, accelerating the rally."},
+  {icon:"⚡",title:"VIX Crush = Re-Leverage",desc:"VIX at 25+ → if it drops to 16 on ceasefire, vol-targeting and risk-parity funds mechanically add ~$50B+ in equity exposure. This is systematic, not discretionary."},
+  {icon:"🧲",title:"Gamma Wall at 6,900",desc:"Heavy call option concentration at 6,900–7,000. Once price crosses that level, dealer hedging flips from selling into rallies to buying into rallies — acceleration."},
+  {icon:"💰",title:"Sidelined Cash = Fuel",desc:"F&G at ~20 means investors are fearful but haven't sold everything. Dry powder waiting. In true capitulation (F&G 3), everyone already sold — no buyers left."},
+  {icon:"📈",title:"Earnings Still Growing",desc:"2026 EPS growth forecast +15.9%. Forward P/E compressed to 21.6x from 22.3x. Fundamental engine hasn't broken — the selloff is sentiment, not structural."},
+  {icon:"🏛️",title:"Fed Put Still Alive",desc:"If oil stabilizes and labor weakens further, the Fed has room to cut. Bad economic data could paradoxically become bullish again — 'bad news is good news.'"}
+];
+document.getElementById('squeeze-mechanics').innerHTML=sqMechanics.map(s=>`
+  <div class="why-card"><div class="icon">${s.icon}</div><div class="title">${s.title}</div><div class="desc">${s.desc}</div></div>
+`).join('');
+
+// Scenario A triggers
+const scA=[
+  {title:"Ceasefire / De-escalation",desc:"Any diplomatic headline → oil drops to $70–75, VIX crushes, short covering cascade."},
+  {title:"Iran Nuclear Capacity Destroyed",desc:"Israel claims Iran lost enrichment capability. If confirmed, war rationale collapses — market re-prices peace."},
+  {title:"Short Covering Cascade",desc:"Shorts from Iran panic + puts unwinding = mechanical buying pressure that feeds on itself."},
+];
+
+// Scenario B triggers
+const scB=[
+  {title:"War Drags 2–4 More Weeks",desc:"Strait stays closed, oil pushes above $100. Sustained energy shock feeds into real inflation data."},
+  {title:"200-DMA Broken (Confirmed)",desc:"SPY broke below 200-DMA ($658) on 3/20. 4th weekly loss. Trend-followers and CTAs now selling."},
+  {title:"Recession Probability Rising",desc:"HSBC models show 35% recession probability priced in, up from 10% two weeks ago. Labor cracking."},
+];
+
+// Scenario C triggers
+const scC=[
+  {title:"Multi-Month Strait Closure",desc:"Oil $100+ sustained. Inflation re-accelerates. Fed forced to hold indefinitely. Stagflation scenario."},
+  {title:"Recession Confirmed",desc:"GDP turns negative. Earnings estimates slashed 15%+. Credit spreads blow out past 500bps."},
+  {title:"Contagion / Escalation",desc:"Iran retaliates against Saudi/Qatar infrastructure. Regional war expands. Multiple supply chains break."},
+];
+
+// ===== DYNAMIC SQUEEZE TAB UPDATE =====
+function updateSqueezeTab() {
+  const p = pulseState;
+  const spy = p.spyPrice || 656;
+  const vix = p.vix || 27.7;
+  const fg = p.cnnFG || 20;
+  const cryptoFg = p.cryptoFG || 11;
+  const pctFromATH = p.spyPctFromATH || 6.0;
+  const ath = 698;
+
+  // Dynamic probability calculation
+  let sqzProb = 55; // base
+  let slideProb = 25;
+  let capProb = 15;
+  // Adjustments based on data
+  if(pctFromATH > 5) { sqzProb -= 10; slideProb += 7; capProb += 3; }
+  if(pctFromATH > 10) { sqzProb -= 10; slideProb += 5; capProb += 5; }
+  if(pctFromATH > 15) { sqzProb -= 10; capProb += 10; }
+  if(vix > 30) { sqzProb -= 5; slideProb += 3; capProb += 2; }
+  if(vix > 40) { sqzProb -= 10; capProb += 10; }
+  if(fg !== null && fg <= 14) { sqzProb -= 5; capProb += 5; }
+  if(fg !== null && fg <= 25 && fg > 14) { sqzProb -= 3; slideProb += 3; }
+  if(spy < 658) { sqzProb -= 8; slideProb += 5; capProb += 3; } // below 200-DMA
+  // Clamp
+  sqzProb = Math.max(10, Math.min(70, sqzProb));
+  capProb = Math.max(5, Math.min(50, capProb));
+  slideProb = 100 - sqzProb - capProb;
+  if(slideProb < 10) { slideProb = 10; sqzProb = 100 - slideProb - capProb; }
+
+  const sqzLo = sqzProb - 3, sqzHi = sqzProb + 2;
+  const sldLo = slideProb - 2, sldHi = slideProb + 3;
+  const capLo = capProb - 2, capHi = capProb + 3;
+
+  const below200 = spy < 658;
+  const entryPrice = Math.round(spy);
+  const stopPrice = below200 ? Math.round(spy * 0.96) : Math.round(spy * 0.975);
+  const targetHi = 720;
+  const rr = ((targetHi - entryPrice) / (entryPrice - stopPrice)).toFixed(1);
+
+  // Narrative changes based on conditions
+  let headlineColor = 'var(--green)';
+  let headlineTitle = 'The Contrarian Read — Squeeze vs. Slide';
+  let narrative = '';
+
+  if(below200) {
+    headlineColor = 'var(--amber)';
+    headlineTitle = 'The Contrarian Read — 200-DMA Broken, But Not Capitulation';
+    narrative = `SPY broke below its 200-DMA on 3/20 for the first time in 214 sessions. The 4-week slide has pushed the drawdown to <strong style="color:var(--red)">${pctFromATH.toFixed(1)}%</strong> from ATH. HSBC models price a 35% recession probability. <strong style="color:var(--cyan)">But this is NOT capitulation yet</strong> — CNN F&G at ${fg!==null?fg:'~20'} is Fear, not Extreme Fear. VIX at ${vix.toFixed(1)} is elevated, not panic. Crypto F&G at ${cryptoFg||'11'} shows cross-asset stress but the Coulling checklist hasn't fired. The slide scenario has overtaken the squeeze as the base case. A ceasefire headline is still the binary catalyst — but without it, gravity pulls toward $620–640.`;
+  } else if(pctFromATH > 3) {
+    narrative = `SPY at $${entryPrice} is ${pctFromATH.toFixed(1)}% from ATH. CNN F&G at ${fg!==null?fg:'--'} shows fear building but not capitulation. VIX at ${vix.toFixed(1)} means vol-targeting funds are de-risking. Put hedges and shorts from the Iran panic remain fuel for a snap-back on any ceasefire headline — but the window is narrowing.`;
+  } else {
+    narrative = `Capitulation hasn't occurred — and that's exactly <strong style="color:var(--cyan)">why a squeeze back to ATH is the higher-probability path</strong>. At F&G ${fg!==null?fg:'--'}, there are still plenty of sidelined buyers. VIX at ${vix.toFixed(1)} means vol-targeting funds haven't fully de-risked. Put hedges and shorts are fuel waiting to ignite.`;
+  }
+
+  // Render headline + probabilities
+  document.getElementById('squeeze-headline').innerHTML = `
+    <div class="panel-title" style="color:${headlineColor}">${headlineTitle}</div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:16px">${narrative}</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+      <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:18px;text-align:center;border:1px solid ${sqzProb>=40?'rgba(34,197,94,0.2)':'rgba(34,197,94,0.08)'}">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:8px">Squeeze to ATH</div>
+        <div style="font-size:34px;font-weight:800;color:var(--green);font-family:var(--mono);line-height:1">${sqzLo}–${sqzHi}%</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">SPY $${ath}–720+</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:18px;text-align:center;border:1px solid ${slideProb>=35?'rgba(249,115,22,0.2)':'rgba(249,115,22,0.08)'}">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:8px">Slide then Recover</div>
+        <div style="font-size:34px;font-weight:800;color:var(--orange);font-family:var(--mono);line-height:1">${sldLo}–${sldHi}%</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">SPY $620–650 first</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:18px;text-align:center;border:1px solid ${capProb>=20?'rgba(239,68,68,0.2)':'rgba(239,68,68,0.08)'}">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:8px">Full Capitulation</div>
+        <div style="font-size:34px;font-weight:800;color:var(--red);font-family:var(--mono);line-height:1">${capLo}–${capHi}%</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">SPY $565–590</div>
+      </div>
+    </div>`;
+
+  // Render ceasefire summary with Polymarket live data if available
+  const polyPct = pulseState.polyIranCeasefire ? pulseState.polyIranCeasefire.pct : null;
+  const polyTitle = pulseState.polyIranCeasefire ? pulseState.polyIranCeasefire.title : null;
+  const recPct = pulseState.polyRecession ? pulseState.polyRecession.pct : null;
+  document.getElementById('ceasefire-summary').innerHTML = polyPct !== null ? `
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:center">
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ceasefire (Polymarket LIVE)</div>
+        <div style="font-size:28px;font-weight:900;color:${polyPct>=60?'var(--green)':polyPct>=40?'var(--amber)':'var(--red)'};font-family:var(--mono)">${polyPct}%</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.2);margin-top:2px">${polyTitle||''}</div>
+      </div>
+      ${recPct!==null?`<div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Recession (Polymarket)</div>
+        <div style="font-size:28px;font-weight:900;color:${recPct>=50?'var(--red)':recPct>=30?'var(--amber)':'var(--green)'};font-family:var(--mono)">${recPct}%</div>
+      </div>`:''}
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.3)">
+      ${polyPct>=60?'Markets heavily pricing resolution. Ceasefire → oil crash → VIX crush → squeeze.':polyPct>=40?'Moderate ceasefire probability. Market uncertain — hedges staying on.':'Low ceasefire probability. Market pricing prolonged conflict. Slide scenario dominant.'}
+    </div>
+  ` : `<strong style="color:var(--amber)">Mar 15 deadline missed.</strong> Polymarket data will auto-populate on fetch. Each missed deadline shifts probability toward the slide scenario.`;
+
+  // Render scenario cards
+  function renderTriggers(items, borderCol) {
+    return items.map(s=>`<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px;border:1px solid ${borderCol}">
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:4px">${s.title}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5">${s.desc}</div>
+    </div>`).join('');
+  }
+
+  document.getElementById('squeeze-scenarios').innerHTML = `
+    <div class="panel" style="background:linear-gradient(135deg,rgba(34,197,94,0.04),rgba(34,211,238,0.03));border-color:rgba(34,197,94,0.1)">
+      <div class="panel-title" style="color:var(--green)">Scenario A: Squeeze to ATH (${sqzLo}–${sqzHi}%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:8px">${renderTriggers(scA,'rgba(34,197,94,0.08)')}</div>
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:8px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center">
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Entry</div><div style="font-size:16px;font-weight:800;color:var(--cyan);font-family:var(--mono)">$${entryPrice}</div></div>
+        <div style="color:rgba(255,255,255,0.2)">→</div>
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Target</div><div style="font-size:16px;font-weight:800;color:var(--green);font-family:var(--mono)">$698–720</div></div>
+        <div style="color:rgba(255,255,255,0.2)">|</div>
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Stop</div><div style="font-size:16px;font-weight:800;color:var(--red);font-family:var(--mono)">$${stopPrice}</div></div>
+        <div style="color:rgba(255,255,255,0.2)">|</div>
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">R:R</div><div style="font-size:16px;font-weight:800;color:var(--amber);font-family:var(--mono)">~${rr}:1</div></div>
+      </div>
+    </div>
+    <div class="panel" style="background:linear-gradient(135deg,rgba(249,115,22,0.04),rgba(239,68,68,0.03));border-color:rgba(249,115,22,0.1)">
+      <div class="panel-title" style="color:var(--orange)">Scenario B: Slide to $620–650, Then Recover (${sldLo}–${sldHi}%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">${renderTriggers(scB,'rgba(249,115,22,0.08)')}</div>
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.6;text-align:center">
+        ${below200?'<strong style="color:var(--orange)">200-DMA ($658) already broken.</strong> Next support: former breakout zone $590–610 → Tier 1 &amp; Tier 2 accumulation zones.':'200-DMA at ~$658 gets tested → if it breaks, former breakout ~$590–610 becomes the target. Tier 1 &amp; Tier 2 accumulation zones.'}
+      </div>
+    </div>
+    <div class="panel" style="background:linear-gradient(135deg,rgba(239,68,68,0.04),rgba(239,68,68,0.02));border-color:rgba(239,68,68,0.1)">
+      <div class="panel-title" style="color:var(--red)">Scenario C: Full Capitulation to $565–590 (${capLo}–${capHi}%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">${renderTriggers(scC,'rgba(239,68,68,0.08)')}</div>
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.35);line-height:1.6;text-align:center">
+        ATH retest pattern target — requires extreme fear (F&amp;G sub-10, VIX 45+) that aren't present yet. ${below200?'But the 200-DMA break opens the door if the war drags on.':'Monthly EMA Cross Buy signal would fire here.'}
+      </div>
+    </div>`;
+
+  // Render SVG squeeze gauge meter
+  const gaugeEl = document.getElementById('squeeze-prob-bar');
+  const needleAngle = -90 + (sqzProb/100)*180; // -90=left(crash), 0=center, 90=right(squeeze)
+  gaugeEl.innerHTML = `
+    <div class="squeeze-meter">
+      <svg viewBox="0 0 300 170" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background arc -->
+        <path d="M30,150 A120,120 0 0,1 270,150" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="24" stroke-linecap="round"/>
+        <!-- Colored segments -->
+        <path d="M30,150 A120,120 0 0,1 90,42" fill="none" stroke="var(--red)" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+        <path d="M90,42 A120,120 0 0,1 150,30" fill="none" stroke="var(--orange)" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+        <path d="M150,30 A120,120 0 0,1 210,42" fill="none" stroke="var(--amber)" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+        <path d="M210,42 A120,120 0 0,1 270,150" fill="none" stroke="var(--green)" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+        <!-- Needle -->
+        <g transform="rotate(${needleAngle},150,150)">
+          <line x1="150" y1="150" x2="150" y2="45" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="150" cy="150" r="8" fill="var(--cyan)"/>
+          <circle cx="150" cy="150" r="4" fill="#0a0e17"/>
+        </g>
+        <!-- Labels -->
+        <text x="20" y="165" fill="var(--red)" font-size="10" font-weight="700">CRASH</text>
+        <text x="130" y="20" fill="var(--amber)" font-size="10" font-weight="700" text-anchor="middle">NEUTRAL</text>
+        <text x="265" y="165" fill="var(--green)" font-size="10" font-weight="700" text-anchor="end">SQUEEZE</text>
+        <!-- Center value -->
+        <text x="150" y="120" fill="var(--text)" font-size="32" font-weight="900" text-anchor="middle">${sqzProb}%</text>
+        <text x="150" y="140" fill="rgba(255,255,255,0.35)" font-size="11" text-anchor="middle">Squeeze Probability</text>
+      </svg>
+    </div>
+    <div style="position:relative;margin-bottom:8px">
+      <div style="display:flex;height:44px;border-radius:10px;overflow:hidden;margin-bottom:8px">
+        <div style="width:${sqzProb}%;background:linear-gradient(90deg,#166534,var(--green));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0e17;font-family:var(--mono)">SQUEEZE ${sqzLo}–${sqzHi}%</div>
+        <div style="width:${slideProb}%;background:linear-gradient(90deg,#9a3412,var(--orange));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0e17;font-family:var(--mono)">SLIDE ${sldLo}–${sldHi}%</div>
+        <div style="width:${capProb}%;background:linear-gradient(90deg,#991b1b,var(--red));display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0a0e17;font-family:var(--mono)">CRASH ${capLo}–${capHi}%</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.25);font-family:var(--mono)">
+        <span>$698–720+ ATH</span><span>$620–650</span><span>$565–590</span>
+      </div>
+    </div>`;
+
+  // Render insight
+  let insightTitle, insightText;
+  if(below200) {
+    insightTitle = 'The Structural Shift';
+    insightText = `SPY has broken below the 200-DMA for the first time since 2024. This is a regime change signal — but <strong style="color:var(--cyan)">not a sell signal</strong>. Historical data: the S&P has broken below its 200-DMA 30+ times since 1950. In 70% of cases, it was back above within 30 days. The contrarian play is to scale into longs on the slide, not chase the breakdown. Your accumulation zones at $620–640 (Tier 1) are now the primary target.`;
+  } else {
+    insightTitle = 'The Uncomfortable Truth';
+    insightText = `The contrarian trade isn't waiting for $590 — the market probably squeezes first. The worst outcome is sitting in cash while SPY rips to $720 on a ceasefire headline. Let the squeeze play out. If it fails at $700 with deteriorating breadth — <strong style="color:var(--cyan)">THAT</strong> becomes the high-probability short setup.`;
+  }
+  document.getElementById('squeeze-insight').innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:6px">${insightTitle}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.5);line-height:1.7">${insightText}</div>`;
+
+  // Key levels (dynamic NOW marker)
+  const keyLevels=[
+    {level:"$698",label:"ATH / Target",color:"#22c55e",note:"Jan 28 high"},
+    {level:"$690",label:"Gamma Wall",color:"#22d3ee",note:"Call concentration"},
+    {level:"$658",label:"200-DMA",color:below200?"#ef4444":"#f59e0b",note:below200?"BROKEN 3/20":"Key support"},
+    {level:"$"+entryPrice,label:"NOW",color:"#22d3ee",note:"Current Price"},
+    {level:"$640",label:"Tier 1 Zone",color:"#f97316",note:"$640–660"},
+    {level:"$610",label:"Former Breakout",color:"#f97316",note:"Tier 2 zone"},
+    {level:"$590",label:"ATH Retest",color:"#a855f7",note:"Mid-2024 ATH"},
+    {level:"$565",label:"Structure",color:"#ef4444",note:"Tier 3 begins"},
+  ];
+  document.getElementById('key-levels').innerHTML=keyLevels.map(l=>`
+    <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;text-align:center;border-left:3px solid ${l.color}">
+      <div style="font-size:20px;font-weight:800;color:${l.color};font-family:var(--mono)">${l.level}</div>
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);margin-top:2px">${l.label}</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px">${l.note}</div>
+    </div>
+  `).join('');
+}
+// Initial render
+updateSqueezeTab();
 
 // ===== CONFLICT PLAYBOOK =====
 const conflictSteps=[
@@ -5610,7 +6547,6 @@ const conflictSteps=[
 ];
 
 let currentConflictStep=9; // Active — 2-week ceasefire Apr 8, Islamabad talks Apr 11
-let currentTariffStep=12;  // Kept for Groq vote override, snapshots and JSON export (tariff display panels removed)
 let headlineSignals = []; // Populated by news scan
 let allFetchedHeadlines = []; // Raw headline objects for display
 
@@ -5649,6 +6585,7 @@ function matchKeywords(text, keywordMap) {
 
 // Per-headline vote storage (populated by detectConflictPhase)
 let _conflictVotes={}, _conflictConfidence=0, _conflictSource='';
+let _tariffVotes={}, _tariffConfidence=0;
 
 function detectConflictPhase(){
   const p=pulseState;
@@ -5695,6 +6632,32 @@ function detectConflictPhase(){
   if(p.vix>=18&&p.spyPctFromATH>=1){_conflictConfidence=45;return 4;}
   // Keep current step if no signals override
   _conflictConfidence=40; return currentConflictStep;
+}
+
+function detectTariffPhase(){
+  const p=pulseState;
+  _tariffVotes={};_tariffConfidence=0;
+  if(headlineSignals.length>0){
+    const hasTariffContext=headlineSignals.some(h=>{
+      const t=h.toLowerCase();
+      return t.includes('tariff')||t.includes('trade war')||t.includes('trade deal')||t.includes('section 301');
+    });
+    if(hasTariffContext){
+      headlineSignals.forEach(headline=>{
+        const step=matchKeywords(headline.toLowerCase(),tariffKeywords);
+        if(step) _tariffVotes[step]=(_tariffVotes[step]||0)+1;
+      });
+      if(Object.keys(_tariffVotes).length>0){
+        const scored=Object.entries(_tariffVotes).map(([step,count])=>({
+          step:parseInt(step),score:count*(parseInt(step)>=12?1.5:parseInt(step)>=8?1.2:1)
+        })).sort((a,b)=>b.score-a.score);
+        _tariffConfidence=Math.round((scored[0].score/scored.reduce((a,s)=>a+s.score,0))*100);
+        return scored[0].step;
+      }
+    }
+  }
+  if(p.vix&&p.vix>=22) return 0;
+  return currentTariffStep||0;
 }
 
 // ===== MULTI-SOURCE HEADLINE FETCHER =====
@@ -5922,6 +6885,8 @@ async function fetchHeadlines(){
       pulseState.contrarianBoost = pct > 0.6 ? 1 : pct > 0.4 ? 0.5 : 0;
       pulseState.contrarianPct = Math.round(pct * 100);
 
+      // Derive 6-label sentiment mix from the floats we already have
+      try { updateGroqMixFromExisting(groqClassifications); } catch(e) { console.warn('[groq mix]', e); }
     } catch(e) {
       groqClassifications = [];
       console.warn('[Groq]', e.message);
@@ -5929,6 +6894,11 @@ async function fetchHeadlines(){
   } else {
     pulseState.contrarianBoost = 0;
     pulseState.contrarianPct = null;
+  }
+
+  // Keyword fallback — always runs when no Groq classifications; shows mix + panel
+  if(!groqClassifications.length){
+    try { runKeywordFallbackMix(allHeadlines); } catch(e) { console.warn('[keyword mix]', e); }
   }
 
   // Classify and render in Conflict tab
@@ -5982,8 +6952,9 @@ async function fetchHeadlines(){
     }
   }
 
-  // Re-detect conflict phase with new headline data
+  // Re-detect BOTH conflict and tariff phases with new headline data
   renderConflictSteps();
+  renderTariffSteps();
 
   return allHeadlines;
 }
@@ -6052,6 +7023,57 @@ function renderConflictSteps(){
 }
 renderConflictSteps();
 
+// ===== TARIFF PLAYBOOK =====
+const tariffSteps=[
+  {step:1,name:"Cryptic Signal",desc:"Friday: Trump posts cryptic message signaling tariffs on a specific country/sector. Markets drift lower.",marker:"Truth Social post, vague threats, 'big announcement coming'",market:"Slight drift lower. Uncertainty starts.",timing:"Friday",buy:"No"},
+  {step:2,name:"Big Tariff Announcement",desc:"Same day or Saturday: Large new tariff (25%+). Shock value maximized.",marker:"Formal tariff announcement with specific % and date",market:"After-hours fear. Weekend anxiety builds.",timing:"Fri/Sat",buy:"No"},
+  {step:3,name:"Weekend Doubling Down",desc:"Saturday–Sunday: Trump repeatedly doubles down while markets are closed. Maximum psychological pressure.",marker:"Multiple Truth Social posts, interviews confirming tariffs",market:"No price discovery. Fear compounds in a vacuum.",timing:"Sat–Sun",buy:"No"},
+  {step:4,name:"Target Responds",desc:"Target country responds publicly or signals willingness to negotiate.",marker:"Foreign leader statements, diplomatic meetings announced",market:"Mixed signals — hope vs fear.",timing:"Weekend",buy:"No"},
+  {step:5,name:"Futures Gap Down",desc:"Sunday 6PM ET: Futures reopen. Emotional selloff as tariff headlines hit price discovery.",marker:"ES futures -1.5% to -4%. Oil may spike. VIX jumps.",market:"Gap down open. Panic selling. Circuit breakers possible.",timing:"Sunday 6PM",buy:"No — too early"},
+  {step:6,name:"Continued Pressure",desc:"Mon–Tue: Trump continues public pressure. But investors realize tariffs aren't live yet (weeks away).",marker:"More threats, but tariff effective date is 2–4 weeks out",market:"Selling continues but pace slows. Volume still elevated.",timing:"Mon–Tue",buy:"No — still falling"},
+  {step:7,name:"Dip Buyers Step In",desc:"Wednesday: Relief rally as dip buyers enter. BUT this often fades and leads to another push lower.",marker:"Intraday reversal, volume spike on green candles, then fade",market:"Brief rally that fades. Creates a bull trap for early buyers.",timing:"Wed of first week",buy:"SMART MONEY starts buying here"},
+  {step:8,name:"Discussion Headlines",desc:"Following weekend: Trump posts that 'discussions are underway' with target country leaders.",marker:"'Working toward a solution,' 'productive talks,' 'good meeting'",market:"Optimism creeps in. Oil may ease. Defensive positioning starts loosening.",timing:"Weekend 2",buy:"Add to positions"},
+  {step:9,name:"Futures Gap Up",desc:"Sunday 6PM: Futures open sharply higher on deal optimism. But gains fade into Monday open.",marker:"ES futures +1–2% at Sunday open, then fade by Mon 9:30AM",market:"Gap up that partially fills. Still volatile. Testing conviction.",timing:"Sunday 6PM (week 2)",buy:"Hold — don't chase"},
+  {step:10,name:"Administration Reassurance",desc:"Monday: Treasury Secretary/officials appear on TV to reassure markets. 'Progress toward a deal.'",marker:"Bessent, Lutnick on CNBC/Fox Business. Optimistic tone.",market:"Stabilization. VIX starts declining. Bond yields normalize.",timing:"Mon (week 2)",buy:"Confidence building"},
+  {step:11,name:"Slow Drip of Progress",desc:"2–4 weeks of various admin officials teasing progress. Market grinds higher on hope.",marker:"'Framework in place,' 'details being finalized,' advisor quotes",market:"Grinding higher. Shorts covering slowly. FOMO building.",timing:"Weeks 2–4",buy:"Hold long positions"},
+  {step:12,name:"Deal Announced → New ATH",desc:"US-China 10% tariff truce extended through Nov 10, 2026. Trump-Xi summit rescheduled for mid-May. Markets repriced on deal. New Section 301 investigations launched (Bangladesh, Cambodia, EU, India — 9 other countries) — next cycle already beginning for new targets.",marker:"US-China tariff truce locked. Trump-Xi summit mid-May. Section 301 probes on EU, India, others starting April 2026.",market:"SPY recovered from tariff lows. VIX compressed. New ATH attempts. Watch Section 301 targets for next cycle.",timing:"Now — Nov 2026 truce, new probes for next targets",buy:"Hold longs. Watch for Step 1 signals on EU/India."},
+  {step:13,name:"Repeat From Step 1",desc:"Cycle starts again with the next target. Section 301 probes on EU, India, Bangladesh, Cambodia + 9 others — public hearing Apr 28. Watch for new tariff announcements after hearing.",marker:"New country/sector targeted. USTR Section 301 public hearing April 28. 'Looking at EU very strongly.'",market:"Markets initially ignore, then the cycle restarts. Watch Friday sessions in late April–May.",timing:"April–May 2026 for new targets",buy:"Reload cash. Wait for Step 5–7 on new targets."},
+];
+
+let currentTariffStep=12; // US-China truce through Nov 2026; new Section 301 probes starting
+
+function renderTariffSteps(){
+  currentTariffStep=detectTariffPhase();
+  if(currentTariffStep>0){
+    document.getElementById('tariff-phase').textContent='Step '+currentTariffStep+' of 13';
+    document.getElementById('tariff-phase-name').textContent='— '+tariffSteps[currentTariffStep-1].name;
+  }else{
+    document.getElementById('tariff-phase').textContent='Dormant';
+    document.getElementById('tariff-phase-name').textContent='— No tariff keywords in headlines. Iran conflict is the dominant cycle. Will auto-activate when tariff headlines emerge.';
+  }
+  document.getElementById('tariff-steps').innerHTML=tariffSteps.map(s=>{
+    const isCurrent=s.step===currentTariffStep;
+    const isPast=currentTariffStep>0&&s.step<currentTariffStep;
+    const borderCol=isCurrent?'var(--cyan)':isPast?'var(--green)':'rgba(255,255,255,0.06)';
+    const bg=isCurrent?'rgba(34,211,238,0.06)':isPast?'rgba(34,197,94,0.03)':'rgba(255,255,255,0.01)';
+    const buyCol=s.buy.includes('SMART')?'#22c55e':s.buy.includes('Add')||s.buy.includes('Hold')?'#f59e0b':s.buy.includes('Take')?'#a855f7':'rgba(255,255,255,0.2)';
+    return `<div style="background:${bg};border:1px solid ${borderCol};border-left:4px solid ${borderCol};border-radius:0 10px 10px 0;padding:14px;margin-bottom:6px;${isCurrent?'box-shadow:0 0 20px rgba(34,211,238,0.08)':''}${!isCurrent&&!isPast&&currentTariffStep>0?'opacity:0.5':''}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${isPast?'var(--green)':isCurrent?'var(--cyan)':'rgba(255,255,255,0.06)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${isPast||isCurrent?'#0a0e17':'rgba(255,255,255,0.3)'};font-family:var(--mono);flex-shrink:0">${s.step}</div>
+        <div style="font-size:13px;font-weight:700;color:${isCurrent?'var(--cyan)':'rgba(255,255,255,0.65)'}">${s.name}</div>
+        <span style="font-size:9px;color:rgba(255,255,255,0.2)">${s.timing}</span>
+        ${isCurrent?'<span class="badge" style="color:#22d3ee;border:1px solid rgba(34,211,238,0.3);background:rgba(34,211,238,0.1);animation:pulse 2s infinite">← CURRENT</span>':''}
+        <span style="margin-left:auto;font-size:10px;font-weight:700;color:${buyCol}">${s.buy}</span>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;margin-bottom:6px">${s.desc}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:9px;color:rgba(255,255,255,0.25)">
+        <span><strong style="color:rgba(255,255,255,0.35)">Marker:</strong> ${s.marker}</span>
+        <span><strong style="color:rgba(255,255,255,0.35)">Market:</strong> ${s.market}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+renderTariffSteps();
 
 // ===== TOOLS TAB: ALERTS =====
 let lastConflictStep = currentConflictStep;
@@ -6270,6 +7292,54 @@ function exportDashboard(format) {
   }
 }
 
+// ===== TOOLS TAB: BACKTEST =====
+const backtestData=[
+  {name:'Black Monday',date:'Oct 1987',fg:null,vix:150,dd:34,score:null,ret:'+21%'},
+  {name:'LTCM/Russia',date:'Oct 1998',fg:8,vix:45.74,dd:19,score:5.8,ret:'+27%'},
+  {name:'9/11',date:'Sep 2001',fg:3,vix:49.35,dd:12,score:6.5,ret:'+5%'},
+  {name:'Dot-com Bottom',date:'Oct 2002',fg:5,vix:45.08,dd:49,score:6.2,ret:'+26%'},
+  {name:'GFC Bottom',date:'Mar 2009',fg:2,vix:80.86,dd:57,score:8.5,ret:'+68%'},
+  {name:'Flash Crash',date:'May 2010',fg:10,vix:45.79,dd:16,score:5.5,ret:'+22%'},
+  {name:'EU Debt',date:'Aug 2011',fg:6,vix:48,dd:19,score:6.0,ret:'+13%'},
+  {name:'China Deval',date:'Aug 2015',fg:5,vix:53.29,dd:12,score:5.2,ret:'+10%'},
+  {name:'Volmageddon',date:'Feb 2018',fg:8,vix:37.32,dd:10,score:7.0,ret:'+9%'},
+  {name:'Q4 2018',date:'Dec 2018',fg:2,vix:36.07,dd:20,score:8.2,ret:'+29%'},
+  {name:'COVID',date:'Mar 2020',fg:3,vix:82.69,dd:34,score:9.5,ret:'+100%'},
+  {name:'Inflation Bear',date:'Oct 2022',fg:13,vix:36,dd:27,score:7.0,ret:'+100%'},
+  {name:'Yen Unwind',date:'Aug 2024',fg:14,vix:65.73,dd:10,score:4.5,ret:'+15%'},
+  {name:'Tariff Crisis',date:'Apr 2025',fg:3,vix:60.13,dd:18,score:9.0,ret:'+45%'},
+  {name:'Iran War (NOW)',date:'Mar 2026',fg:20,vix:25,dd:6,score:2.3,ret:'TBD'},
+];
+function renderBacktest(){
+  const el=document.getElementById('backtest-results'); if(!el) return;
+  el.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px">
+    <thead><tr style="border-bottom:2px solid rgba(255,255,255,0.08)">
+      <th style="text-align:left;padding:6px;color:rgba(255,255,255,0.3)">Crisis</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Date</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">F&G</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">VIX</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">DD</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">Score</th>
+      <th style="text-align:center;padding:6px;color:rgba(255,255,255,0.3)">12-Mo</th>
+    </tr></thead><tbody>${backtestData.map(b=>{
+      const isNow=b.name.includes('NOW');
+      const sc=b.score>=7?'#22c55e':b.score>=5?'#f59e0b':b.score!==null?'#ef4444':'#555';
+      const rc=b.ret.startsWith('+')?'#22c55e':b.ret==='TBD'?'#22d3ee':'#ef4444';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);${isNow?'background:rgba(34,211,238,0.05)':''}">
+        <td style="padding:5px 6px;color:${isNow?'var(--cyan)':'rgba(255,255,255,0.6)'};font-weight:${isNow?800:600};white-space:nowrap">${b.name}</td>
+        <td style="padding:5px 6px;text-align:center;color:rgba(255,255,255,0.4);font-family:var(--mono);font-size:9px">${b.date}</td>
+        <td style="padding:5px 6px;text-align:center;color:${b.fg!==null?fearColor(b.fg):'#555'};font-weight:700;font-family:var(--mono)">${b.fg!==null?b.fg:'N/A'}</td>
+        <td style="padding:5px 6px;text-align:center;color:${vixColor(b.vix)};font-weight:700;font-family:var(--mono)">${b.vix}</td>
+        <td style="padding:5px 6px;text-align:center;color:${b.dd>=20?'#ef4444':'#f97316'};font-family:var(--mono)">-${b.dd}%</td>
+        <td style="padding:5px 6px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-weight:900;font-family:var(--mono);font-size:12px;color:${sc};background:${sc}15;border:1px solid ${sc}30">${b.score!==null?b.score.toFixed(1):'--'}</span></td>
+        <td style="padding:5px 6px;text-align:center;color:${rc};font-weight:800;font-family:var(--mono)">${b.ret}</td>
+      </tr>`;}).join('')}</tbody></table></div>
+  <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px;text-align:center">
+    <div style="font-size:12px;font-weight:800;color:var(--green)">100% Hit Rate: Every Score ≥ 5 Produced Positive 12-Month Returns</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Scores 7+ produced the largest gains. Current ~2.3 = <strong style="color:var(--amber)">wait for setup</strong>.</div>
+  </div>`;
+}
+renderBacktest();
 
 
 
@@ -6375,6 +7445,65 @@ function renderRSIConfluence(){
       <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:5px;line-height:1.4">${stNote}</div>
     </div>`;
   }
+}
+
+function renderTechConfluence(){
+  const el=document.getElementById('tech-confluence-panel');
+  if(!el) return;
+  const p=pulseState;
+  const instruments=Object.entries(instrumentMap);
+  let dailyOversold=0, weeklyOversold=0, atSupportCount=0;
+  const rows=instruments.map(([key,cfg])=>{
+    const price=p[cfg.priceKey];
+    const rsiKeyMap={SPY:'rsiSPY',QQQ:'rsiQQQ',IWM:'rsiIWM',ES:'rsiES',NQ:'rsiNQ'};
+    const wRsiKeyMap={SPY:'weeklyRsiSPY',QQQ:'weeklyRsiQQQ',IWM:'weeklyRsiIWM',ES:'weeklyRsiES',NQ:'weeklyRsiNQ'};
+    const dr=p[rsiKeyMap[key]], wr=p[wRsiKeyMap[key]];
+    const ns=price?calcNearestSupport(price,cfg.levels):null;
+    if(dr!=null&&dr<30) dailyOversold++;
+    if(wr!=null&&wr<35) weeklyOversold++;
+    if(ns&&ns.atSupport) atSupportCount++;
+    const drColor=dr==null?'rgba(255,255,255,0.3)':dr<30?'#22c55e':dr<40?'#86efac':dr>70?'#ef4444':'rgba(255,255,255,0.7)';
+    const wrColor=wr==null?'rgba(255,255,255,0.3)':wr<35?'#22c55e':wr<45?'#86efac':wr>70?'#ef4444':'rgba(255,255,255,0.7)';
+    const suppCell=ns?(ns.atSupport?'<span style="color:#22c55e">✅ AT SUPPORT</span>':'<span style="color:rgba(255,255,255,0.5)">-'+ns.distancePct.toFixed(1)+'%</span>'):'<span style="color:rgba(255,255,255,0.2)">--</span>';
+    const zoneCell=ns?ns.level.label:'--';
+    const alert=((dr!=null&&dr<30)||(wr!=null&&wr<35)||(ns&&ns.atSupport))?'← ALERT':'';
+    return `<tr>
+      <td style="padding:6px 8px;color:rgba(255,255,255,0.9);font-weight:600">${cfg.ticker}</td>
+      <td style="padding:6px 8px;color:${drColor};text-align:center">${dr!=null?dr.toFixed(1):'--'}</td>
+      <td style="padding:6px 8px;color:${wrColor};text-align:center">${wr!=null?wr.toFixed(1):'--'}</td>
+      <td style="padding:6px 8px;text-align:center">${suppCell}</td>
+      <td style="padding:6px 8px;color:rgba(255,255,255,0.4);font-size:10px">${zoneCell}</td>
+      <td style="padding:6px 8px;color:#f59e0b;font-size:10px;font-weight:700">${alert}</td>
+    </tr>`;
+  }).join('');
+  const confluenceScore=dailyOversold+weeklyOversold+atSupportCount;
+  let badge='';
+  if(dailyOversold>=4||weeklyOversold>=4){
+    badge=`<div style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:8px;padding:10px 16px;margin-bottom:12px;color:#22c55e;font-weight:700;font-size:13px">🚨 RSI CONFLUENCE — EXTREME OVERSOLD (${Math.max(dailyOversold,weeklyOversold)}/5)</div>`;
+  } else if(dailyOversold>=3||weeklyOversold>=3){
+    badge=`<div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:10px 16px;margin-bottom:12px;color:#f59e0b;font-weight:700;font-size:13px">⚡ RSI CONFLUENCE — OVERSOLD (${Math.max(dailyOversold,weeklyOversold)}/5)</div>`;
+  }
+  if(atSupportCount>=3){
+    badge+=`<div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:8px 16px;margin-bottom:12px;color:#22c55e;font-weight:700;font-size:12px">🏗️ STRUCTURAL SUPPORT CONFLUENCE — ${atSupportCount}/5 AT SUPPORT</div>`;
+  }
+  el.style.display='block';
+  el.innerHTML=`
+    <div class="panel-title" style="color:#22c55e">Technical Confluence — RSI + Structural Support</div>
+    ${badge}
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)">
+        <thead><tr style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;letter-spacing:0.5px">
+          <th style="padding:4px 8px;text-align:left">Instrument</th>
+          <th style="padding:4px 8px;text-align:center">Daily RSI</th>
+          <th style="padding:4px 8px;text-align:center">Weekly RSI</th>
+          <th style="padding:4px 8px;text-align:center">At Support?</th>
+          <th style="padding:4px 8px;text-align:left">Support Zone</th>
+          <th style="padding:4px 8px;text-align:left"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.3)">Daily RSI&lt;30 = oversold · Weekly RSI&lt;35 = weekly oversold · Support ±3% = at zone</div>`;
 }
 
 // ===== BOTTOM PATTERNS + PATTERN MATCHER =====
@@ -8203,6 +9332,9 @@ if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
 if(typeof renderBottomState==='function') renderBottomState();
 if(typeof renderTripleConfluence==='function') renderTripleConfluence();
 if(typeof renderRSIConfluence==='function') renderRSIConfluence();
+if(typeof renderTechConfluence==='function') renderTechConfluence();
+if(typeof renderIranLesson==='function') renderIranLesson();
+if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix();
 
 // Wire alerts + zone summaries into propagateData
 const _origPropagate=propagateData;
@@ -8426,6 +9558,372 @@ function renderPositionSizer(){
   `;
 }
 
+// ===== SCENARIO SIMULATOR =====
+// Interactive "what-if" sliders that let users see how their score would
+// change if VIX hit 45, CNN F&G dropped to 5, etc. — without waiting for
+// real data. Uses override/restore pattern on pulseState so no changes to
+// the signals array are needed. Real-time recompute on every slider input.
+
+const SS_SCENARIOS = [
+  { id:'sim-vix',       label:'VIX',         key:'vix',           min:10,    max:90,   step:0.5, fmt:v=>v.toFixed(1),  getCur:()=>pulseState.vix },
+  { id:'sim-cnnfg',     label:'CNN F&G',     key:'cnnFG',         min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.cnnFG },
+  { id:'sim-cryptofg',  label:'Crypto F&G',  key:'cryptoFG',      min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.cryptoFG },
+  { id:'sim-vixratio',  label:'VIX/VIX3M',   key:'vixRatio',      min:0.7,   max:1.3,  step:0.01,fmt:v=>v.toFixed(3),  getCur:()=>pulseState.vixRatio },
+  { id:'sim-spy',       label:'SPY Price',   key:'spyPrice',      min:400,   max:750,  step:1,   fmt:v=>'$'+Math.round(v), getCur:()=>pulseState.spyPrice },
+  { id:'sim-rsi',       label:'SPY RSI',     key:'rsiSPY',        min:10,    max:90,   step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.rsiSPY },
+  { id:'sim-hyspread',  label:'HY Spread',   key:'hySpreads',     min:200,   max:1200, step:10,  fmt:v=>Math.round(v)+'bp', getCur:()=>pulseState.hySpreads },
+  { id:'sim-nfci',      label:'NFCI',        key:'nfci',          min:-1,    max:1,    step:0.01,fmt:v=>v.toFixed(2),  getCur:()=>pulseState.nfci },
+  { id:'sim-naaim',     label:'NAAIM',       key:'naaimExposure', min:0,     max:100,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.naaimExposure },
+  { id:'sim-aaiiBear',  label:'AAII Bear %', key:'aaiiBear',      min:20,    max:70,   step:1,   fmt:v=>Math.round(v)+'%', getCur:()=>pulseState.aaiiBear },
+  { id:'sim-putcall',   label:'Put/Call',    key:'putCallRatio',  min:0.5,   max:1.8,  step:0.01,fmt:v=>v.toFixed(2),  getCur:()=>pulseState.putCallRatio },
+  { id:'sim-skew',      label:'SKEW',        key:'skew',          min:100,   max:170,  step:1,   fmt:v=>Math.round(v), getCur:()=>pulseState.skew },
+];
+
+// Preset historical bottoms — snap sliders to these values
+const SS_PRESETS = {
+  COVID:       { vix:80, cnnFG:3,  cryptoFG:11, vixRatio:1.15, spyPrice:480, rsiSPY:22, hySpreads:1100, nfci:0.7,  naaimExposure:12, aaiiBear:60, putCallRatio:1.45, skew:108 },
+  Tariff:      { vix:60, cnnFG:3,  cryptoFG:10, vixRatio:1.08, spyPrice:482, rsiSPY:25, hySpreads:650,  nfci:0.35, naaimExposure:18, aaiiBear:62, putCallRatio:1.40, skew:112 },
+  Iran:        { vix:31, cnnFG:15, cryptoFG:11, vixRatio:0.95, spyPrice:656, rsiSPY:38, hySpreads:420,  nfci:-0.1, naaimExposure:55, aaiiBear:45, putCallRatio:1.10, skew:128 },
+  FlashCrash:  { vix:46, cnnFG:10, cryptoFG:18, vixRatio:1.03, spyPrice:585, rsiSPY:30, hySpreads:500,  nfci:0.15, naaimExposure:30, aaiiBear:52, putCallRatio:1.25, skew:118 },
+};
+
+function calcSimulatedScore(overrides){
+  // Temporarily swap pulseState values, run full scoring, then restore
+  const saved = {};
+  const keys = Object.keys(overrides || {});
+  keys.forEach(k => { saved[k] = pulseState[k]; pulseState[k] = overrides[k]; });
+
+  // Derive spyPctFromATH if SPY price is overridden
+  const savedPct = pulseState.spyPctFromATH;
+  if(overrides && overrides.spyPrice != null){
+    pulseState.spyPctFromATH = ((698 - overrides.spyPrice) / 698) * 100;
+  }
+
+  let result;
+  try {
+    const clusterMax = {A:0, B:0, C:0, D:0};
+    const contribs = [];
+    signals.forEach(s => {
+      let sc = 0;
+      try { sc = Math.min(1, s.score() || 0); } catch(e) {}
+      contribs.push({ id:s.id, name:s.name, cluster:s.cluster, score:sc });
+      if(s.cluster && clusterMax[s.cluster] !== undefined && sc > clusterMax[s.cluster]){
+        clusterMax[s.cluster] = sc;
+      }
+    });
+    const _cw4=_clusterWeights();
+    const rawScore = clusterMax.A*_cw4.A + clusterMax.B*_cw4.B + clusterMax.C*_cw4.C + clusterMax.D*_cw4.D;
+    const boost = pulseState.contrarianBoost || 0;
+    let tcBonus = 0;
+    try { tcBonus = (signals.find(s=>s.id==='tripleConfluence')?.score()) || 0; } catch(e) {}
+    const velBoost = (pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
+    let geoBonus2 = 0;
+    try { geoBonus2 = (signals.find(s=>s.id==='geoCatalyst')?.score()) || 0; } catch(e) {}
+    let bsBonus2 = 0;
+    try {
+      const _bs2 = bottomStateManager.load();
+      const _bsDays2 = _bs2.days ? Math.max(0, _bs2.days.length-1) : 0;
+      if(_bs2.state === BS_STATES.CONFIRMED) bsBonus2 = 2.0;
+      else if(_bs2.state === BS_STATES.CONFIRMING && _bsDays2 >= 3) bsBonus2 = 1.0;
+    } catch(e) {}
+    const m2Mult2 = calcM2Multiplier();
+    const ftMult2 = pulseState.followThrough?.multiplier || 1.0;
+    const total = Math.min(10, (rawScore*10*m2Mult2 + boost + tcBonus + geoBonus2)*ftMult2 + velBoost + bsBonus2);
+    result = { score: total, rawScore, clusterMax, contribs: contribs.sort((a,b)=>b.score - a.score) };
+  } finally {
+    keys.forEach(k => { pulseState[k] = saved[k]; });
+    pulseState.spyPctFromATH = savedPct;
+  }
+  return result;
+}
+
+function _ssGetOverrides(){
+  const overrides = {};
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(el && el.value !== '') overrides[s.key] = parseFloat(el.value);
+  });
+  return overrides;
+}
+
+function _ssUpdate(){
+  const overrides = _ssGetOverrides();
+  const sim = calcSimulatedScore(overrides);
+  const current = calcSimulatedScore({});
+  const curScore = current.score;
+  const simScore = sim.score;
+
+  // Update each row's sim value + delta
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(!el) return;
+    const simVal = parseFloat(el.value);
+    const cur = s.getCur();
+    const simDisp = document.getElementById(s.id + '-sim');
+    const delDisp = document.getElementById(s.id + '-delta');
+    if(simDisp) simDisp.textContent = s.fmt(simVal);
+    if(delDisp){
+      if(cur == null || isNaN(cur)){
+        delDisp.textContent = '—';
+        delDisp.style.color = 'rgba(255,255,255,0.2)';
+      } else {
+        const d = simVal - cur;
+        const absD = Math.abs(d);
+        const dec = absD < 1 ? 2 : absD < 10 ? 1 : 0;
+        delDisp.textContent = (d>0?'+':'') + d.toFixed(dec);
+        delDisp.style.color = Math.abs(d) < 0.001 ? 'rgba(255,255,255,0.2)' : (d>0 ? '#22c55e' : '#ef4444');
+      }
+    }
+  });
+
+  // Summary card — score diff, verdict, top contributors
+  const curEl = document.getElementById('ss-current-score');
+  const simEl = document.getElementById('ss-sim-score');
+  const curBarEl = document.getElementById('ss-current-bar');
+  const simBarEl = document.getElementById('ss-sim-bar');
+  const verdictEl = document.getElementById('ss-verdict');
+  const contribEl = document.getElementById('ss-contribs');
+  const narrEl = document.getElementById('ss-narrative');
+
+  if(curEl) curEl.textContent = curScore.toFixed(1);
+  if(simEl) simEl.textContent = simScore.toFixed(1);
+  if(curBarEl) curBarEl.style.width = (curScore*10) + '%';
+  if(simBarEl) simBarEl.style.width = (simScore*10) + '%';
+
+  // Verdict
+  let regKey = 'UNKNOWN';
+  try { regKey = classifyRegime(); } catch(e) {}
+  const threshold = (typeof REGIMES !== 'undefined' && REGIMES[regKey]) ? REGIMES[regKey].threshold : 7;
+  const regLabel = (typeof REGIMES !== 'undefined' && REGIMES[regKey]?.label) || regKey;
+
+  let verdict, verdictCol;
+  if(simScore >= threshold)     { verdict = 'Would trigger STRONG BUY'; verdictCol = '#22c55e'; }
+  else if(simScore >= threshold*0.7) { verdict = 'Would trigger SCALE IN'; verdictCol = '#f59e0b'; }
+  else                          { verdict = 'Still WAIT'; verdictCol = '#94a3b8'; }
+
+  if(verdictEl){
+    verdictEl.innerHTML = '<span style="color:'+verdictCol+';font-weight:800">'+verdict+'</span>'
+      + ' <span style="color:rgba(255,255,255,0.35);font-size:10px">on '+regLabel+' type (threshold '+threshold.toFixed(1)+')</span>';
+  }
+
+  // Top contributors — compare sim vs current
+  if(contribEl){
+    const curContribs = {};
+    current.contribs.forEach(c => { curContribs[c.id] = c.score; });
+    const deltas = sim.contribs.map(c => {
+      const cur = curContribs[c.id] || 0;
+      return { id:c.id, name:c.name, cluster:c.cluster, sim:c.score, cur, delta:c.score - cur };
+    }).filter(d => Math.abs(d.delta) > 0.05).sort((a,b)=>Math.abs(b.delta) - Math.abs(a.delta)).slice(0,4);
+
+    if(deltas.length === 0){
+      contribEl.innerHTML = '<div style="font-size:10px;color:rgba(255,255,255,0.25);padding:4px 0">Drag a slider to see which signals change.</div>';
+    } else {
+      contribEl.innerHTML = deltas.map(d => {
+        const arrow = d.delta > 0 ? '▲' : '▼';
+        const col = d.delta > 0 ? '#22c55e' : '#ef4444';
+        return '<div style="font-size:10px;padding:3px 0;color:rgba(255,255,255,0.55)">'
+          +'<span style="color:'+col+';font-family:var(--mono);font-weight:700;margin-right:6px">'+arrow+' '+(d.delta>0?'+':'')+d.delta.toFixed(2)+'</span>'
+          +'<span>'+d.name+'</span>'
+          +'<span style="color:rgba(255,255,255,0.3);margin-left:6px">(current '+d.cur.toFixed(2)+' → sim '+d.sim.toFixed(2)+')</span>'
+          +'</div>';
+      }).join('');
+    }
+  }
+
+  // Narrative
+  if(narrEl){
+    const diff = simScore - curScore;
+    const diffAbs = Math.abs(diff);
+    if(diffAbs < 0.1){
+      narrEl.innerHTML = '<span style="color:rgba(255,255,255,0.3);font-size:10px;font-style:italic">Sliders match current state — drag to simulate.</span>';
+    } else {
+      const changed = Object.keys(overrides).filter(k => {
+        const s = SS_SCENARIOS.find(sc => sc.key === k);
+        if(!s) return false;
+        const cur = s.getCur();
+        return cur != null && Math.abs(overrides[k] - cur) > 0.001;
+      });
+      const parts = changed.slice(0,3).map(k => {
+        const s = SS_SCENARIOS.find(sc => sc.key === k);
+        return s.label + ' = ' + s.fmt(overrides[k]);
+      });
+      const phrase = parts.length ? '⚡ If ' + parts.join(' and ') + ', ' : '⚡ ';
+      const triggered = simScore >= threshold
+        ? ' — <span style="color:#22c55e;font-weight:800">triggering STRONG BUY</span>.'
+        : simScore >= threshold*0.7
+          ? ' — <span style="color:#f59e0b;font-weight:800">triggering SCALE IN</span>.'
+          : ' — <span style="color:#94a3b8">still below buy threshold</span>.';
+      narrEl.innerHTML = '<span style="color:rgba(255,255,255,0.55);font-size:10px;font-style:italic">'
+        + phrase + 'score would move from ' + curScore.toFixed(1) + ' to ' + simScore.toFixed(1) + triggered + '</span>';
+    }
+  }
+}
+
+function _ssReset(){
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(!el) return;
+    const cur = s.getCur();
+    if(cur != null) el.value = cur;
+  });
+  _ssUpdate();
+}
+
+function _ssApplyPreset(presetKey){
+  const preset = SS_PRESETS[presetKey];
+  if(!preset) return;
+  SS_SCENARIOS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(!el) return;
+    if(preset[s.key] != null){
+      el.value = Math.max(s.min, Math.min(s.max, preset[s.key]));
+    }
+  });
+  _ssUpdate();
+}
+
+function findBuyTrigger(){
+  // Find the SINGLE slider whose extreme bullish value gives the biggest score boost
+  let regKey = 'UNKNOWN';
+  try { regKey = classifyRegime(); } catch(e) {}
+  const threshold = (typeof REGIMES !== 'undefined' && REGIMES[regKey]) ? REGIMES[regKey].threshold : 7;
+  const current = calcSimulatedScore({});
+  const curScore = current.score;
+
+  if(curScore >= threshold){
+    const narrEl = document.getElementById('ss-narrative');
+    if(narrEl) narrEl.innerHTML = '<span style="color:#22c55e;font-size:10px;font-weight:700">✓ Already above buy threshold ('+threshold.toFixed(1)+').</span>';
+    return;
+  }
+
+  // Bullish extreme for each slider (based on whether higher or lower = more fear)
+  const bullishExtremes = {
+    vix:90, vixRatio:1.3, hySpreads:1200, nfci:1.0, skew:100, aaiiBear:70, putCallRatio:1.8,
+    cnnFG:0, cryptoFG:0, spyPrice:400, naaimExposure:0, rsiSPY:10,
+  };
+
+  // Test each slider at its bullish extreme, cumulatively add until threshold is crossed
+  const sortedImpact = SS_SCENARIOS.map(s => {
+    const over = {};
+    over[s.key] = bullishExtremes[s.key];
+    if(over[s.key] == null) return { s, gain:0 };
+    const r = calcSimulatedScore(over);
+    return { s, gain: r.score - curScore };
+  }).filter(x => x.gain > 0.05).sort((a,b) => b.gain - a.gain);
+
+  // Greedy combine from most impactful
+  const combined = {};
+  let simScore = curScore;
+  const used = [];
+  for(const item of sortedImpact){
+    combined[item.s.key] = bullishExtremes[item.s.key];
+    used.push(item.s);
+    const r = calcSimulatedScore(combined);
+    simScore = r.score;
+    if(simScore >= threshold) break;
+  }
+
+  // Apply the found combination to the sliders
+  Object.keys(combined).forEach(k => {
+    const s = SS_SCENARIOS.find(sc => sc.key === k);
+    if(!s) return;
+    const el = document.getElementById(s.id);
+    if(el) el.value = Math.max(s.min, Math.min(s.max, combined[k]));
+  });
+  _ssUpdate();
+
+  const narrEl = document.getElementById('ss-narrative');
+  if(narrEl){
+    if(simScore >= threshold){
+      narrEl.innerHTML = '<span style="color:#22c55e;font-size:10px;font-weight:700">Found! Maxing ' + used.length + ' signal' + (used.length>1?'s':'') + ' (' + used.map(s=>s.label).join(', ') + ') → score ' + curScore.toFixed(1) + ' → ' + simScore.toFixed(1) + ' (crosses threshold ' + threshold.toFixed(1) + ').</span>';
+    } else {
+      narrEl.innerHTML = '<span style="color:#f59e0b;font-size:10px">Even at max bullish extremes the score only reaches ' + simScore.toFixed(1) + ' (threshold ' + threshold.toFixed(1) + '). Regime-specific signals (e.g. triple confluence) may be missing.</span>';
+    }
+  }
+}
+
+function renderScenarioSimulator(){
+  const el = document.getElementById('scenario-simulator');
+  if(!el) return;
+
+  const rows = SS_SCENARIOS.map(s => {
+    const cur = s.getCur();
+    const val = (cur != null && !isNaN(cur)) ? cur : ((s.min + s.max) / 2);
+    const boundedVal = Math.max(s.min, Math.min(s.max, val));
+    const curDisp = (cur != null && !isNaN(cur)) ? s.fmt(cur) : '—';
+    return '<div class="ss-row">'
+      + '<span style="font-weight:700;color:rgba(255,255,255,0.7)">' + s.label + '</span>'
+      + '<input id="' + s.id + '" type="range" class="ss-slider" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + boundedVal + '" oninput="_ssUpdate()">'
+      + '<span class="ss-cur" style="font-family:var(--mono);color:rgba(255,255,255,0.35);text-align:right">' + curDisp + '</span>'
+      + '<span id="' + s.id + '-sim" style="font-family:var(--mono);color:#a855f7;font-weight:700;text-align:right">' + s.fmt(boundedVal) + '</span>'
+      + '<span id="' + s.id + '-delta" style="font-family:var(--mono);font-size:9px;text-align:right;color:rgba(255,255,255,0.2)">—</span>'
+      + '</div>';
+  }).join('');
+
+  const headerRow = '<div class="ss-row" style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.25);padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:4px">'
+    + '<span></span><span></span>'
+    + '<span style="text-align:right">Current</span>'
+    + '<span style="text-align:right">Simulated</span>'
+    + '<span style="text-align:right">Δ</span>'
+    + '</div>';
+
+  const presetBtns = Object.keys(SS_PRESETS).map(k =>
+    '<button class="ss-preset-btn" onclick="_ssApplyPreset(\'' + k + '\')">' + k + '</button>'
+  ).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div class="panel-title" style="color:#a855f7;margin:0">Scenario Simulator</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="ss-preset-btn" onclick="findBuyTrigger()" style="border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.08);color:#22c55e">⚡ What triggers a BUY?</button>
+        <button class="ss-preset-btn" onclick="_ssReset()" style="border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5)">Reset to Current</button>
+      </div>
+    </div>
+    <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px;line-height:1.5">Drag sliders to see how the score would respond. No API calls — instant feedback. Historical-bottom presets snap all sliders at once.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      <span style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-right:4px;align-self:center">Presets:</span>
+      ${presetBtns}
+    </div>
+
+    ${headerRow}
+    <div style="margin-bottom:14px">${rows}</div>
+
+    <div style="padding:14px;background:rgba(168,85,247,0.04);border:1px solid rgba(168,85,247,0.18);border-radius:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
+        <div>
+          <div style="font-size:8px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Current Score</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <div id="ss-current-score" style="font-family:var(--mono);font-size:22px;font-weight:900;color:rgba(255,255,255,0.5)">--</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.3)">/ 10</div>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:4px;overflow:hidden">
+            <div id="ss-current-bar" style="width:0%;height:100%;background:rgba(255,255,255,0.4);transition:width 0.2s ease"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Simulated Score</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <div id="ss-sim-score" style="font-family:var(--mono);font-size:22px;font-weight:900;color:#a855f7">--</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.3)">/ 10</div>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:4px;overflow:hidden">
+            <div id="ss-sim-bar" style="width:0%;height:100%;background:#a855f7;transition:width 0.2s ease"></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-bottom:10px"><span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px">Verdict: </span><span id="ss-verdict" style="font-size:11px">—</span></div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Biggest signal changes</div>
+        <div id="ss-contribs"><div style="font-size:10px;color:rgba(255,255,255,0.25);padding:4px 0">Drag a slider to see which signals change.</div></div>
+      </div>
+      <div id="ss-narrative"><span style="color:rgba(255,255,255,0.3);font-size:10px;font-style:italic">Sliders match current state — drag to simulate.</span></div>
+    </div>
+  `;
+
+  // Initial compute
+  _ssUpdate();
+}
 
 // ===== REGIME CLASSIFIER =====
 // Auto-detects market regime (CRISIS / RECOVERY / BULL / RANGE) from score,
@@ -8480,8 +9978,8 @@ function detectRegime(){
   return{
     regime:'RANGE',color:'#f59e0b',icon:'🟡',label:'RANGE / CONSOLIDATION',
     subtitle:distFromATH.toFixed(1)+'% from ATH · VIX '+vix.toFixed(1)+' · Watching for breakout or breakdown',
-    focusTab:'levels',
-    advice:'Focus on: Accumulation zones · Key Levels · Cycle Trackers'
+    focusTab:'squeeze',
+    advice:'Focus on: Squeeze Gauge · Key Levels · Cycle Trackers'
   };
 }
 
@@ -8957,10 +10455,10 @@ function renderScoreTrajectory(){
   `;
 }
 
-// ===== KEYWORD CLASSIFIER =====
-// Fallback 6-label classifier for headlines when no Groq key is set —
-// used for the per-headline label badges in the War Cycle headline list.
-const GROQ_COLORS={CAPITULATION:'#ef4444',FEAR:'#f97316',UNCERTAINTY:'#f59e0b',NEUTRAL:'#94a3b8',RECOVERY:'#22d3ee',EUPHORIA:'#22c55e'};
+// ===== KEYWORD CLASSIFIER + SENTIMENT VELOCITY =====
+// Fallback 6-label classifier for headlines when no Groq key is set. Also
+// provides sentiment velocity (fear/recovery % slopes) over last 5 history
+// entries, and a 15-min throttle for Groq API calls (respects 30 RPM free tier).
 
 function keywordClassify(headline){
   const t=(headline||'').toLowerCase();
@@ -8971,6 +10469,55 @@ function keywordClassify(headline){
   if(/rally|surge|rebound|recover|gain|\bbuy\b|bullish|best day|bounce|jump|climb|rise|resum|stabiliz/.test(t)) return 'RECOVERY';
   if(/could|may|uncertain|watch|mixed|volatile|unclear|caution|hedge|await|wait/.test(t)) return 'UNCERTAINTY';
   return 'NEUTRAL';
+}
+
+function calcSentimentVelocity(history){
+  if(!history||history.length<3) return null;
+  const recent=history.slice(-5);
+  const fearTrend=recent.map(h=>{
+    const tot=Object.values(h.mix).reduce((a,b)=>a+b,0)||1;
+    return ((h.mix.CAPITULATION||0)+(h.mix.FEAR||0))/tot*100;
+  });
+  const recoveryTrend=recent.map(h=>{
+    const tot=Object.values(h.mix).reduce((a,b)=>a+b,0)||1;
+    return ((h.mix.RECOVERY||0)+(h.mix.EUPHORIA||0))/tot*100;
+  });
+  const n=fearTrend.length;
+  const fearSlope=(fearTrend[n-1]-fearTrend[0])/n;
+  const recoverySlope=(recoveryTrend[n-1]-recoveryTrend[0])/n;
+  let phase;
+  if(fearTrend[n-1]>60)        phase='PEAK FEAR';
+  else if(fearSlope<-5)        phase='FEAR FADING';
+  else if(recoverySlope>5)     phase='RECOVERY BUILDING';
+  else if(recoveryTrend[n-1]>50) phase='RECOVERY DOMINANT';
+  else                         phase='MIXED';
+  return{fearSlope,recoverySlope,phase,fearTrend,recoveryTrend};
+}
+
+function runKeywordFallbackMix(headlines){
+  if(!headlines||!headlines.length) return;
+  const groqKey=(document.getElementById('key-groq')||{}).value?.trim()||'';
+  let groqHist=[];
+  try{ groqHist=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]'); }catch(e){}
+  // Only render keyword fallback when no Groq key or no Groq history yet
+  if(groqKey && groqHist.length) return;
+
+  const mix={CAPITULATION:0,FEAR:0,UNCERTAINTY:0,NEUTRAL:0,RECOVERY:0,EUPHORIA:0};
+  headlines.slice(0,20).forEach(h=>{
+    const label=keywordClassify(h.title);
+    mix[label]++;
+  });
+
+  const KEY='btf-keyword-mix';
+  let hist=[];
+  try{ hist=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){}
+  const today=new Date().toISOString().slice(0,10);
+  hist=hist.filter(e=>e.date!==today);
+  hist.push({date:today,mix,phase:_groqPhase(mix),total:Math.min(headlines.length,20),source:'keyword'});
+  if(hist.length>14) hist=hist.slice(-14);
+  try{ localStorage.setItem(KEY,JSON.stringify(hist)); }catch(e){}
+
+  renderGroqSentimentMix(hist, null);
 }
 
 // ===== PER-CARD DELTA ARROWS =====
@@ -9041,11 +10588,177 @@ function renderDeltaStatus(){
   el.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-weight:600">'+n+'</span> metrics moved &gt;5% since last fetch <span style="color:rgba(255,255,255,0.15)">('+mins+' min ago)</span>';
 }
 
+// ===== GROQ HEADLINE SENTIMENT MIX =====
+// Derives 6-label classification from existing Groq `sentiment` floats (-1..+1)
+// returned by classifyHeadlinesWithGroq. Tracks daily mix in localStorage
+// 'btf-groq-mix'. Shift from majority-FEAR to majority-RECOVERY = independent
+// bottom confirmation signal.
+const GROQ_LABELS=['CAPITULATION','FEAR','UNCERTAINTY','NEUTRAL','RECOVERY','EUPHORIA'];
+const GROQ_COLORS={CAPITULATION:'#ef4444',FEAR:'#f97316',UNCERTAINTY:'#f59e0b',NEUTRAL:'#94a3b8',RECOVERY:'#22d3ee',EUPHORIA:'#22c55e'};
+const GROQ_PHASES={
+  PEAK_FEAR:          {label:'PEAK FEAR',color:'#ef4444',desc:'Maximum retail fear — institutions accumulating into weakness'},
+  TRANSITIONING:      {label:'TRANSITIONING',color:'#f59e0b',desc:'Fear losing dominance — recovery sentiment building'},
+  RECOVERY_CONFIRMED: {label:'RECOVERY CONFIRMED',color:'#22c55e',desc:'Majority headlines constructive — confirmation signal active'},
+  UNCERTAIN:          {label:'UNCERTAIN',color:'#94a3b8',desc:'Mixed signals — no dominant sentiment trend yet'},
+};
+
+// Convert Groq's sentiment float (-1..+1) + contrarian flag to a 6-label bucket
+function _groqSentToLabel(sent, contrarian){
+  if(sent == null || isNaN(sent)) return 'NEUTRAL';
+  if(sent < -0.6) return 'CAPITULATION';
+  if(sent < -0.2) return 'FEAR';
+  if(sent < 0)    return 'UNCERTAINTY';
+  if(sent < 0.2)  return 'NEUTRAL';
+  if(sent < 0.6)  return 'RECOVERY';
+  return 'EUPHORIA';
+}
+
+function _groqPhase(mix){
+  if(!mix) return 'UNCERTAIN';
+  const tot=Object.values(mix).reduce((a,b)=>a+b,0);
+  if(!tot) return 'UNCERTAIN';
+  const fearPct=((mix.FEAR||0)+(mix.CAPITULATION||0))/tot*100;
+  const recovPct=((mix.RECOVERY||0)+(mix.EUPHORIA||0))/tot*100;
+  if(fearPct>=50) return 'PEAK_FEAR';
+  if(recovPct>=50) return 'RECOVERY_CONFIRMED';
+  if(recovPct>=30 && fearPct<45) return 'TRANSITIONING';
+  return 'UNCERTAIN';
+}
+
+// Called after classifyHeadlinesWithGroq populates groqClassifications — derives
+// labels from the sentiment floats and updates the daily mix history.
+function updateGroqMixFromExisting(classifications){
+  if(!classifications || !classifications.length) return;
+  const mix={CAPITULATION:0,FEAR:0,UNCERTAINTY:0,NEUTRAL:0,RECOVERY:0,EUPHORIA:0};
+  const labeled=classifications.map(c=>{
+    const l=_groqSentToLabel(c?.sentiment, c?.contrarian);
+    mix[l]++;
+    return l;
+  });
+  const today=new Date().toISOString().slice(0,10);
+  let hist=[];
+  try{ hist=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]'); }catch(e){}
+  hist=hist.filter(e=>e.date!==today);
+  hist.push({date:today,mix,phase:_groqPhase(mix),total:classifications.length});
+  if(hist.length>14) hist=hist.slice(-14);
+  try{ localStorage.setItem('btf-groq-mix',JSON.stringify(hist)); }catch(e){}
+  renderGroqSentimentMix(hist, labeled);
+}
+
+function renderGroqSentimentMix(mixHistory, labeledArr){
+  const panel=document.getElementById('groq-sentiment-panel');
+  const content=document.getElementById('groq-sentiment-content');
+  const badge=document.getElementById('groq-shift-badge');
+  if(!panel||!content) return;
+  if(!mixHistory||!mixHistory.length){
+    panel.style.display='none';
+    return;
+  }
+  panel.style.display='block';
+
+  const today=mixHistory[mixHistory.length-1];
+  const phase=_groqPhase(today.mix);
+  const pi=GROQ_PHASES[phase]||GROQ_PHASES.UNCERTAIN;
+  const tot=today.total||Object.values(today.mix).reduce((a,b)=>a+b,0)||1;
+
+  // Shift confirmation: had PEAK_FEAR in last 7 days, now RECOVERY_CONFIRMED
+  const recentPhases=mixHistory.slice(-7).map(e=>e.phase);
+  const shiftConfirmed=recentPhases.some(p=>p==='PEAK_FEAR') && phase==='RECOVERY_CONFIRMED';
+  if(badge) badge.style.display=shiftConfirmed?'inline':'none';
+
+  const mixBar=GROQ_LABELS.map(l=>{
+    const c=today.mix[l]||0;
+    if(!c) return '';
+    const p=(c/tot*100).toFixed(0);
+    const col=GROQ_COLORS[l];
+    const inner=(+p>=12)?'<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:8px;font-weight:800;color:rgba(0,0,0,0.7);white-space:nowrap">'+p+'%</span>':'';
+    return '<div title="'+l+': '+c+' ('+p+'%)" style="flex:'+p+';min-width:4px;background:'+col+';position:relative">'+inner+'</div>';
+  }).join('');
+
+  const legend=GROQ_LABELS.map(l=>{
+    const c=today.mix[l]||0;
+    if(!c) return '';
+    const col=GROQ_COLORS[l];
+    const p=Math.round(c/tot*100);
+    return '<span style="font-size:9px;background:'+col+'18;color:'+col+';border:1px solid '+col+'40;padding:2px 8px;border-radius:10px;font-weight:700;white-space:nowrap">'+l+' '+p+'%</span>';
+  }).join('');
+
+  let timelineHtml='';
+  if(mixHistory.length>1){
+    const timelineRows=mixHistory.slice().reverse().map((e,i)=>{
+      const et=e.total||Object.values(e.mix).reduce((a,b)=>a+b,0)||1;
+      const ep=GROQ_PHASES[e.phase]||GROQ_PHASES.UNCERTAIN;
+      const isToday=(i===0);
+      const segBar=GROQ_LABELS.map(l=>{
+        const c=e.mix[l]||0;
+        if(!c) return '';
+        return '<div title="'+l+'" style="flex:'+(c/et*100).toFixed(0)+';min-width:2px;background:'+GROQ_COLORS[l]+'"></div>';
+      }).join('');
+      return '<div class="gsm-timeline-row" style="background:'+(isToday?'rgba(34,211,238,0.04)':'transparent')+';border-radius:'+(isToday?'4px':'0')+';padding:'+(isToday?'6px 8px':'5px 0')+'"><span style="font-size:9px;font-family:var(--mono);color:rgba(255,255,255,'+(isToday?'0.6':'0.2')+');min-width:52px">'+e.date.slice(5)+'</span><div style="flex:1;display:flex;height:12px;border-radius:3px;overflow:hidden;gap:1px">'+segBar+'</div><span class="gsm-phase-label" style="color:'+ep.color+'">'+ep.label+'</span></div>';
+    }).join('');
+    const legendItems=GROQ_LABELS.map(l=>
+      '<span style="font-size:8px;display:flex;align-items:center;gap:3px;color:rgba(255,255,255,0.3)"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+GROQ_COLORS[l]+'"></span>'+l+'</span>'
+    ).join('');
+    timelineHtml='<div style="margin-bottom:14px"><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Phase Timeline ('+mixHistory.length+' days)</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+legendItems+'</div>'+timelineRows+'</div>';
+  }
+
+  const shiftBanner=shiftConfirmed
+    ?'<div style="padding:10px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;margin-bottom:14px;display:flex;align-items:center;gap:12px"><div style="font-size:22px;flex-shrink:0">🟢</div><div><div style="font-size:13px;font-weight:800;color:#22c55e;margin-bottom:2px">SENTIMENT SHIFT CONFIRMED</div><div style="font-size:10px;color:rgba(255,255,255,0.5)">Headlines shifted from majority-FEAR to majority-RECOVERY — independent confirmation signal for the bottom.</div></div></div>'
+    :'';
+
+  const headerHtml='<div class="gsm-header"><div><div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Sentiment Phase</div><div style="font-size:20px;font-weight:900;color:'+pi.color+'">'+pi.label+'</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px">'+pi.desc+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:rgba(255,255,255,0.2);margin-bottom:6px">'+tot+' headlines &middot; '+today.date+'</div><div class="gsm-legend">'+legend+'</div></div></div>';
+
+  const barHtml='<div style="display:flex;height:22px;border-radius:5px;overflow:hidden;margin-bottom:16px">'+mixBar+'</div>';
+
+  // Keyword-source annotation
+  const isKw=!!(today.source==='keyword');
+  const kwNote=isKw
+    ? '<div style="font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:10px;font-style:italic">Keyword-based classification — add Groq API key for AI-powered labels</div>'
+    : '';
+
+  // Sentiment velocity
+  let velocityHtml='';
+  if(typeof calcSentimentVelocity==='function' && mixHistory.length>=3){
+    const vel=calcSentimentVelocity(mixHistory);
+    if(vel){
+      const vpc=vel.phase==='PEAK FEAR'?'#ef4444':(vel.phase==='FEAR FADING'||vel.phase==='RECOVERY BUILDING'||vel.phase==='RECOVERY DOMINANT')?'#22c55e':'#f59e0b';
+      const fsSign=vel.fearSlope>0?'+':'';
+      const rsSign=vel.recoverySlope>0?'+':'';
+      const prevEntry=mixHistory.length>=2?mixHistory[mixHistory.length-2]:null;
+      const prevFearN=prevEntry?((prevEntry.mix.CAPITULATION||0)+(prevEntry.mix.FEAR||0)):null;
+      const curFearN=(today.mix.CAPITULATION||0)+(today.mix.FEAR||0);
+      const prevRecovN=prevEntry?((prevEntry.mix.RECOVERY||0)+(prevEntry.mix.EUPHORIA||0)):null;
+      const curRecovN=(today.mix.RECOVERY||0)+(today.mix.EUPHORIA||0);
+      velocityHtml='<div style="padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">'
+        +'<div><div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Velocity Phase</div>'
+        +'<div style="font-size:13px;font-weight:800;color:'+vpc+'">'+vel.phase+'</div></div>'
+        +'<div><div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Fear Trend</div>'
+        +'<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+(vel.fearSlope<-2?'#22c55e':vel.fearSlope>2?'#ef4444':'#94a3b8')+'">'+fsSign+vel.fearSlope.toFixed(1)+'%/scan'+(prevFearN!==null?' · was '+prevFearN+' → '+curFearN:'')+'</div></div>'
+        +'<div><div style="font-size:8px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Recovery Trend</div>'
+        +'<div style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+(vel.recoverySlope>2?'#22c55e':vel.recoverySlope<-2?'#ef4444':'#94a3b8')+'">'+rsSign+vel.recoverySlope.toFixed(1)+'%/scan'+(prevRecovN!==null?' · was '+prevRecovN+' → '+curRecovN:'')+'</div></div>'
+        +'</div>';
+    }
+  }
+
+  content.innerHTML=shiftBanner+headerHtml+kwNote+barHtml+velocityHtml+timelineHtml;
+}
+
+// On page load, show any existing Groq or keyword-based mix data from localStorage
+(function(){
+  try{
+    const hist=JSON.parse(localStorage.getItem('btf-groq-mix')||'[]');
+    if(hist.length>0){ renderGroqSentimentMix(hist, null); return; }
+    const khist=JSON.parse(localStorage.getItem('btf-keyword-mix')||'[]');
+    if(khist.length>0) renderGroqSentimentMix(khist, null);
+  }catch(e){}
+})();
+
 // ===== AUTO-FETCH ON PAGE LOAD =====
 // Propagate any cached pulseState to all tabs (war/tariff cycles, scores, charts)
 propagateData();
 recalcScore();
 try{ renderPositionSizer(); }catch(e){}
+try{ renderScenarioSimulator(); }catch(e){ console.error('[init] scenario sim:', e); }
 try{
   // Load adaptive weights from cache so scoring uses them before first fetch
   const _awCached = localStorage.getItem('btf-adaptive-weights');
