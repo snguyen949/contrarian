@@ -961,6 +961,9 @@
     <!-- Conviction Meter — unified rating from all systems -->
     <div id="conviction-meter-panel" style="margin-top:12px"></div>
 
+    <!-- Capitulation Bottom Timer — volume-climax trigger + confirmation checklist -->
+    <div id="capitulation-timer-panel" class="panel" style="margin-top:12px;display:none"></div>
+
     <!-- SCORE TRAJECTORY — tracks score over time, detects rollover -->
     <div id="score-trajectory" class="panel" style="display:none;border-color:rgba(168,85,247,0.15)"></div>
 
@@ -1606,6 +1609,45 @@ function calcNearestSupport(price, levels) {
 
 // Thresholds for contrarian scoring — cluster-based aggregation
 // A=Fear Level (0.20) | B=Vol Structure (0.35) | C=Flow/Positioning (0.25) | D=Credit/Macro (0.20)
+// ===== CAPITULATION BOTTOM TIMER =====
+// Capitulation volume (a sharp volume surge that marks the exhaustion of a trend) is the
+// TRIGGER; Extreme Fear, breadth washout (majority of stocks < 200DMA), crushed RSI and a
+// VIX spike are the CONFIRMATIONS. Shared by the bonus signal and the render panel so the
+// score and the UI can never disagree.
+function capitulationState(){
+  // Best volume-vs-20d-average ratio across the major indices (whichever is most extreme)
+  const vols=[
+    ['SPY', pulseState.spyVol, pulseState.spy20dAvgVol],
+    ['QQQ', pulseState.qqqVol, pulseState.qqq20dAvgVol],
+    ['IWM', pulseState.iwmVol, pulseState.iwm20dAvgVol],
+    ['NQ',  pulseState.nqVol,  pulseState.nq20dAvgVol],
+  ];
+  let volRatio=null, volSrc=null;
+  vols.forEach(([nm,v,a])=>{ if(v&&a&&a>0){ const r=v/a; if(volRatio===null||r>volRatio){ volRatio=r; volSrc=nm; } } });
+  const volFired = volRatio!==null && volRatio>=1.8;   // capitulation-grade surge
+  const volGen   = volRatio!==null && volRatio>=3.0;   // generational (April 2025 / COVID tier)
+
+  // Confirmations
+  const rsiVal = (pulseState.rsiSPY!=null?pulseState.rsiSPY:(pulseState.rsi14!=null?pulseState.rsi14:null));
+  const conf = {
+    fear:    (pulseState.cnnFG!=null&&pulseState.cnnFG<=20)||(pulseState.cryptoFG!=null&&pulseState.cryptoFG<=15)||(pulseState.aaiiBear!=null&&pulseState.aaiiBear>=50),
+    breadth: pulseState.pctAbove200dma!=null && pulseState.pctAbove200dma<=40,
+    rsi:     rsiVal!=null && rsiVal<=32,
+    vix:     pulseState.vix!=null && pulseState.vix>=32,
+  };
+  const confirms=['fear','breadth','rsi','vix'].filter(k=>conf[k]).length;
+
+  // Bonus — gated on capitulation volume AND at least one confirmation. A volume surge with
+  // no fear/oversold context is likely distribution (e.g. a blow-off top or quad-witching),
+  // not a selling climax, so it scores 0. Max +1.5 keeps it meaningful but not dominant.
+  let score=0;
+  if(volFired && confirms>=1){
+    const base = volRatio>=3?0.9:volRatio>=2.5?0.7:volRatio>=2?0.5:0.35;
+    score = Math.min(1.5, base + confirms*0.28);
+  }
+  return { volRatio, volSrc, volFired, volGen, rsiVal, conf, confirms, score };
+}
+
 const signals = [
   // ===== CLUSTER A — Fear Level (weight 0.20) =====
   {id:'cnnFG', cluster:'A', name:'CNN Fear & Greed', type:'manual', threshold:'≤ 14', score:()=> pulseState.cnnFG!==null && pulseState.cnnFG<=14 ? 1 : pulseState.cnnFG!==null && pulseState.cnnFG<=25 ? 0.5 : 0, reading:()=>pulseState.cnnFG, color:()=>pulseState.cnnFG<=14?'#ef4444':pulseState.cnnFG<=25?'#f97316':pulseState.cnnFG<=40?'#f59e0b':'#22c55e', interpret:()=>pulseState.cnnFG<=14?'EXTREME FEAR — contrarian buy zone':pulseState.cnnFG<=25?'FEAR — approaching buy zone':'NOT fearful enough yet'},
@@ -1634,12 +1676,19 @@ const signals = [
     color:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence).length,db=r.filter(x=>x.confluenceCount>=2).length; return tr>=2?'#22c55e':tr>=1?'#4ade80':db>=3?'#f59e0b':db>=2?'#fb923c':'#94a3b8'; }catch(e){return '#94a3b8';} },
     interpret:()=>{ try{ const r=detectTripleConfluence(); const tr=r.filter(x=>x.tripleConfluence),db=r.filter(x=>x.confluenceCount>=2); if(tr.length>=2) return '🟢🟢🟢 STRONGEST BUY — '+tr.length+' instruments at triple confluence. Historically 100% hit rate.'; if(tr.length>=1) return '🟢🟢🟢 TRIPLE CONFLUENCE on '+tr.map(x=>x.inst.ticker).join(', ')+' — support+oversold+vol spike aligned. High conviction buy.'; if(db.length>=3) return '🟢🟢⚪ CROSS-DOUBLE ('+db.length+'/5 instruments) — broad-based signal, treated as triple.'; if(db.length>=2) return '🟢🟢⚪ DOUBLE CONFLUENCE on '+db.length+' instruments — strong signal, watch for third condition.'; return '⚪⚪⚪ NO CONFLUENCE — conditions not yet aligned across instruments.'; }catch(e){return 'No data';} }
   },
+  {id:'capitulationBottom', cluster:null, name:'Capitulation Bottom ★★', type:'auto', threshold:'Vol ≥2× + confirmations',
+    score:()=>{ try{ return capitulationState().score; }catch(e){ return 0; } },
+    reading:()=>{ try{ const c=capitulationState(); return c.volRatio!=null?(c.volRatio.toFixed(1)+'× · '+c.confirms+'/4'):null; }catch(e){ return null; } },
+    color:()=>{ try{ const c=capitulationState(); return c.score>=1.2?'#22c55e':c.score>=0.6?'#4ade80':c.volFired?'#f59e0b':'#94a3b8'; }catch(e){ return '#94a3b8'; } },
+    interpret:()=>{ try{ const c=capitulationState(); if(!c.volFired) return 'No capitulation volume — no selling climax yet'; if(c.confirms===0) return 'High volume but no fear/oversold confirmation — may be distribution, not a selling climax'; const lvl=c.volGen?'GENERATIONAL volume':'Capitulation volume'; return '🔊 '+lvl+' ('+c.volRatio.toFixed(1)+'× avg on '+c.volSrc+') + '+c.confirms+'/4 confirmations — selling-climax bottom, contrarian buy zone'; }catch(e){ return 'No data'; } }
+  },
 ];
 
 // Manual input fields config — only metrics that contribute to Buy rating and may need manual override
 const manualFields = [
   {id:'cnnFG',label:'CNN Fear & Greed (0-100)',placeholder:'e.g. 27',src:'Auto-fetched — manual override only'},
   {id:'putCallRatio',label:'Put/Call Ratio (CBOE)',placeholder:'e.g. 1.25',src:'cboe.com/data/market-statistics'},
+  {id:'pctAbove200dma',label:'% Stocks > 200-DMA (breadth)',placeholder:'e.g. 32',src:'Auto-fetched (often unavailable) — barchart.com $SPXA200R'},
 ];
 
 // Direction-aware detection — tracks last 5 values per indicator
@@ -1755,9 +1804,11 @@ function recalcScore(){
   const boost=pulseState.contrarianBoost||0;
   // Triple Confluence bonus — uncapped signal, added directly (max +2.0)
   const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
+  // Capitulation bottom bonus — uncapped signal, added directly (max +1.5)
+  const capBonus=(signals.find(s=>s.id==='capitulationBottom')?.score())||0;
   // Velocity boost: +0.5 when previous fetch confirmed score rollover (lag-1 design)
   const velBoost=(pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
-  const total=Math.min(10, rawScore*10 + boost + tcBonus + velBoost);
+  const total=Math.min(10, rawScore*10 + boost + tcBonus + capBonus + velBoost);
   pulseState.score=total;
   // BUY gate: A + B + (C or D) must all be > 0.5
   const buyGate=clusterMax.A>0.5 && clusterMax.B>0.5 && (clusterMax.C>0.5||clusterMax.D>0.5);
@@ -1944,7 +1995,8 @@ function updateActionCard(){
   const boost=pulseState.contrarianBoost||0;
   const ftMult=pulseState.followThrough?.multiplier||1.0;
   const tcBonus=(signals.find(s=>s.id==='tripleConfluence')?.score())||0;
-  const total=Math.min(10,rawScore*10*ftMult+boost+tcBonus);
+  const capBonus=(signals.find(s=>s.id==='capitulationBottom')?.score())||0;
+  const total=Math.min(10,rawScore*10*ftMult+boost+tcBonus+capBonus);
   const buyGate=clusterMax.A>0.5&&clusterMax.B>0.5&&(clusterMax.C>0.5||clusterMax.D>0.5);
   const regKey=classifyRegime();
   const reg=REGIMES[regKey];
@@ -4132,6 +4184,7 @@ function propagateData(){
   if(typeof renderBottomConfirmation==='function') renderBottomConfirmation();
   if(typeof renderBottomState==='function') renderBottomState();
   if(typeof renderConvictionMeter==='function') renderConvictionMeter();
+  if(typeof renderCapitulationTimer==='function') renderCapitulationTimer();
   if(typeof renderCrossInstrumentMatrix==='function') renderCrossInstrumentMatrix();
 }
 
@@ -8009,11 +8062,13 @@ function calcBuyRating() {
   // Triple confluence uncapped bonus
   const tcSig = signals.find(s => s.id === 'tripleConfluence');
   const tcScore = tcSig ? tcSig.score() : 0;
+  // Capitulation bottom uncapped bonus
+  const capBonus = (signals.find(s => s.id === 'capitulationBottom')?.score()) || 0;
 
   const boost = pulseState.contrarianBoost || 0;
   const ftMult = pulseState.followThrough?.multiplier || 1.0;
 
-  let adjustedScore = (sentimentRaw + tcScore + boost) * ftMult;
+  let adjustedScore = (sentimentRaw + tcScore + capBonus + boost) * ftMult;
 
   // Bottom state bonus
   let bsBonus = 0, bsState = 0, bsDays = 0;
@@ -8038,6 +8093,87 @@ function calcBuyRating() {
   const conviction = Math.min(100, Math.round(finalRating / 10 * 60 + tcScore / 2.0 * 40));
 
   return { finalRating, conviction, sentimentRaw, tcScore, ftMult, bsBonus, bsState, bsDays, boost, detectedType, thr, clusterMax };
+}
+
+// ===== CAPITULATION BOTTOM TIMER PANEL =====
+function renderCapitulationTimer() {
+  const el = document.getElementById('capitulation-timer-panel');
+  if (!el) return;
+  let c;
+  try { c = capitulationState(); } catch(e) { el.style.display='none'; return; }
+
+  // Hide entirely until we have volume data to judge
+  if (c.volRatio === null) { el.style.display='none'; return; }
+  el.style.display='block';
+
+  const fmtRatio = c.volRatio.toFixed(1) + '×';
+  // Headline verdict
+  let verdict, vColor, vSub;
+  if (!c.volFired) {
+    verdict = 'NO CAPITULATION'; vColor = '#94a3b8';
+    vSub = 'Volume ' + fmtRatio + ' of 20d avg — no selling climax. Wait for a ≥2× surge.';
+  } else if (c.confirms === 0) {
+    verdict = 'VOLUME, NO CONTEXT'; vColor = '#f59e0b';
+    vSub = fmtRatio + ' surge on ' + c.volSrc + ', but 0/4 fear confirmations — could be distribution, not a bottom.';
+  } else if (c.confirms >= 3 && c.volGen) {
+    verdict = 'GENERATIONAL CAPITULATION'; vColor = '#22c55e';
+    vSub = fmtRatio + ' on ' + c.volSrc + ' + ' + c.confirms + '/4 confirmations. This is where fortunes are made.';
+  } else if (c.confirms >= 2) {
+    verdict = 'CAPITULATION CONFIRMED'; vColor = '#22c55e';
+    vSub = fmtRatio + ' on ' + c.volSrc + ' + ' + c.confirms + '/4 confirmations — selling climax, contrarian buy zone.';
+  } else {
+    verdict = 'CAPITULATION FORMING'; vColor = '#4ade80';
+    vSub = fmtRatio + ' on ' + c.volSrc + ' + ' + c.confirms + '/4 confirmations — watch for more to stack.';
+  }
+
+  // Volume gauge (1× … 3×+)
+  const volPct = Math.max(0, Math.min(100, ((c.volRatio - 1) / 2) * 100));
+  const volBarColor = c.volGen ? '#22c55e' : c.volFired ? '#f59e0b' : '#94a3b8';
+
+  // Confirmation rows
+  const rsiTxt = c.rsiVal!=null ? c.rsiVal.toFixed(0) : '—';
+  const breadthTxt = pulseState.pctAbove200dma!=null ? pulseState.pctAbove200dma.toFixed(0)+'% >200DMA' : 'no data';
+  const fearTxt = (()=>{ const parts=[]; if(pulseState.cnnFG!=null)parts.push('CNN '+pulseState.cnnFG); if(pulseState.cryptoFG!=null)parts.push('Crypto '+pulseState.cryptoFG); if(pulseState.aaiiBear!=null)parts.push('AAII '+pulseState.aaiiBear+'%'); return parts.length?parts.join(' · '):'no data'; })();
+  const vixTxt = pulseState.vix!=null ? 'VIX '+pulseState.vix.toFixed(1) : 'no data';
+
+  const rows = [
+    { on:c.conf.fear,    label:'Extreme Fear',            need:'CNN ≤20 · Crypto ≤15 · AAII ≥50%', val:fearTxt },
+    { on:c.conf.breadth, label:'Majority < 200-DMA',       need:'≤40% of stocks above 200DMA',       val:breadthTxt },
+    { on:c.conf.rsi,     label:'RSI Crushed',              need:'SPY RSI(14) ≤32',                   val:'RSI '+rsiTxt },
+    { on:c.conf.vix,     label:'VIX Spiking',              need:'VIX ≥32',                           val:vixTxt },
+  ];
+  const rowsHTML = rows.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.05)">
+      <span style="font-size:14px;width:18px;text-align:center;color:${r.on?'#22c55e':'rgba(255,255,255,0.25)'}">${r.on?'✓':'○'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:${r.on?'rgba(255,255,255,0.85)':'rgba(255,255,255,0.4)'}">${r.label}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.3)">${r.need}</div>
+      </div>
+      <span style="font-size:10px;font-family:var(--mono);color:${r.on?'#4ade80':'rgba(255,255,255,0.4)'};white-space:nowrap">${r.val}</span>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="panel-title" style="color:${vColor}">🔊 Capitulation Bottom Timer ${c.score>0?`<span style="font-size:9px;color:#22c55e;font-family:var(--mono)">+${c.score.toFixed(2)} to score</span>`:''}</div>
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:4px 0 10px">
+      <span style="font-size:17px;font-weight:800;color:${vColor}">${verdict}</span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.45)">${c.confirms}/4 confirmations</span>
+    </div>
+    <p style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;margin:0 0 12px">${vSub}</p>
+
+    <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.3)">
+      <span>CAPITULATION VOLUME (${c.volSrc||'—'})</span>
+      <span style="font-family:var(--mono);color:${volBarColor};font-weight:700">${fmtRatio} of 20d avg</span>
+    </div>
+    <div style="height:10px;background:rgba(255,255,255,0.06);border-radius:5px;overflow:hidden;position:relative">
+      <div style="width:${volPct}%;height:100%;border-radius:5px;background:${volBarColor};transition:width 0.6s ease"></div>
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25)"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:8px;color:rgba(255,255,255,0.2);margin-top:3px">
+      <span>1×</span><span>2× capitulation</span><span>3×+ generational</span>
+    </div>
+
+    <div style="margin-top:12px">${rowsHTML}</div>
+    <p style="font-size:9px;color:rgba(255,255,255,0.22);margin:10px 0 0;line-height:1.5">Volume climax is the trigger (trend exhaustion); fear, breadth, RSI and VIX are the confirmations. A surge with no confirmation is treated as distribution, not a bottom, and adds nothing to the score.</p>`;
 }
 
 function renderConvictionMeter() {
@@ -8473,8 +8609,10 @@ function calcSimulatedScore(overrides){
     const boost = pulseState.contrarianBoost || 0;
     let tcBonus = 0;
     try { tcBonus = (signals.find(s=>s.id==='tripleConfluence')?.score()) || 0; } catch(e) {}
+    let capBonus = 0;
+    try { capBonus = (signals.find(s=>s.id==='capitulationBottom')?.score()) || 0; } catch(e) {}
     const velBoost = (pulseState.scoreVelocity && pulseState.scoreVelocity.isBuySignal) ? 0.5 : 0;
-    const total = Math.min(10, rawScore*10 + boost + tcBonus + velBoost);
+    const total = Math.min(10, rawScore*10 + boost + tcBonus + capBonus + velBoost);
     result = { score: total, rawScore, clusterMax, contribs: contribs.sort((a,b)=>b.score - a.score) };
   } finally {
     keys.forEach(k => { pulseState[k] = saved[k]; });
